@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Глобални настройки */
+html {
+  scroll-behavior: smooth;
+  background-color: #fcf9f2; /* Лек крем, за да не е чисто бяло */
+}
+
+/* Ако искаш да си сигурен, че скролбарът е красив (опционално) */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4af37; /* Твоят златен цвят */
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0f172a; /* Твоето тъмносиньо */
+}
+
+.inquiry-input {
+  width: 100%;
+  padding: 1rem 1.2rem;
+  background: #f3f4f6;
+  border: 2px solid transparent;
+  border-radius: 1rem;
+  outline: none;
+  font-size: 0.95rem;
+  transition: 0.3s;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.inquiry-input:focus {
+  border-color: #c5a35d;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(197, 163, 93, 0.1);
+}
+
+.inquiry-input::placeholder {
+  color: #9ca3af;
+}
