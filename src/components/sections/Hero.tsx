@@ -46,8 +46,9 @@ export default function Hero() {
                 alt="Hero Background"
                 fill
                 className="object-cover"
-                priority
+                priority={true}
                 sizes="100vw"
+                fetchPriority="high"
              />
           </motion.div>
         </AnimatePresence>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Facebook, Link as LinkIcon, Smartphone, Share2 } from 'lucide-react';
+import { Facebook, Link as LinkIcon, Smartphone, Share2, Check } from 'lucide-react'; // 👈 Добави Check
 
 interface ShareProps {
   url: string;
@@ -8,22 +8,14 @@ interface ShareProps {
 
 export default function ShareButtons({ url, title }: ShareProps) {
   const [isMobileView, setIsMobileView] = useState(false);
+  const [copied, setCopied] = useState(false); // 👈 Ново състояние за тикчето
 
   useEffect(() => {
-    // Проверка:
-    // 1. Поддържа ли устройството Native Share?
-    // 2. Екранът по-малък ли е от 768px (стандарт за мобилни/таблети)?
     const supportsShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-    const isSmallScreen = window.innerWidth < 1024; // < 1024 хваща телефони и вертикални таблети
-
-    if (supportsShare && isSmallScreen) {
-      setIsMobileView(true);
-    } else {
-      setIsMobileView(false);
-    }
+    const isSmallScreen = window.innerWidth < 1024;
+    setIsMobileView(supportsShare && isSmallScreen);
   }, []);
 
-  // --- ЛОГИКА ЗА ТЕЛЕФОН (Native Share) ---
   const handleNativeShare = async () => {
     try {
       await navigator.share({
@@ -36,8 +28,6 @@ export default function ShareButtons({ url, title }: ShareProps) {
     }
   };
 
-  // --- ЛОГИКА ЗА КОМПЮТЪР (Desktop) ---
-  
   const shareFacebook = () => {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
   };
@@ -46,9 +36,16 @@ export default function ShareButtons({ url, title }: ShareProps) {
     window.open(`viber://forward?text=${encodeURIComponent(title + " " + url)}`, '_blank');
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(url);
-    alert('Линкът е копиран!');
+  // --- ОБНОВЕНАТА ФУНКЦИЯ ЗА КОПИРАНЕ ---
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      // Махаме тикчето след 2 секунди
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Грешка при копиране:', err);
+    }
   };
 
   return (
@@ -57,7 +54,6 @@ export default function ShareButtons({ url, title }: ShareProps) {
         Сподели с приятели
       </p>
 
-      {/* АКО Е ТЕЛЕФОН -> ЕДИН БУТОН */}
       {isMobileView ? (
         <button 
           onClick={handleNativeShare}
@@ -67,10 +63,7 @@ export default function ShareButtons({ url, title }: ShareProps) {
           Сподели офертата
         </button>
       ) : (
-        /* АКО Е КОМПЮТЪР -> 3 БУТОНА */
         <div className="flex gap-2">
-          
-          {/* Facebook */}
           <button 
             onClick={shareFacebook}
             className="p-3 bg-[#1877F2] text-white rounded-xl hover:opacity-90 transition-opacity shadow-lg"
@@ -79,7 +72,6 @@ export default function ShareButtons({ url, title }: ShareProps) {
             <Facebook size={18} />
           </button>
 
-          {/* Viber */}
           <button 
             onClick={shareViber}
             className="p-3 bg-[#7360f2] text-white rounded-xl hover:opacity-90 transition-opacity shadow-lg"
@@ -88,13 +80,19 @@ export default function ShareButtons({ url, title }: ShareProps) {
             <Smartphone size={18} />
           </button>
 
-          {/* Copy Link */}
+          {/* --- БУТОНЪТ С ТИКЧЕТО --- */}
           <button 
             onClick={copyLink}
-            className="p-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors shadow-sm"
-            title="Копирай линка"
+            className={`p-3 rounded-xl transition-all duration-300 shadow-sm flex items-center justify-center min-w-[44px] ${
+              copied ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+            title={copied ? "Копирано!" : "Копирай линка"}
           >
-            <LinkIcon size={18} />
+            {copied ? (
+              <Check size={18} className="animate-in zoom-in duration-300" />
+            ) : (
+              <LinkIcon size={18} />
+            )}
           </button>
         </div>
       )}
