@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
+import { GoogleAnalytics } from '@next/third-parties/google'
 
 // 1. ШРИФТОВЕ
 const inter = Inter({ 
@@ -144,6 +145,7 @@ export default function RootLayout({
         />
 
         <LayoutWrapper>{children}</LayoutWrapper>
+        <GoogleAnalytics gaId="G-FXLJBHSJ6K" /> {/* 👈 Сложи твоя ID тук */}
       </body>
     </html>
   );
