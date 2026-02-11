@@ -6,6 +6,7 @@ import { ArrowRight, ChevronDown, MapPin } from 'lucide-react';
 import Image from 'next/image';
 
 const heroImages = [
+  "/hero/thailand.webp",
   "/hero/australia.webp",
   "/hero/china.webp",
   "/hero/peru.webp", 
