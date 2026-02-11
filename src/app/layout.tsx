@@ -14,7 +14,7 @@ const inter = Inter({
 const playfair = Playfair_Display({ 
   subsets: ["latin", "cyrillic"],
   variable: "--font-serif",
-  weight: ["400", "500", "600", "700", "800", "900"], // Добавих още дебелини за всеки случай
+  weight: ["400", "700"], // Добавих още дебелини за всеки случай
   display: "swap",
 });
 

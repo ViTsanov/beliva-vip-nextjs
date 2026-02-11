@@ -1,5 +1,3 @@
-"use client";
-
 import { Suspense } from 'react';
 import Hero from '@/components/sections/Hero';
 import ToursGrid from '@/components/sections/ToursGrid'; // или components/sections/ToursGrid
@@ -19,9 +17,9 @@ export default function HomePage() {
       <TopDestinations />
 
       {/* 2. ТЪРСАЧКА + ОФЕРТИ - Започват веднага след Hero-то */}
-      <div className="bg-[#fcf9f2]"> 
+      <div className="bg-[#fcf9f2] min-h-[600px]"> 
 
-         <Suspense fallback={<div className="text-center py-20">Зареждане на оферти...</div>}>
+         <Suspense fallback={<div className="text-center py-20 ">Зареждане на оферти...</div>}>
             <ToursGrid />
          </Suspense>
       </div>

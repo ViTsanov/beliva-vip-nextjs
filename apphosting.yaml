@@ -1,6 +1,6 @@
 # apphosting.yaml
 runConfig:
-  minInstances: 0
+  minInstances: 1
   maxInstances: 10
   memoryPerInstanceMiB: 512
 
