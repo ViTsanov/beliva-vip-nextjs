@@ -41,8 +41,6 @@ const jsonLd = {
   },
   "geo": {
     "@type": "GeoCoordinates",
-    "latitude": 42.6977, // ⚠️ СМЕНИ С ТВОИТЕ КООРДИНАТИ
-    "longitude": 23.3219
   },
   "priceRange": "$$$",
   "openingHoursSpecification": [

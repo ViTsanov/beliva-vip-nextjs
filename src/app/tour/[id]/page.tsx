@@ -2,6 +2,7 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import type { Metadata } from 'next';
 import TourClient from "@/components/TourClient"; // 👈 Това е компонентът със стария дизайн
+import TourSchema from "@/components/TourSchema"; // 👈 Импортирай
 
 type Props = {
   params: { id: string }
@@ -90,5 +91,11 @@ export default async function TourPage({ params }: Props) {
   }
 
   // Подаваме данните на Клиентския компонент (който държи дизайна)
-  return <TourClient tourData={tour} relatedPostData={relatedPost} id={resolvedParams.id} />;
+  
+  return (
+    <>
+      <TourSchema tour={tour} /> {/* 👈 Сложи го тук най-горе */}
+      <TourClient tourData={tour} relatedPostData={relatedPost} id={resolvedParams.id} />
+    </>
+  );
 }

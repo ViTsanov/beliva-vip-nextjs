@@ -5,9 +5,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**", // 👈 Този символ (**) разрешава снимки от ВСЕКИ домейн
+        hostname: "**", // Специфично за Firebase
       },
+
     ],
+    formats: ['image/avif', 'image/webp'] // Това е супер! AVIF е най-лекият формат в момента.
   },
 };
 
