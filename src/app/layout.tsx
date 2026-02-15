@@ -33,16 +33,6 @@ const jsonLd = {
   "@id": SITE_URL,
   "url": SITE_URL,
   "telephone": PHONE_NUMBER,
-  "address": {
-    "@type": "PostalAddress",
-    "streetAddress": "", // ⚠️ СМЕНИ ТОВА
-    "addressLocality": "",
-    "postalCode": "",
-    "addressCountry": "BG"
-  },
-  "geo": {
-    "@type": "GeoCoordinates",
-  },
   "priceRange": "$$$",
   "openingHoursSpecification": [
     {

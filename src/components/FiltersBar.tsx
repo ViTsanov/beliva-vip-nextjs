@@ -52,7 +52,8 @@ export default function FiltersBar({
                     <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-[0_20px_50px_rgba(197,163,93,0.15)] border border-brand-gold/20 mt-6 mx-1">
                         
                         {/* ... (Търсачката и Selects са същите като преди) ... */}
-                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
+                        {/* ПРОМЯНА: items-start за мобилни (ляво), md:items-end за десктоп (долу/дясно) */}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
                             <h3 className="text-xl font-serif italic text-brand-dark hidden lg:block">Намери своето пътешествие</h3>
                             <div className="flex w-full lg:w-auto items-center gap-4 flex-grow lg:justify-end">
                                 <div className="relative w-full lg:max-w-xl group">

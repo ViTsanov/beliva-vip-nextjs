@@ -50,6 +50,7 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
         
         <button 
             onClick={(e) => toggleFavorite(e, tour)} 
+            aria-label={isFav ? "Премахни от любими" : "Добави в любими"}
             className="absolute top-6 right-6 p-2 bg-white/20 backdrop-blur-md rounded-full hover:bg-white transition-all group/heart z-20"
         >
             <Heart size={20} className={`transition-colors ${isFav ? 'fill-red-500 text-red-500' : 'text-white group-hover/heart:text-red-500'}`} />
@@ -58,7 +59,7 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
         <div className="relative h-72 overflow-hidden bg-gray-200">
             <Image
                 src={tour.img}
-                alt={tour.title}
+                alt={`Екскурзия до ${tour.country} - ${tour.title}`}
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-110"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

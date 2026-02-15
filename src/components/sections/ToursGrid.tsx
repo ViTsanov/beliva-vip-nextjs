@@ -6,7 +6,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Filter, Globe2, X, SlidersHorizontal } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import FiltersBar from '@/components/FiltersBar';
-import TourCard from '@/components/tours/TourCard'; // 👈 Импортираме новия компонент
+import TourCard from '@/components/tours/TourCard';
 import { ITour } from '@/types';
 
 export default function ToursGrid() {
@@ -24,17 +24,15 @@ export default function ToursGrid() {
 
   const [tours, setTours] = useState<ITour[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
+  
+  // Loading е true по подразбиране, но няма да скрива целия екран
   const [loading, setLoading] = useState(true);
+
+  // Филтърът е затворен по подразбиране (според изискването)
+  // Тъй като не ползваме useEffect за отваряне, той няма да "премигва"
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  const hasActiveFilters = searchQuery || filterContinent || filterCountry || filterMonth || filterCategory;
-
-  // Автоматично отваряне при активен филтър
-  useEffect(() => {
-      if (hasActiveFilters) {
-          setIsFiltersOpen(true);
-      }
-  }, [hasActiveFilters]);
+  const hasActiveFilters = !!(searchQuery || filterContinent || filterCountry || filterMonth || filterCategory);
 
   // Зареждане на любими
   useEffect(() => {
@@ -49,23 +47,20 @@ export default function ToursGrid() {
     return () => window.removeEventListener('storage', loadFavorites);
   }, []);
 
-  // 🚀 ОПТИМИЗИРАНО ИЗВЛИЧАНЕ (Server-side filtering by Continent)
+  // 🚀 ИЗВЛИЧАНЕ НА ДАННИ
   useEffect(() => {
     const fetchTours = async () => {
-        setLoading(true);
+        setLoading(true); // Това вече не скрива филтъра, само картите
         try {
             const toursRef = collection(db, "tours");
-            
-            // Основна заявка: само публични
             let constraints = [where("status", "==", "public")];
 
-            // Ако е избран континент, филтрираме директно в базата (Performance boost)
             if (filterContinent) {
                 constraints.push(where("continent", "==", filterContinent));
             }
 
             const q = query(toursRef, ...constraints);
-            const snapshot = await getDocs(q); // Използваме getDocs (веднъж), не onSnapshot
+            const snapshot = await getDocs(q);
             
             const fetchedTours = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ITour[];
             setTours(fetchedTours);
@@ -77,18 +72,21 @@ export default function ToursGrid() {
     };
 
     fetchTours();
-  }, [filterContinent]); // Презареждаме само ако се смени континентът
+  }, [filterContinent]); // Реагира на смяна на континент
 
   const updateParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    
     if (key === 'continent') params.delete('country');
+    
+    // scroll: false предотвратява скачането на страницата нагоре
     router.push(`/?${params.toString()}`, { scroll: false });
   };
 
   const clearFilters = () => {
-    router.push('/', { scroll: false });
+    router.replace('/', { scroll: false });
   };
 
   const scrollToResults = () => {
@@ -97,7 +95,6 @@ export default function ToursGrid() {
          const y = resultsRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
          window.scrollTo({ top: y, behavior: 'smooth' });
      }
-     setIsFiltersOpen(false);
   };
 
   const toggleFavorite = (e: React.MouseEvent, tour: ITour) => {
@@ -114,7 +111,6 @@ export default function ToursGrid() {
     window.dispatchEvent(new Event("storage"));
   };
 
-  // Помощни функции за сортиране и филтриране
   const getAllDates = (tour: ITour) => {
     let dates = [...(tour.dates || [])];
     if (tour.date) {
@@ -126,7 +122,6 @@ export default function ToursGrid() {
 
   const parsePrice = (priceStr: string) => { return parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0; };
   
-  // Клиентско филтриране (за останалите полета)
   const filteredTours = useMemo(() => {
     let result = tours.filter(tour => {
       if (searchQuery) {
@@ -135,15 +130,11 @@ export default function ToursGrid() {
           const matchCountry = tour.country.toLowerCase().includes(query);
           if (!matchTitle && !matchCountry) return false;
       }
-      // Континентът вече е филтриран от базата, но за всеки случай:
       if (filterContinent && tour.continent !== filterContinent) return false;
-      
       if (filterCountry && tour.country !== filterCountry) return false;
-      
       if (filterCategory) {
           if (!tour.categories || !tour.categories.includes(filterCategory)) return false;
       }
-      
       if (filterMonth) {
         const tourDates = getAllDates(tour);
         if (!tourDates.some(date => date.split('-')[1] === filterMonth)) return false;
@@ -166,16 +157,16 @@ export default function ToursGrid() {
   
   let lastYear = "";
 
-  if (loading) return <div className="text-center py-20"><div className="inline-block w-8 h-8 border-4 border-brand-gold border-t-transparent rounded-full animate-spin"></div></div>;
+  // ❌ ВАЖНО: Премахнахме "if (loading) return ..." от тук!
+  // Това гарантира, че HEADER и Филтърът няма да изчезнат при зареждане.
 
   return (
     <section id="tours-grid" className="container mx-auto px-6 py-16 scroll-mt-20 relative overflow-hidden">
       
-      {/* 🎨 ФОНОВИ ЕФЕКТИ */}
       <div className="absolute top-20 left-0 w-96 h-96 bg-brand-gold/5 rounded-full blur-[120px] pointer-events-none -translate-x-1/2" />
       <div className="absolute bottom-40 right-0 w-80 h-80 bg-blue-900/5 rounded-full blur-[100px] pointer-events-none translate-x-1/2" />
 
-      {/* HEADER */}
+      {/* HEADER - Винаги видим */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12 relative z-20 border-b border-brand-gold/10 pb-6">
           <div>
               <div className="flex items-center gap-2 mb-2">
@@ -189,7 +180,10 @@ export default function ToursGrid() {
 
           <div className="flex items-center gap-4">
               <div className="text-right hidden md:block">
-                  <p className="text-3xl font-bold text-brand-dark leading-none">{filteredTours.length}</p>
+                  <p className="text-3xl font-bold text-brand-dark leading-none">
+                      {/* Ако зареждаме, показваме многоточие, за да не скача числото */}
+                      {loading ? '...' : filteredTours.length}
+                  </p>
                   <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Намерени</p>
               </div>
 
@@ -216,7 +210,8 @@ export default function ToursGrid() {
           </div>
       </div>
 
-      {/* ФИЛТЪР ПАНЕЛ */}
+      {/* ФИЛТЪР ПАНЕЛ - Винаги рендиран, скрит/показан чрез CSS класове */}
+      {/* Тъй като не се демонтира, състоянието му се запазва дори при router.push */}
       <div className={`${isFiltersOpen ? 'block' : 'hidden'} animate-in slide-in-from-top-4 fade-in duration-300 mb-12`}>
          <FiltersBar 
             isOpen={true} 
@@ -232,19 +227,25 @@ export default function ToursGrid() {
             updateParam={updateParam}
             clearFilters={clearFilters}
             hasActiveFilters={!!hasActiveFilters}
-            resultsCount={filteredTours.length}
+            resultsCount={loading ? 0 : filteredTours.length}
             scrollToResults={scrollToResults}
           />
       </div>
 
-      {/* РЕЗУЛТАТИ */}
+      {/* РЕЗУЛТАТИ - Loading индикаторът е преместен ТУК */}
       <div ref={resultsRef} className="scroll-mt-32 relative z-10">
-        {filteredTours.length === 0 ? (
-            <div className="text-center py-20 opacity-50">
-            <Filter size={48} className="mx-auto text-gray-300 mb-4"/>
-            <h3 className="text-2xl font-serif text-gray-400">Няма намерени резултати</h3>
-            <p className="text-sm text-gray-400">Опитайте да промените критериите за търсене.</p>
-            <button onClick={clearFilters} className="mt-4 text-brand-gold font-bold underline hover:text-brand-dark transition-colors">Изчисти всички филтри</button>
+        
+        {loading ? (
+            // 👇 ТУК Е ЛОУДЪРЪТ - Показва се само на мястото на картите
+            <div className="text-center py-20 min-h-[400px] flex items-center justify-center">
+                <div className="inline-block w-10 h-10 border-4 border-brand-gold border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        ) : filteredTours.length === 0 ? (
+            <div className="text-center py-20 opacity-50 min-h-[400px] flex flex-col items-center justify-center">
+                <Filter size={48} className="mx-auto text-gray-300 mb-4"/>
+                <h3 className="text-2xl font-serif text-gray-400">Няма намерени резултати</h3>
+                <p className="text-sm text-gray-400">Опитайте да промените критериите за търсене.</p>
+                <button onClick={clearFilters} className="mt-4 text-brand-gold font-bold underline hover:text-brand-dark transition-colors">Изчисти всички филтри</button>
             </div>
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-16 items-start">
@@ -264,7 +265,6 @@ export default function ToursGrid() {
                     </div>
                     )}
                     
-                    {/* 👇 Използваме новия компонент TourCard */}
                     <TourCard 
                         tour={tour} 
                         isFav={isFav} 

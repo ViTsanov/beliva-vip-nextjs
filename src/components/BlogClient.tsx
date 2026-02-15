@@ -4,7 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
-import { ArrowLeft, MapPin, Image as ImageIcon, Calendar, ArrowDown, ArrowRight, User, Clock } from 'lucide-react';
+import { 
+  ArrowLeft, MapPin, Image as ImageIcon, Calendar, 
+  ArrowDown, ArrowRight, User, Clock, ChevronLeft, ChevronRight, 
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
 import Link from 'next/link';
 import ImageModal from '@/components/ImageModal';
 import ShareButtons from '@/components/ShareButtons';
@@ -17,8 +22,10 @@ export default function BlogClient({ post }: { post: any }) {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [isHeroLoaded, setIsHeroLoaded] = useState(false);
+  const [isGalleryExpanded, setIsGalleryExpanded] = useState(false);
 
   const galleryRef = useRef<HTMLDivElement>(null);
+  const suggestedScrollRef = useRef<HTMLDivElement>(null); // Реф за слайдъра на статиите
 
   const handleGoBack = () => {
     router.back();
@@ -26,13 +33,11 @@ export default function BlogClient({ post }: { post: any }) {
 
   useEffect(() => {
     if (post) {
-       // 1. Оправяме галерията
        const images = post.gallery 
            ? post.gallery.split(',').map((img: string) => img.trim()).filter(Boolean)
            : [];
        setGalleryImages(images);
 
-       // 2. Теглим свързани ТУРОВЕ (екскурзии)
        if (post.relatedCountry) {
          const fetchRelatedTours = async () => {
              try {
@@ -49,58 +54,58 @@ export default function BlogClient({ post }: { post: any }) {
          fetchRelatedTours();
        }
 
-       // 3. 👇 ПОДОБРЕНА ЛОГИКА ЗА ПРЕДЛОЖЕНИЯ (BLOG POSTS)
        const fetchSuggestedPosts = async () => {
           try {
-             let recommendedDocs: any[] = [];
-             const TARGET_COUNT = 4; // Искаме да покажем 4 статии
+              let recommendedDocs: any[] = [];
+              const TARGET_COUNT = 4;
 
-             // A. Първо търсим изрично статии за СЪЩАТА ДЪРЖАВА
-             if (post.relatedCountry) {
-                 const qByCountry = query(
-                     collection(db, "posts"),
-                     where("relatedCountry", "==", post.relatedCountry),
-                     limit(10) // Взимаме повече, за да има избор
-                 );
-                 const countrySnap = await getDocs(qByCountry);
-                 const countryPosts = countrySnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                 
-                 // Добавяме ги в масива (без текущата)
-                 recommendedDocs = [...countryPosts.filter((p: any) => p.id !== post.id)];
-             }
+              if (post.relatedCountry) {
+                  const qByCountry = query(
+                      collection(db, "posts"),
+                      where("relatedCountry", "==", post.relatedCountry),
+                      limit(10)
+                  );
+                  const countrySnap = await getDocs(qByCountry);
+                  const countryPosts = countrySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                  recommendedDocs = [...countryPosts.filter((p: any) => p.id !== post.id)];
+              }
 
-             // B. Ако бройката е по-малка от 4, допълваме с НАЙ-НОВИТЕ (каквото и да е)
-             if (recommendedDocs.length < TARGET_COUNT) {
-                 const needed = TARGET_COUNT - recommendedDocs.length;
-                 
-                 // Теглим последните 10 най-нови, за да сме сигурни, че няма да съвпаднат с вече изтеглените
-                 const qRecent = query(
-                     collection(db, "posts"), 
-                     orderBy("createdAt", "desc"),
-                     limit(10) 
-                 );
-                 const recentSnap = await getDocs(qRecent);
-                 const recentPosts = recentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                 
-                 recommendedDocs = [...recommendedDocs, ...recentPosts];
-             }
+              if (recommendedDocs.length < TARGET_COUNT) {
+                  const qRecent = query(
+                      collection(db, "posts"), 
+                      orderBy("createdAt", "desc"),
+                      limit(10) 
+                  );
+                  const recentSnap = await getDocs(qRecent);
+                  const recentPosts = recentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                  recommendedDocs = [...recommendedDocs, ...recentPosts];
+              }
 
-             // C. Филтрираме: Махаме дубликати и махаме текущата статия (отново за сигурност)
-             const uniquePosts = recommendedDocs.filter((p, index, self) => 
-                 index === self.findIndex((t) => t.id === p.id) && // Само уникални ID-та
-                 p.id !== post.id // Различни от текущата статия
-             );
+              const uniquePosts = recommendedDocs.filter((p, index, self) => 
+                  index === self.findIndex((t) => t.id === p.id) && 
+                  p.id !== post.id 
+              );
 
-             // Взимаме първите 4 (или колкото сме намерили)
-             setSuggestedPosts(uniquePosts.slice(0, TARGET_COUNT));
-
+              setSuggestedPosts(uniquePosts.slice(0, TARGET_COUNT));
           } catch (error) {
-             console.error("Error fetching suggested posts:", error);
+              console.error("Error fetching suggested posts:", error);
           }
        };
        fetchSuggestedPosts();
     }
   }, [post]);
+
+  // Функция за скролиране на предложените статии
+  const scrollSuggested = (direction: 'left' | 'right') => {
+    if (suggestedScrollRef.current) {
+      const { current } = suggestedScrollRef;
+      const scrollAmount = current.clientWidth; 
+      current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   const scrollToGallery = () => {
     galleryRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -126,7 +131,6 @@ export default function BlogClient({ post }: { post: any }) {
           
           <div className="absolute inset-0 flex flex-col justify-end p-6 pb-20 md:pb-24">
               <div className="container mx-auto px-4 sm:px-6 relative z-10">
-                  
                   <button 
                     onClick={handleGoBack} 
                     className="inline-flex items-center gap-2 text-white/90 font-bold uppercase text-[10px] tracking-widest mb-8 hover:text-brand-gold transition-colors bg-white/10 backdrop-blur-md px-5 py-2 rounded-full border border-white/10 hover:bg-white/20"
@@ -151,13 +155,11 @@ export default function BlogClient({ post }: { post: any }) {
           </div>
       </div>
 
-      {/* --- MAIN CONTENT & SIDEBAR --- */}
       <div className="container mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-20 -mt-16 pb-20">
         
         {/* LEFT COLUMN: CONTENT */}
         <div className="lg:col-span-8 bg-white p-6 md:p-12 rounded-[3rem] shadow-2xl border border-gray-100">
-           
-           {post.author && (
+            {post.author && (
               <div className="flex items-center gap-3 border-b border-gray-100 pb-6 mb-8">
                   <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400">
                       <User size={20} />
@@ -167,75 +169,124 @@ export default function BlogClient({ post }: { post: any }) {
                       <p className="font-serif italic text-brand-dark">{post.author}</p>
                   </div>
               </div>
-           )}
+            )}
 
-           {post.excerpt && (
-             <div className="mb-8 p-8 bg-[#fffdf5] rounded-3xl border-l-4 border-brand-gold">
-                <p className="text-xl md:text-2xl text-brand-dark font-serif italic leading-relaxed opacity-90">
-                    "{post.excerpt}"
-                </p>
-             </div>
-           )}
+            {post.excerpt && (
+              <div className="mb-8 p-8 bg-[#fffdf5] rounded-3xl border-l-4 border-brand-gold">
+                 <p className="text-xl md:text-2xl text-brand-dark font-serif italic leading-relaxed opacity-90">
+                     "{post.excerpt}"
+                 </p>
+              </div>
+            )}
 
-           {galleryImages.length > 0 && (
-               <button 
-                  onClick={scrollToGallery}
-                  className="lg:hidden w-full mb-10 flex items-center justify-center gap-2 bg-brand-gold/10 text-brand-dark py-4 rounded-2xl font-bold uppercase text-xs tracking-widest border border-brand-gold/20 hover:bg-brand-gold hover:text-white transition-all group"
-               >
-                  <ImageIcon size={18} /> Виж галерията ({galleryImages.length})
-                  <ArrowDown size={14} className="group-hover:translate-y-1 transition-transform" />
-               </button>
-           )}
+            {galleryImages.length > 0 && (
+                <button 
+                   onClick={scrollToGallery}
+                   className="lg:hidden w-full mb-10 flex items-center justify-center gap-2 bg-brand-gold/10 text-brand-dark py-4 rounded-2xl font-bold uppercase text-xs tracking-widest border border-brand-gold/20 hover:bg-brand-gold hover:text-white transition-all group"
+                >
+                   <ImageIcon size={18} /> Виж галерията ({galleryImages.length})
+                   <ArrowDown size={14} className="group-hover:translate-y-1 transition-transform" />
+                </button>
+            )}
 
-           <div className="w-full max-w-full">
-              <div 
-                className="prose prose-lg max-w-none w-full
-                prose-headings:font-serif prose-headings:text-brand-dark prose-headings:font-bold
-                prose-p:text-gray-600 prose-p:leading-8 prose-p:mb-6 prose-p:text-[18px]
-                prose-a:text-brand-gold prose-a:no-underline prose-a:font-bold
-                prose-img:rounded-3xl prose-img:shadow-xl prose-img:w-full prose-img:my-8
-                prose-ul:list-disc prose-ul:pl-6
-                break-words overflow-hidden" 
-                dangerouslySetInnerHTML={{ __html: post.content }}
-              />
-           </div>
+            <div className="w-full max-w-full">
+               <div 
+                 className="prose prose-lg max-w-none w-full
+                 prose-headings:font-serif prose-headings:text-brand-dark prose-headings:font-bold
+                 prose-p:text-gray-600 prose-p:leading-8 prose-p:mb-6 prose-p:text-[18px]
+                 prose-a:text-brand-gold prose-a:no-underline prose-a:font-bold
+                 prose-img:rounded-3xl prose-img:shadow-xl prose-img:w-full prose-img:my-8
+                 prose-ul:list-disc prose-ul:pl-6
+                 break-words overflow-hidden" 
+                 dangerouslySetInnerHTML={{ __html: post.content }}
+               />
+            </div>
 
-           {galleryImages.length > 0 && (
-               <div ref={galleryRef} className="mt-20 pt-12 border-t border-gray-100 scroll-mt-32">
-                   <h3 className="flex items-center gap-3 font-serif italic text-3xl text-brand-dark mb-10">
-                       <ImageIcon className="text-brand-gold w-8 h-8"/> Галерия
-                   </h3>
-                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                       {galleryImages.map((img, idx) => (
-                           <div 
-                             key={idx} 
-                             className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-lg group cursor-pointer hover:shadow-2xl transition-all"
-                             onClick={() => setSelectedImageIndex(idx)}
-                           >
-                               <img 
-                                 src={img} 
-                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                                 alt={`Gallery ${idx}`}
-                               />
-                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                   <ImageIcon className="text-white w-8 h-8" />
-                               </div>
-                           </div>
-                       ))}
-                   </div>
-               </div>
-           )}
+            {galleryImages.length > 0 && (
+                <div ref={galleryRef} className="mt-20 pt-12 border-t border-gray-100 scroll-mt-32">
+                    <h3 className="flex items-center gap-3 font-serif italic text-3xl text-brand-dark mb-10">
+                        <ImageIcon className="text-brand-gold w-8 h-8"/> Галерия
+                    </h3>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {galleryImages.map((img, idx) => {
+                            // Логика за скриване: на мобилни (под md) скриваме всичко след 4-тата снимка, ако не е разпънато
+                            const isHiddenOnMobile = !isGalleryExpanded && idx >= 4;
 
-            {/* 👇 ПРЕДЛОЖЕНИЯ ЗА ОЩЕ ЧЕТЕНЕ (ВЕЧЕ 4 БРОЯ) */}
+                            return (
+                                <div 
+                                  key={idx} 
+                                  className={`relative w-full aspect-square rounded-2xl overflow-hidden shadow-lg group cursor-pointer hover:shadow-2xl transition-all 
+                                    ${isHiddenOnMobile ? 'hidden md:block' : 'block'}`}
+                                  onClick={() => setSelectedImageIndex(idx)}
+                                >
+                                    <img 
+                                      src={img} 
+                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                      alt={`Gallery ${idx}`}
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <ImageIcon className="text-white w-8 h-8" />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* БУТОН ЗА РАЗПЪВАНЕ (САМО ЗА МОБИЛНИ) */}
+                    {galleryImages.length > 4 && (
+                        <div className="md:hidden flex justify-center mt-8">
+                            <button 
+                                onClick={() => setIsGalleryExpanded(!isGalleryExpanded)}
+                                className="flex items-center gap-2 bg-brand-gold/10 text-brand-dark px-8 py-3 rounded-xl font-bold uppercase text-xs tracking-widest border border-brand-gold/20 hover:bg-brand-gold hover:text-white transition-all"
+                            >
+                                {isGalleryExpanded ? (
+                                    <>Скрий снимките <ChevronUp size={16}/></>
+                                ) : (
+                                    <>Виж още {galleryImages.length - 4} снимки <ChevronDown size={16}/></>
+                                )}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* 👇 ПРЕДЛОЖЕНИЯ ЗА ОЩЕ ЧЕТЕНЕ (СЛАЙДЪР ЗА МОБИЛНИ) */}
             {suggestedPosts.length > 0 && (
                 <div className="mt-20 pt-12 border-t border-gray-100">
-                    <h3 className="text-2xl font-serif font-bold text-brand-dark mb-8 flex items-center gap-3">
-                        <span className="w-8 h-1 bg-brand-gold rounded-full"></span>
-                        Още от нашия пътеводител
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="flex justify-between items-center mb-8">
+                        <h3 className="text-2xl font-serif font-bold text-brand-dark flex items-center gap-3">
+                            <span className="w-8 h-1 bg-brand-gold rounded-full"></span>
+                            Още от нашия пътеводител
+                        </h3>
+                        
+                        {/* Бутони за навигация (скрити на десктоп) */}
+                        <div className="flex md:hidden gap-2">
+                            <button 
+                                onClick={() => scrollSuggested('left')}
+                                className="p-2 rounded-full bg-gray-100 text-brand-dark hover:bg-brand-gold hover:text-white transition-colors"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            <button 
+                                onClick={() => scrollSuggested('right')}
+                                className="p-2 rounded-full bg-gray-100 text-brand-dark hover:bg-brand-gold hover:text-white transition-colors"
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div 
+                        ref={suggestedScrollRef}
+                        className="flex md:grid md:grid-cols-2 gap-8 overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide pb-4"
+                    >
                         {suggestedPosts.map((sPost) => (
-                            <Link key={sPost.id} href={`/blog/${sPost.slug || sPost.id}`} className="group flex flex-col gap-4">
+                            <Link 
+                                key={sPost.id} 
+                                href={`/blog/${sPost.slug || sPost.id}`} 
+                                className="min-w-full md:min-w-0 snap-center group flex flex-col gap-4"
+                            >
                                 <div className="relative h-48 w-full rounded-2xl overflow-hidden shadow-md">
                                     <img 
                                         src={sPost.coverImg || sPost.img} 

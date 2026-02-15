@@ -72,26 +72,27 @@ export default function Navbar() {
         <div className="container mx-auto px-6 flex justify-between items-center">
           
           {/* LOGO SECTION */}
-          <Link 
-            href="/" 
-            onClick={handleNavClick}
-            className={`flex items-center gap-3 text-xl md:text-3xl font-serif font-bold italic tracking-tighter transition-colors z-[110] ${
-              scrolled || !isHome ? 'text-brand-dark' : 'text-white'
-            }`}
-          >
-            {/* Използваме обикновен img, както е в оригиналния код, за да не се бърка Next/Image */}
-            <img 
-                src="/beliva_logo.png" 
-                alt="Beliva VIP Logo" 
-                className="h-10 md:h-12 w-auto object-contain" 
-            />
-            <span>
-                Beliva <span className="text-brand-gold">VIP</span> Tour
-            </span>
-          </Link>
+        <Link 
+          href="/" 
+          onClick={handleNavClick}
+          className={`flex items-center gap-2 md:gap-3 font-serif font-bold italic tracking-tighter transition-colors z-[110] ${
+            scrolled || !isHome ? 'text-brand-dark' : 'text-white'
+          }`}
+        >
+        <img 
+          src="/beliva_logo.png" 
+          alt="Beliva VIP Logo" 
+          className="h-8 md:h-10 lg:h-12 w-auto object-contain shrink-0" 
+        />
+  
+        {/* ПРОМЯНА: Текстът е винаги видим, просто скалираме размера му */}
+        <span className="whitespace-nowrap text-lg md:text-2xl lg:text-3xl">
+        Beliva <span className="text-brand-gold">VIP</span> Tour
+        </span>
+        </Link>
 
           {/* DESKTOP MENU */}
-          <div className={`hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] ${
+          <div className={`hidden md:flex items-center gap-4 lg:gap-8 text-[10px] font-black uppercase tracking-[0.2em] ${
             scrolled || !isHome ? 'text-brand-dark' : 'text-white'
           }`}>
             <Link href="/" onClick={handleNavClick} className="hover:text-brand-gold transition-colors">Начало</Link>
@@ -123,7 +124,7 @@ export default function Navbar() {
               <Link 
               href="/admin-beliva-2025" 
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2 bg-brand-gold/10 text-brand-gold border border-brand-gold/20 px-5 py-2 rounded-full hover:bg-brand-gold hover:text-white transition-all shadow-sm"
+              className="hidden xl:flex items-center gap-2 bg-brand-gold/10 text-brand-gold border border-brand-gold/20 px-5 py-2 rounded-full hover:bg-brand-gold hover:text-white transition-all shadow-sm"
             >
               <User size={14} /> Админ
             </Link>
