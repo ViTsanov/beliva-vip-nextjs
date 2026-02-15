@@ -106,9 +106,6 @@ export const metadata: Metadata = {
       { url: '/icon.png' }, 
     ],
   },
-  alternates: {
-    canonical: SITE_URL,
-  }
 };
 
 // Настройка на Viewport (за мобилни устройства)

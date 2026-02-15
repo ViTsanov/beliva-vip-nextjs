@@ -64,6 +64,9 @@ export async function generateMetadata(
   return {
     title: `${tour.title} | Екскурзия до ${tour.country}`,
     description: `Резервирайте своето пътуване до ${tour.country}. Цена от ${tour.price}. ${tour.intro || ''}`,
+    alternates: {
+      canonical: `/tour/${params.id}`,
+    },
     openGraph: {
       title: tour.title,
       description: `Ексклузивна оферта за ${tour.country}`,
