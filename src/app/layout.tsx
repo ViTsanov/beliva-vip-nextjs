@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import { GoogleAnalytics } from '@next/third-parties/google'
+import AIChatWidget from '@/components/AIChatWidget';
 
 // 1. ШРИФТОВЕ
 const inter = Inter({ 
@@ -131,7 +132,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
 
-        <LayoutWrapper>{children}</LayoutWrapper>
+        <LayoutWrapper>
+          {children}
+          <AIChatWidget />
+        </LayoutWrapper>
         <GoogleAnalytics gaId="G-FXLJBHSJ6K" /> {/* 👈 Сложи твоя ID тук */}
       </body>
     </html>

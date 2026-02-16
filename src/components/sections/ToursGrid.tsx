@@ -22,89 +22,135 @@ export default function ToursGrid() {
   const filterCategory = searchParams.get('cat') || '';
   const sortBy = searchParams.get('sort') || 'date';
 
-  const [tours, setTours] = useState<ITour[]>([]);
+  // Стейт за всички данни (кеш) и любими
+  const [allTours, setAllTours] = useState<ITour[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
-  
-  // Loading е true по подразбиране, но няма да скрива целия екран
   const [loading, setLoading] = useState(true);
-
-  // Филтърът е затворен по подразбиране (според изискването)
-  // Тъй като не ползваме useEffect за отваряне, той няма да "премигва"
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   const hasActiveFilters = !!(searchQuery || filterContinent || filterCountry || filterMonth || filterCategory);
 
-  // Зареждане на любими
+  // 1. Зареждане на любими
   useEffect(() => {
     const loadFavorites = () => {
-        if (typeof window !== 'undefined') {
-            const stored = localStorage.getItem('beliva_favorites');
-            if (stored) setFavorites(JSON.parse(stored));
-        }
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('beliva_favorites');
+        if (stored) setFavorites(JSON.parse(stored));
+      }
     };
     loadFavorites();
     window.addEventListener('storage', loadFavorites);
     return () => window.removeEventListener('storage', loadFavorites);
   }, []);
 
-  // 🚀 ИЗВЛИЧАНЕ НА ДАННИ
+  // 2. 🚀 ИЗВЛИЧАНЕ НА ВСИЧКИ ДАННИ ВЕДНЪЖ (Премахва рефреша при филтриране)
   useEffect(() => {
-    const fetchTours = async () => {
-        setLoading(true); // Това вече не скрива филтъра, само картите
-        try {
-            const toursRef = collection(db, "tours");
-            let constraints = [where("status", "==", "public")];
-
-            if (filterContinent) {
-                constraints.push(where("continent", "==", filterContinent));
-            }
-
-            const q = query(toursRef, ...constraints);
-            const snapshot = await getDocs(q);
-            
-            const fetchedTours = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ITour[];
-            setTours(fetchedTours);
-        } catch (error) {
-            console.error("Error fetching tours:", error);
-        } finally {
-            setLoading(false);
-        }
+    const fetchAllTours = async () => {
+      setLoading(true);
+      try {
+        const toursRef = collection(db, "tours");
+        const q = query(toursRef, where("status", "==", "public"));
+        const snapshot = await getDocs(q);
+        const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ITour[];
+        setAllTours(fetched);
+      } catch (error) {
+        console.error("Error fetching tours:", error);
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchAllTours();
+  }, []);
 
-    fetchTours();
-  }, [filterContinent]); // Реагира на смяна на континент
+  // 3. 🧠 МИГНОВЕНО ФИЛТРИРАНЕ НА КЛИЕНТА
+  const filteredTours = useMemo(() => {
+    let result = allTours.filter(tour => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!tour.title.toLowerCase().includes(q) && !tour.country.toLowerCase().includes(q)) return false;
+      }
+      if (filterContinent && tour.continent !== filterContinent) return false;
+      if (filterCountry && tour.country !== filterCountry) return false;
+      if (filterCategory && (!tour.categories || !tour.categories.includes(filterCategory))) return false;
+      if (filterMonth) {
+        const tourDates = [...(tour.dates || [])];
+        if (tour.date) tourDates.push(tour.date);
+        if (!tourDates.some(date => date.split('-')[1] === filterMonth)) return false;
+      }
+      return true;
+    });
+
+    result.sort((a, b) => {
+      if (sortBy === 'price_asc') {
+        const pA = parseFloat(a.price?.toString().replace(/[^0-9.]/g, '')) || 0;
+        const pB = parseFloat(b.price?.toString().replace(/[^0-9.]/g, '')) || 0;
+        return pA - pB;
+      }
+      if (sortBy === 'price_desc') {
+        const pA = parseFloat(a.price?.toString().replace(/[^0-9.]/g, '')) || 0;
+        const pB = parseFloat(b.price?.toString().replace(/[^0-9.]/g, '')) || 0;
+        return pB - pA;
+      }
+      return (a.date || '').localeCompare(b.date || '');
+    });
+    return result;
+  }, [allTours, filterContinent, filterCountry, filterCategory, filterMonth, sortBy, searchQuery]);
+
+  // 4. ОПЦИИ ЗА МЕНЮТАТА (Винаги стабилни)
+  const uniqueContinents = useMemo(() => 
+    Array.from(new Set(allTours.map(t => t.continent).filter(Boolean))).sort(), 
+  [allTours]);
+
+  const uniqueCountries = useMemo(() => 
+    Array.from(new Set(
+      allTours
+        .filter(t => filterContinent ? t.continent === filterContinent : true)
+        .map(t => t.country)
+        .filter(Boolean)
+    )).sort(), 
+  [allTours, filterContinent]);
+
+  // 5. 🛠️ МАКИРОВКА НА ПРЕМИНАВАНЕТО (Инстантно скачане при рефреш)
+  useEffect(() => {
+    const hasJumpTarget = searchParams.get('continent') || window.location.hash === '#tours-grid';
+    
+    if (hasJumpTarget && !loading) {
+      const element = document.getElementById('tours-grid');
+      if (element) {
+        const yOffset = -100;
+        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        // Използваме 'instant', за да скрием процеса на скролиране
+        window.scrollTo({ top: y, behavior: 'instant' });
+      }
+    }
+  }, [loading, searchParams]);
 
   const updateParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
-    
     if (key === 'continent') params.delete('country');
-    
-    // scroll: false предотвратява скачането на страницата нагоре
     router.push(`/?${params.toString()}`, { scroll: false });
   };
 
-  const clearFilters = () => {
-    router.replace('/', { scroll: false });
-  };
+  const clearFilters = () => router.replace('/', { scroll: false });
 
   const scrollToResults = () => {
-     if (resultsRef.current) {
-         const yOffset = -100; 
-         const y = resultsRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
-         window.scrollTo({ top: y, behavior: 'smooth' });
-     }
+    if (resultsRef.current) {
+      const yOffset = -100;
+      const y = resultsRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   };
 
   const toggleFavorite = (e: React.MouseEvent, tour: ITour) => {
     e.preventDefault(); e.stopPropagation();
     let newFavorites = [...favorites];
-    const targetId = tour.tourId || tour.id; 
-    if (favorites.some((f: any) => f.id === targetId)) { 
-        newFavorites = newFavorites.filter((f: any) => f.id !== targetId); 
+    const targetId = tour.tourId || tour.id;
+    if (favorites.some((f: any) => f.id === targetId)) {
+      newFavorites = newFavorites.filter((f: any) => f.id !== targetId);
     } else {
-        newFavorites.push({ id: targetId, title: tour.title, img: tour.img, price: tour.price, country: tour.country, date: tour.date });
+      newFavorites.push({ id: targetId, title: tour.title, img: tour.img, price: tour.price, country: tour.country, date: tour.date });
     }
     setFavorites(newFavorites);
     localStorage.setItem('beliva_favorites', JSON.stringify(newFavorites));
@@ -120,45 +166,16 @@ export default function ToursGrid() {
     } return dates.sort();
   };
 
-  const parsePrice = (priceStr: string) => { return parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0; };
-  
-  const filteredTours = useMemo(() => {
-    let result = tours.filter(tour => {
-      if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          const matchTitle = tour.title.toLowerCase().includes(query);
-          const matchCountry = tour.country.toLowerCase().includes(query);
-          if (!matchTitle && !matchCountry) return false;
-      }
-      if (filterContinent && tour.continent !== filterContinent) return false;
-      if (filterCountry && tour.country !== filterCountry) return false;
-      if (filterCategory) {
-          if (!tour.categories || !tour.categories.includes(filterCategory)) return false;
-      }
-      if (filterMonth) {
-        const tourDates = getAllDates(tour);
-        if (!tourDates.some(date => date.split('-')[1] === filterMonth)) return false;
-      }
-      return true;
-    });
+  // Ако е първоначално зареждане, показваме глобален лоудър, за да маскираме Hero-то при нужда
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-10 h-10 border-4 border-brand-gold border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
-    result.sort((a, b) => {
-      if (sortBy === 'price_asc') return parsePrice(a.price) - parsePrice(b.price);
-      if (sortBy === 'price_desc') return parsePrice(b.price) - parsePrice(a.price);
-      const dateA = getAllDates(a)[0] || '9999'; 
-      const dateB = getAllDates(b)[0] || '9999';
-      return dateA.localeCompare(dateB);
-    });
-    return result;
-  }, [tours, filterContinent, filterCountry, filterCategory, filterMonth, sortBy, searchQuery]);
-
-  const uniqueContinents = Array.from(new Set(tours.map(t => t.continent).filter(Boolean)));
-  const uniqueCountries = Array.from(new Set(tours.filter(t => filterContinent ? t.continent === filterContinent : true).map(t => t.country).filter(Boolean))).sort();
-  
   let lastYear = "";
-
-  // ❌ ВАЖНО: Премахнахме "if (loading) return ..." от тук!
-  // Това гарантира, че HEADER и Филтърът няма да изчезнат при зареждане.
 
   return (
     <section id="tours-grid" className="container mx-auto px-6 py-16 scroll-mt-20 relative overflow-hidden">
@@ -166,7 +183,7 @@ export default function ToursGrid() {
       <div className="absolute top-20 left-0 w-96 h-96 bg-brand-gold/5 rounded-full blur-[120px] pointer-events-none -translate-x-1/2" />
       <div className="absolute bottom-40 right-0 w-80 h-80 bg-blue-900/5 rounded-full blur-[100px] pointer-events-none translate-x-1/2" />
 
-      {/* HEADER - Винаги видим */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12 relative z-20 border-b border-brand-gold/10 pb-6">
           <div>
               <div className="flex items-center gap-2 mb-2">
@@ -176,28 +193,29 @@ export default function ToursGrid() {
               <h2 className="text-4xl md:text-5xl font-serif text-brand-dark leading-tight">
                   Всички <span className="italic text-brand-gold">Предложения</span>
               </h2>
+              {(filterCountry || filterContinent) && (
+                <div className="mt-2 flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-500">
+                    <div className="h-[1px] w-6 bg-brand-gold"></div>
+                    <span className="text-xl md:text-2xl font-serif italic text-brand-dark/70">
+                        {filterCountry || filterContinent}
+                    </span>
+                </div>
+              )}
           </div>
 
           <div className="flex items-center gap-4">
               <div className="text-right hidden md:block">
-                  <p className="text-3xl font-bold text-brand-dark leading-none">
-                      {/* Ако зареждаме, показваме многоточие, за да не скача числото */}
-                      {loading ? '...' : filteredTours.length}
-                  </p>
+                  <p className="text-3xl font-bold text-brand-dark leading-none">{filteredTours.length}</p>
                   <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Намерени</p>
               </div>
 
               <button 
                 onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                className={`
-                    flex items-center gap-3 px-6 py-3 rounded-full font-bold uppercase tracking-widest text-xs transition-all duration-300 border
-                    ${isFiltersOpen 
-                        ? 'bg-brand-dark text-white border-brand-dark shadow-lg transform scale-105' 
-                        : 'bg-white text-brand-dark border-brand-gold/30 hover:border-brand-gold hover:shadow-md'
-                    }
+                className={`flex items-center gap-3 px-6 py-3 rounded-full font-bold uppercase tracking-widest text-xs transition-all duration-300 border
+                    ${isFiltersOpen ? 'bg-brand-dark text-white border-brand-dark shadow-lg scale-105' : 'bg-white text-brand-dark border-brand-gold/30 hover:border-brand-gold hover:shadow-md'}
                 `}
-            >
-                {isFiltersOpen ? <X size={16}/> : <SlidersHorizontal size={16} className={isFiltersOpen ? "text-white" : "text-brand-gold"}/>}
+              >
+                {isFiltersOpen ? <X size={16}/> : <SlidersHorizontal size={16} className="text-brand-gold"/>}
                 {isFiltersOpen ? 'Скрий' : 'Филтрирай'}
                 
                 {hasActiveFilters && !isFiltersOpen && (
@@ -210,8 +228,7 @@ export default function ToursGrid() {
           </div>
       </div>
 
-      {/* ФИЛТЪР ПАНЕЛ - Винаги рендиран, скрит/показан чрез CSS класове */}
-      {/* Тъй като не се демонтира, състоянието му се запазва дори при router.push */}
+      {/* ФИЛТЪР ПАНЕЛ */}
       <div className={`${isFiltersOpen ? 'block' : 'hidden'} animate-in slide-in-from-top-4 fade-in duration-300 mb-12`}>
          <FiltersBar 
             isOpen={true} 
@@ -227,20 +244,14 @@ export default function ToursGrid() {
             updateParam={updateParam}
             clearFilters={clearFilters}
             hasActiveFilters={!!hasActiveFilters}
-            resultsCount={loading ? 0 : filteredTours.length}
+            resultsCount={filteredTours.length}
             scrollToResults={scrollToResults}
           />
       </div>
 
-      {/* РЕЗУЛТАТИ - Loading индикаторът е преместен ТУК */}
+      {/* РЕЗУЛТАТИ */}
       <div ref={resultsRef} className="scroll-mt-32 relative z-10">
-        
-        {loading ? (
-            // 👇 ТУК Е ЛОУДЪРЪТ - Показва се само на мястото на картите
-            <div className="text-center py-20 min-h-[400px] flex items-center justify-center">
-                <div className="inline-block w-10 h-10 border-4 border-brand-gold border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        ) : filteredTours.length === 0 ? (
+        {filteredTours.length === 0 ? (
             <div className="text-center py-20 opacity-50 min-h-[400px] flex flex-col items-center justify-center">
                 <Filter size={48} className="mx-auto text-gray-300 mb-4"/>
                 <h3 className="text-2xl font-serif text-gray-400">Няма намерени резултати</h3>
@@ -254,7 +265,6 @@ export default function ToursGrid() {
                 let tourYear = ""; if (allDatesISO.length > 0) tourYear = allDatesISO[0].split('-')[0];
                 const showYearHeader = tourYear !== lastYear && tourYear !== ""; if (showYearHeader) lastYear = tourYear;
                 const isFav = favorites.some((f: any) => f.id === (tour.tourId || tour.id));
-                const isLedByPoli = tour.categories?.includes('Водена от ПОЛИ');
 
                 return (
                 <React.Fragment key={tour.id}>
@@ -264,12 +274,11 @@ export default function ToursGrid() {
                         <div className="h-[1px] flex-grow bg-brand-gold/10"></div>
                     </div>
                     )}
-                    
                     <TourCard 
                         tour={tour} 
                         isFav={isFav} 
                         toggleFavorite={toggleFavorite} 
-                        isLedByPoli={!!isLedByPoli} 
+                        isLedByPoli={!!tour.categories?.includes('Водена от ПОЛИ')}
                     />
                 </React.Fragment>
                 );

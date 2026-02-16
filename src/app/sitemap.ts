@@ -18,15 +18,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // 2. Извличане на всички блогове (ако имаш такива)
-  const blogQuery = query(collection(db, "posts"), where("status", "==", "public")); // Предполагам колекция 'posts'
-  const blogSnapshot = await getDocs(blogQuery);
-
-  const posts = blogSnapshot.docs.map((doc) => ({
-    url: `${BASE_URL}/blog/${doc.id}`,
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.6,
-  }));
+const postsSnap = await getDocs(collection(db, "posts"));
+  const posts = postsSnap.docs.map(doc => {
+    const data = doc.data();
+    return {
+      url: `${BASE_URL}/blog/${data.slug || doc.id}`,
+      lastModified: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    };
+  });
 
   // 3. Статични страници
   const routes = [

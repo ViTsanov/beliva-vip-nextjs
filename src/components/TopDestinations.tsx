@@ -52,7 +52,7 @@ export default function TopDestinations() {
   }, []);
 
   const handleSelect = (country: string) => {
-    router.push(`/?country=${encodeURIComponent(country)}`, { scroll: false });
+    router.push(`/?country=${encodeURIComponent(country)}#tours-grid`, { scroll: false });
     setTimeout(() => {
         const grid = document.getElementById('tours-grid');
         if (grid) {

@@ -177,7 +177,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
         {/* Линк "Всички" за мобилно (показваме го долу центрирано) */}
         <div className="md:hidden text-center mt-8">
             <Link 
-              href={`/?continent=${encodeURIComponent(currentTour.continent)}`}
+              href={`/?continent=${encodeURIComponent(currentTour.continent)}#tours-grid`}
               className="inline-flex items-center gap-2 text-brand-dark font-bold hover:text-brand-gold transition-colors text-sm uppercase tracking-wider"
             >
               Всички предложения <ArrowRight className="w-4 h-4" />

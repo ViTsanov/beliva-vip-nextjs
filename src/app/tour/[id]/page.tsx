@@ -62,6 +62,7 @@ export async function generateMetadata(
   const tour = snapshot.docs[0].data();
 
   return {
+    metadataBase: new URL("https://belivavip.bg"),
     title: `${tour.title} | Екскурзия до ${tour.country}`,
     description: `Резервирайте своето пътуване до ${tour.country}. Цена от ${tour.price}. ${tour.intro || ''}`,
     alternates: {
