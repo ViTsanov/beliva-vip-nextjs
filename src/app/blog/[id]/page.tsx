@@ -13,7 +13,6 @@ type Props = {
 
 /**
  * 1. Функция за извличане на данни (Сървърна)
- * Търси първо по SLUG, после по ID.
  */
 async function getPostData(identifier: string) {
   if (!identifier) return null;
@@ -65,7 +64,6 @@ async function getPostData(identifier: string) {
 
 /**
  * 2. ГЕНЕРИРАНЕ НА ДИНАМИЧНИ МЕТАДАННИ (SEO)
- * Тук се решава проблема с индексирането чрез динамичен Canonical URL.
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
@@ -78,15 +76,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const title = `${post.title} | Beliva VIP Blog`;
-  const description = post.excerpt || post.content?.substring(0, 160).replace(/<[^>]*>/g, '') + "...";
+  const description = (post.excerpt || post.content || "").substring(0, 160).replace(/<[^>]*>/g, '') + "...";
   const url = `${SITE_URL}/blog/${resolvedParams.id}`;
+
+  // --- ЛОГИКА ЗА СНИМКАТА (FIX) ---
+  // 1. Взимаме снимката (coverImg или img) или слагаме дефолтна
+  const rawImage = post.coverImg || post.img || "/og-default.jpg";
+  
+  // 2. Правим я абсолютен път (ако вече не е)
+  const imageUrl = rawImage.startsWith("http") ? rawImage : `${SITE_URL}${rawImage}`;
 
   return {
     metadataBase: new URL(SITE_URL),
     title: title,
     description: description,
     
-    // КРИТИЧНО ЗА GOOGLE: Динамичен каноничен адрес
     alternates: {
       canonical: `/blog/${resolvedParams.id}`,
     },
@@ -97,7 +101,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: description,
       url: url,
       siteName: 'Beliva VIP Tour',
-      images: post.img ? [{ url: post.img, width: 1200, height: 630 }] : [],
+      images: [
+        {
+          url: imageUrl, // 👈 Вече е гарантирано пълен URL
+          width: 1200,   // 👈 Задължително за Facebook
+          height: 630,   // 👈 Задължително за Facebook
+          alt: post.title,
+        }
+      ],
       locale: 'bg_BG',
       type: 'article',
       publishedTime: post.createdAt,
@@ -109,10 +120,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title: title,
       description: description,
-      images: post.img ? [post.img] : [],
+      images: [imageUrl],
     },
 
-    // Инструкции за роботите
     robots: {
       index: true,
       follow: true,
@@ -138,12 +148,16 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
+  // Изчисляваме снимката и тук за JSON-LD
+  const rawImage = post.coverImg || post.img || "/og-default.jpg";
+  const imageUrl = rawImage.startsWith("http") ? rawImage : `${SITE_URL}${rawImage}`;
+
   // Структурирани данни (JSON-LD) за Google Rich Snippets
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     "headline": post.title,
-    "image": post.img,
+    "image": imageUrl, // 👈 Ползваме пълния URL
     "datePublished": post.createdAt,
     "author": {
       "@type": "Person",
@@ -158,13 +172,11 @@ export default async function BlogPostPage({ params }: Props) {
 
   return (
     <>
-      {/* Добавяне на структурираните данни в head */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       
-      {/* Клиентският компонент, който управлява визията */}
       <BlogClient post={post} />
     </>
   );
