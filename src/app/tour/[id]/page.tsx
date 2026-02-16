@@ -4,10 +4,14 @@ import type { Metadata } from 'next';
 import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
 
+// 1. Дефинираме домейна (Задължително за Facebook)
+const SITE_URL = "https://belivavip.bg";
+
 type Props = {
   params: { id: string }
 };
 
+// Помощна функция за датите
 const serializeData = (data: any, id: string) => {
   return {
     ...data,
@@ -19,6 +23,7 @@ const serializeData = (data: any, id: string) => {
   };
 };
 
+// 2. Функция за данните
 async function getTourData(id: string) {
   if (!id) return null;
   const decodedId = decodeURIComponent(id);
@@ -28,6 +33,7 @@ async function getTourData(id: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
+// 3. Функция за свързан пост
 async function getRelatedPost(country: string) {
   if (!country) return null;
   const q = query(collection(db, "posts"), where("relatedCountry", "==", country));
@@ -36,7 +42,7 @@ async function getRelatedPost(country: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 🚀 КОРЕКЦИЯТА Е ТУК
+// 🚀 4. ГЕНЕРИРАНЕ НА МЕТАДАННИ (SEO FIX)
 export async function generateMetadata(
   { params }: Props,
 ): Promise<Metadata> {
@@ -44,24 +50,26 @@ export async function generateMetadata(
   const id = resolvedParams.id;
   const decodedId = decodeURIComponent(id);
 
+  // Търсим тура
   const q = query(collection(db, "tours"), where("tourId", "==", decodedId));
   const snapshot = await getDocs(q);
   
   if (snapshot.empty) {
-    return {
-      title: 'Турът не е намерен | Beliva VIP Tour',
-    };
+    return { title: 'Турът не е намерен | Beliva VIP Tour' };
   }
 
   const tour = snapshot.docs[0].data();
   const title = `${tour.title} | Екскурзия до ${tour.country}`;
   const description = tour.intro || `Резервирайте своето пътуване до ${tour.country}. Цена от ${tour.price}.`;
   
-  // Уверяваме се, че имаме пълен URL към снимката
-  const imageUrl = tour.img || "https://belivavip.bg/og-default.jpg";
+  // --- FIX ЗА СНИМКАТА ---
+  // Взимаме снимката или дефолтна
+  const rawImage = tour.img || "/og-default.jpg";
+  // Ако е относителен път (напр. /uploads/...), добавяме домейна отпред
+  const imageUrl = rawImage.startsWith("http") ? rawImage : `${SITE_URL}${rawImage}`;
 
   return {
-    metadataBase: new URL("https://belivavip.bg"),
+    metadataBase: new URL(SITE_URL),
     title: title,
     description: description,
     alternates: {
@@ -70,18 +78,18 @@ export async function generateMetadata(
     openGraph: {
       title: title,
       description: description,
-      url: `https://belivavip.bg/tour/${decodedId}`,
+      url: `${SITE_URL}/tour/${decodedId}`,
       siteName: 'Beliva VIP Tour',
       images: [
         {
-          url: imageUrl, // Вече е изрично подадено
-          width: 1200,   // Стандарт за FB
-          height: 630,   // Стандарт за FB
+          url: imageUrl, // 👈 Вече е гарантирано пълен URL
+          width: 1200,   // Facebook изисква това
+          height: 630,   // Facebook изисква това
           alt: tour.title,
         },
       ],
       locale: 'bg_BG',
-      type: 'article',
+      type: 'website', // За турове е по-добре website или product, но website е най-безопасно
     },
     twitter: {
       card: 'summary_large_image',
@@ -92,6 +100,7 @@ export async function generateMetadata(
   };
 }
 
+// 5. Основната страница
 export default async function TourPage({ params }: Props) {
   const resolvedParams = await params;
   
@@ -106,9 +115,16 @@ export default async function TourPage({ params }: Props) {
     );
   }
 
+  // Подготвяме и снимката за Schema.org
+  const rawImage = tour.img || "/og-default.jpg";
+  const schemaImage = rawImage.startsWith("http") ? rawImage : `${SITE_URL}${rawImage}`;
+  
+  // Модифицираме тура за Schema компонента, за да има пълен URL
+  const tourForSchema = { ...tour, img: schemaImage };
+
   return (
     <>
-      <TourSchema tour={tour} />
+      <TourSchema tour={tourForSchema} />
       <TourClient tourData={tour} relatedPostData={relatedPost} id={resolvedParams.id} />
     </>
   );
