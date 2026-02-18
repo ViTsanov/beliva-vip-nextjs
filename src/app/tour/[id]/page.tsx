@@ -6,7 +6,6 @@ import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
 
 const SITE_URL = "https://belivavip.bg";
-const FALLBACK_IMAGE = `${SITE_URL}/hero/australia.webp`;
 
 type Props = {
   params: { id: string }
@@ -42,47 +41,39 @@ async function getRelatedPost(country: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 3. 🛡️ ЖЕЛЯЗНА ЛОГИКА (CLEAN URL FIX)
-const getSafeImageUrl = (tour: any) => {
+// 3. ПОМОЩНА ФУНКЦИЯ ЗА URL НА СНИМКАТА (САМО ЗА ДА Я ПОДАДЕМ НА API-ТО)
+const getRawImageUrl = (tour: any) => {
     let rawImage = "";
-
-    // А. Извличане
     if (tour.img && typeof tour.img === 'string') rawImage = tour.img;
     else if (tour.images && typeof tour.images === 'string') rawImage = tour.images;
     else if (Array.isArray(tour.gallery) && tour.gallery.length > 0) rawImage = tour.gallery[0];
 
-    // Б. Почистване на запетаи (взимаме първата снимка)
-    if (rawImage && rawImage.includes(',')) {
-        rawImage = rawImage.split(',')[0].trim();
+    if (rawImage.includes(',')) rawImage = rawImage.split(',')[0].trim();
+    
+    // Ако е Unsplash, махаме параметрите, за да е чист линкът
+    if (rawImage.includes('unsplash.com')) {
+        return rawImage.split('?')[0];
     }
-
-    // В. Ако няма снимка -> Връщаме FALLBACK (Австралия)
-    if (!rawImage || rawImage.length < 5) return FALLBACK_IMAGE;
-
-    // Г. Обработка на URL
-    if (rawImage.startsWith("http")) {
-        // СПЕЦИАЛЕН FIX ЗА UNSPLASH:
-        // Ако е Unsplash, махаме всичко след въпросителната (?).
-        // Това премахва w=3000 и чупещите подписи. Оставя чист линк.
-        if (rawImage.includes("unsplash.com")) {
-            return rawImage.split('?')[0];
-        }
-        return rawImage;
-    } else {
-        // Локален път -> Абсолютен
-        const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
-        return `${SITE_URL}/${cleanPath}`;
-    }
+    
+    return rawImage;
 };
 
-// 4. ГЕНЕРИРАНЕ НА МЕТАДАННИ
+// 4. ГЕНЕРИРАНЕ НА МЕТАДАННИ (С НОВАТА ФУНКЦИЯ)
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const tour = await getTourData(resolvedParams.id);
 
   if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
 
-  const finalImageUrl = getSafeImageUrl(tour);
+  // Взимаме чистия URL на снимката
+  const rawImage = getRawImageUrl(tour);
+  
+  // 🚀 МАГИЯТА: Създаваме линк към НАШЕТО API
+  // Пример: https://belivavip.bg/api/og?title=Индия&image=...
+  const ogImageUrl = new URL(`${SITE_URL}/api/og`);
+  ogImageUrl.searchParams.set('title', tour.title);
+  if (tour.price) ogImageUrl.searchParams.set('price', tour.price);
+  if (rawImage) ogImageUrl.searchParams.set('image', rawImage);
 
   return {
     title: `${tour.title} | Екскурзия до ${tour.country}`,
@@ -97,7 +88,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       locale: 'bg_BG',
       type: 'website',
       images: [{
-          url: finalImageUrl,
+          url: ogImageUrl.toString(), // 👈 Тук вече сочи към API-то
           width: 1200,
           height: 630,
           alt: tour.title,
@@ -107,7 +98,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title: `${tour.title} | Екскурзия до ${tour.country}`,
       description: `Цена от ${tour.price}.`,
-      images: [finalImageUrl],
+      images: [ogImageUrl.toString()],
     },
   };
 }
@@ -126,7 +117,8 @@ export default async function TourPage({ params }: Props) {
     );
   }
 
-  const schemaImage = getSafeImageUrl(tour);
+  // За сайта си ползваме директния линк (няма нужда от API)
+  const schemaImage = getRawImageUrl(tour);
   const tourForSchema = { ...tour, img: schemaImage };
 
   return (
