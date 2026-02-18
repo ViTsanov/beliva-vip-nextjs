@@ -49,6 +49,7 @@ export default function Footer() {
   return (
     <footer className="bg-brand-dark text-white pt-20 pb-10 rounded-t-[3rem] mt-auto">
       <div className="container mx-auto px-6">
+        {/* Добавихме още една колона, затова grid-cols-4 става grid-cols-5 на големи екрани или преразпределяме */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16 border-b border-white/10 pb-16">
           
           {/* Brand */}
@@ -76,30 +77,46 @@ export default function Footer() {
           </div>
 
           {/* Quick Links */}
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Навигация</h4>
-            <ul className="space-y-4 text-sm text-gray-400">
-              <li><Link href="/" className="hover:text-white transition-colors">Начало</Link></li>
-              <li><Link href="/about-us" className="hover:text-white transition-colors">За нас</Link></li>
-              <li><Link href="/blog" className="hover:text-white transition-colors">Блог & Пътеводител</Link></li>
-              <li><Link href="/favorites" className="hover:text-white transition-colors">Любими оферти</Link></li>
-              <li><Link href="/contacts" className="hover:text-white transition-colors">Контакти</Link></li>
-            </ul>
+          <div className="grid grid-cols-2 gap-8 lg:col-span-2">
+              <div>
+                <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Навигация</h4>
+                <ul className="space-y-4 text-sm text-gray-400">
+                    <li><Link href="/" className="hover:text-white transition-colors">Начало</Link></li>
+                    <li><Link href="/about-us" className="hover:text-white transition-colors">За нас</Link></li>
+                    <li><Link href="/blog" className="hover:text-white transition-colors">Блог & Пътеводител</Link></li>
+                    <li><Link href="/favorites" className="hover:text-white transition-colors">Любими оферти</Link></li>
+                    <li><Link href="/contacts" className="hover:text-white transition-colors">Контакти</Link></li>
+                    <li><Link href="/reviews" className="hover:text-white transition-colors">Отзиви</Link></li>
+                </ul>
+              </div>
+
+              {/* 🚀 НОВА КОЛОНА: ТОП ДЕСТИНАЦИИ (Deep Links) */}
+              <div>
+                <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Топ Дестинации</h4>
+                <ul className="space-y-4 text-sm text-gray-400">
+                    <li>
+                        <Link href="/?country=Тайланд#tours-grid" className="hover:text-white transition-colors">Екзотика Тайланд</Link>
+                    </li>
+                    <li>
+                        <Link href="/?country=Дубай#tours-grid" className="hover:text-white transition-colors">Екскурзии Дубай</Link>
+                    </li>
+                    <li>
+                        <Link href="/?country=Япония#tours-grid" className="hover:text-white transition-colors">Екскурзии Япония</Link>
+                    </li>
+                    <li>
+                        <Link href="/?country=Бали#tours-grid" className="hover:text-white transition-colors">Екзотика Бали</Link>
+                    </li>
+                    <li>
+                        <Link href="/?country=Перу#tours-grid" className="hover:text-white transition-colors">Екскурзии Перу</Link>
+                    </li>
+                    <li>
+                        <Link href="/?continent=Азия#tours-grid" className="hover:text-white transition-colors text-brand-gold/70">Всички в Азия</Link>
+                    </li>
+                </ul>
+              </div>
           </div>
 
-          {/* Legal */}
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Полезна информация</h4>
-            <ul className="space-y-4 text-sm text-gray-400">
-              <li><Link href="/faq" className="hover:text-white transition-colors">Често задавани въпроси</Link></li>
-              <li><Link href="/terms" className="hover:text-white transition-colors">Общи условия</Link></li>
-              <li><Link href="/privacy" className="hover:text-white transition-colors">Политика за поверителност</Link></li>
-              <li><Link href="/sitemaps" className="hover:text-white transition-colors">Карта на сайта</Link></li>
-              <li><Link href="/reviews" className="hover:text-white transition-colors">Отзиви</Link></li>
-            </ul>
-          </div>
-
-          {/* NEWSLETTER */}
+          {/* NEWSLETTER (Оставяме го в 4-тата колона) */}
           <div className="lg:-mt-6">
               <div className="bg-gradient-to-br from-brand-gold via-yellow-400 to-amber-500 p-6 rounded-2xl shadow-[0_10px_40px_-10px_rgba(234,179,8,0.4)] text-brand-dark relative overflow-hidden transform hover:-translate-y-1 transition-all duration-300">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
@@ -138,6 +155,16 @@ export default function Footer() {
                   </form>
                 )}
               </div>
+
+              {/* Legal Links (Сложих ги тук под бюлетина за баланс, или може да са отделно) */}
+               <div className="mt-8">
+                  <h4 className="font-bold uppercase tracking-widest text-xs mb-4 text-brand-gold">Полезна информация</h4>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-400">
+                    <Link href="/terms" className="hover:text-white transition-colors">Общи условия</Link>
+                    <Link href="/privacy" className="hover:text-white transition-colors">Политика</Link>
+                    <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
+                  </div>
+               </div>
           </div>
         </div>
 

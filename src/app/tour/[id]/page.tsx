@@ -4,14 +4,14 @@ import type { Metadata } from 'next';
 import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
 
-// 1. Дефинираме домейна (Задължително за Facebook)
+// 1. КОНСТАНТА ЗА ДОМЕЙНА (Важно за Facebook)
 const SITE_URL = "https://belivavip.bg";
 
 type Props = {
   params: { id: string }
 };
 
-// Помощна функция за датите
+// Помощна функция за сериализиране на датите
 const serializeData = (data: any, id: string) => {
   return {
     ...data,
@@ -23,7 +23,7 @@ const serializeData = (data: any, id: string) => {
   };
 };
 
-// 2. Функция за данните
+// 2. Функция за извличане на данните
 async function getTourData(id: string) {
   if (!id) return null;
   const decodedId = decodeURIComponent(id);
@@ -33,7 +33,7 @@ async function getTourData(id: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 3. Функция за свързан пост
+// 3. Функция за свързани статии
 async function getRelatedPost(country: string) {
   if (!country) return null;
   const q = query(collection(db, "posts"), where("relatedCountry", "==", country));
@@ -47,26 +47,42 @@ export async function generateMetadata(
   { params }: Props,
 ): Promise<Metadata> {
   const resolvedParams = await params;
-  const id = resolvedParams.id;
-  const decodedId = decodeURIComponent(id);
+  const decodedId = decodeURIComponent(resolvedParams.id);
 
-  // Търсим тура
+  // Търсим тура в базата
   const q = query(collection(db, "tours"), where("tourId", "==", decodedId));
   const snapshot = await getDocs(q);
   
+  // Ако няма такъв тур
   if (snapshot.empty) {
     return { title: 'Турът не е намерен | Beliva VIP Tour' };
   }
 
   const tour = snapshot.docs[0].data();
   const title = `${tour.title} | Екскурзия до ${tour.country}`;
-  const description = tour.intro || `Резервирайте своето пътуване до ${tour.country}. Цена от ${tour.price}.`;
+  const description = tour.intro 
+    ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 150) + "..." 
+    : `Резервирайте своето пътуване до ${tour.country}. Цена от ${tour.price}.`;
   
-  // --- FIX ЗА СНИМКАТА ---
-  // Взимаме снимката или дефолтна
-  const rawImage = tour.img || "/og-default.jpg";
-  // Ако е относителен път (напр. /uploads/...), добавяме домейна отпред
-  const imageUrl = rawImage.startsWith("http") ? rawImage : `${SITE_URL}${rawImage}`;
+  // --- ЛОГИКА ЗА СНИМКАТА ---
+  let finalImageUrl = `${SITE_URL}/og-default.jpg`; // Резервен вариант
+
+  if (tour.img) {
+      // 1. Ако е масив, взимаме първия елемент
+      let rawImage = Array.isArray(tour.img) ? tour.img[0] : tour.img;
+
+      // 2. Ако е стринг, обработваме го
+      if (typeof rawImage === 'string') {
+          // Ако започва с http, значи е пълен URL (напр. от Firebase Storage)
+          if (rawImage.startsWith("http")) {
+              finalImageUrl = rawImage;
+          } 
+          // Ако е локален път (напр. /uploads/...), добавяме домейна
+          else {
+              finalImageUrl = `${SITE_URL}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`;
+          }
+      }
+  }
 
   return {
     metadataBase: new URL(SITE_URL),
@@ -80,22 +96,22 @@ export async function generateMetadata(
       description: description,
       url: `${SITE_URL}/tour/${decodedId}`,
       siteName: 'Beliva VIP Tour',
+      locale: 'bg_BG',
+      type: 'website',
       images: [
         {
-          url: imageUrl, // 👈 Вече е гарантирано пълен URL
-          width: 1200,   // Facebook изисква това
-          height: 630,   // Facebook изисква това
+          url: finalImageUrl, // 👈 Вече е гарантирано пълен URL
+          width: 1200,        // 👈 Задължително за Facebook
+          height: 630,        // 👈 Задължително за Facebook
           alt: tour.title,
         },
       ],
-      locale: 'bg_BG',
-      type: 'website', // За турове е по-добре website или product, но website е най-безопасно
     },
     twitter: {
       card: 'summary_large_image',
       title: title,
       description: description,
-      images: [imageUrl],
+      images: [finalImageUrl],
     },
   };
 }
@@ -115,11 +131,15 @@ export default async function TourPage({ params }: Props) {
     );
   }
 
-  // Подготвяме и снимката за Schema.org
-  const rawImage = tour.img || "/og-default.jpg";
-  const schemaImage = rawImage.startsWith("http") ? rawImage : `${SITE_URL}${rawImage}`;
-  
-  // Модифицираме тура за Schema компонента, за да има пълен URL
+  // Подготвяме данните за Schema.org (също изисква пълен URL)
+  let schemaImage = `${SITE_URL}/og-default.jpg`;
+  if (tour.img) {
+      let raw = Array.isArray(tour.img) ? tour.img[0] : tour.img;
+      if (typeof raw === 'string') {
+          schemaImage = raw.startsWith("http") ? raw : `${SITE_URL}${raw.startsWith('/') ? '' : '/'}${raw}`;
+      }
+  }
+
   const tourForSchema = { ...tour, img: schemaImage };
 
   return (

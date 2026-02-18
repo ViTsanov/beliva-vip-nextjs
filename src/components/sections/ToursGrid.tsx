@@ -43,7 +43,7 @@ export default function ToursGrid() {
     return () => window.removeEventListener('storage', loadFavorites);
   }, []);
 
-  // 2. 🚀 ИЗВЛИЧАНЕ НА ВСИЧКИ ДАННИ ВЕДНЪЖ (Премахва рефреша при филтриране)
+  // 2. 🚀 ИЗВЛИЧАНЕ НА ВСИЧКИ ДАННИ ВЕДНЪЖ
   useEffect(() => {
     const fetchAllTours = async () => {
       setLoading(true);
@@ -67,15 +67,18 @@ export default function ToursGrid() {
     let result = allTours.filter(tour => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (!tour.title.toLowerCase().includes(q) && !tour.country.toLowerCase().includes(q)) return false;
+        const titleMatch = tour.title?.toLowerCase().includes(q);
+        const countryMatch = tour.country?.toLowerCase().includes(q);
+        if (!titleMatch && !countryMatch) return false;
       }
       if (filterContinent && tour.continent !== filterContinent) return false;
+      // Тук Next.js searchParams автоматично декодира кирилицата (напр. "Индия")
       if (filterCountry && tour.country !== filterCountry) return false;
       if (filterCategory && (!tour.categories || !tour.categories.includes(filterCategory))) return false;
       if (filterMonth) {
         const tourDates = [...(tour.dates || [])];
         if (tour.date) tourDates.push(tour.date);
-        if (!tourDates.some(date => date.split('-')[1] === filterMonth)) return false;
+        if (!tourDates.some(date => date && date.split('-')[1] === filterMonth)) return false;
       }
       return true;
     });
@@ -96,7 +99,7 @@ export default function ToursGrid() {
     return result;
   }, [allTours, filterContinent, filterCountry, filterCategory, filterMonth, sortBy, searchQuery]);
 
-  // 4. ОПЦИИ ЗА МЕНЮТАТА (Винаги стабилни)
+  // 4. ОПЦИИ ЗА МЕНЮТАТА
   const uniqueContinents = useMemo(() => 
     Array.from(new Set(allTours.map(t => t.continent).filter(Boolean))).sort(), 
   [allTours]);
@@ -110,30 +113,39 @@ export default function ToursGrid() {
     )).sort(), 
   [allTours, filterContinent]);
 
-  // 5. 🛠️ МАКИРОВКА НА ПРЕМИНАВАНЕТО (Инстантно скачане при рефреш)
+  // 5. 🛠️ АВТОМАТИЧНО СКРОЛИРАНЕ ПРИ ЛИНК ОТ ФУТЪРА
   useEffect(() => {
-    const hasJumpTarget = searchParams.get('continent') || window.location.hash === '#tours-grid';
+    // Проверяваме дали има активни параметри, които предполагат филтрация
+    const hasActiveDeepLink = 
+        searchParams.get('country') || 
+        searchParams.get('continent') || 
+        searchParams.get('cat') ||
+        (typeof window !== 'undefined' && window.location.hash === '#tours-grid');
     
-    if (hasJumpTarget && !loading) {
+    if (hasActiveDeepLink && !loading) {
       const element = document.getElementById('tours-grid');
       if (element) {
-        const yOffset = -100;
+        const yOffset = -100; // Офсет заради фиксираното меню
         const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        // Използваме 'instant', за да скрием процеса на скролиране
-        window.scrollTo({ top: y, behavior: 'instant' });
+        
+        // Използваме 'smooth' за по-приятно усещане, че сайтът те води там
+        window.scrollTo({ top: y, behavior: 'smooth' });
       }
     }
-  }, [loading, searchParams]);
+  }, [loading, searchParams]); // Зависимост от loading, за да изчакаме данните
 
   const updateParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    
+    // Ако сменим континента, махаме държавата, за да няма конфликт
     if (key === 'continent') params.delete('country');
-    router.push(`/?${params.toString()}`, { scroll: false });
+    
+    router.push(`/?${params.toString()}#tours-grid`, { scroll: false });
   };
 
-  const clearFilters = () => router.replace('/', { scroll: false });
+  const clearFilters = () => router.replace('/#tours-grid', { scroll: false });
 
   const scrollToResults = () => {
     if (resultsRef.current) {
@@ -166,7 +178,6 @@ export default function ToursGrid() {
     } return dates.sort();
   };
 
-  // Ако е първоначално зареждане, показваме глобален лоудър, за да маскираме Hero-то при нужда
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -193,11 +204,12 @@ export default function ToursGrid() {
               <h2 className="text-4xl md:text-5xl font-serif text-brand-dark leading-tight">
                   Всички <span className="italic text-brand-gold">Предложения</span>
               </h2>
-              {(filterCountry || filterContinent) && (
+              {/* Показваме какво е избрано */}
+              {(filterCountry || filterContinent || filterCategory) && (
                 <div className="mt-2 flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-500">
                     <div className="h-[1px] w-6 bg-brand-gold"></div>
                     <span className="text-xl md:text-2xl font-serif italic text-brand-dark/70">
-                        {filterCountry || filterContinent}
+                        {filterCountry || filterContinent || (filterCategory === 'Водена от ПОЛИ' ? 'Групи с Поли' : filterCategory)}
                     </span>
                 </div>
               )}
