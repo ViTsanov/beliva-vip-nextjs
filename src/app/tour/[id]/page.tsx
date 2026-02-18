@@ -5,15 +5,15 @@ import { cache } from 'react';
 import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
 
-// Взимаме домейна от Layout-а, но тук го ползваме за fallback
 const SITE_URL = "https://belivavip.bg";
+// Използваме абсолютен път към fallback снимката
 const FALLBACK_IMAGE = `${SITE_URL}/hero/australia.webp`;
 
 type Props = {
   params: { id: string }
 };
 
-// 1. Помощна функция
+// 1. Помощна функция за данни
 const serializeData = (data: any, id: string) => {
   return {
     ...data,
@@ -43,37 +43,38 @@ async function getRelatedPost(country: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 3. 🛡️ ЖЕЛЯЗНА ЛОГИКА ЗА СНИМКАТА (SAFE MODE)
+// 3. 🛡️ ИЗЧИСТЕНА ЛОГИКА ЗА СНИМКАТА
 const getSafeImageUrl = (tour: any) => {
     let rawImage = "";
 
-    // А. Извличане (приоритет: img -> images -> gallery)
-    if (tour.img && typeof tour.img === 'string') {
+    // А. Извличане на суровия стринг (приоритет: img -> images -> gallery)
+    if (tour.img && typeof tour.img === 'string' && tour.img.length > 5) {
         rawImage = tour.img;
-    } else if (tour.images && typeof tour.images === 'string') {
+    } else if (tour.images && typeof tour.images === 'string' && tour.images.length > 5) {
         rawImage = tour.images;
     } else if (Array.isArray(tour.gallery) && tour.gallery.length > 0) {
         rawImage = tour.gallery[0];
     }
 
-    // Б. Почистване на запетаи (Ако има много снимки, взимаме първата)
-    if (rawImage && rawImage.includes(',')) {
+    // Б. Почистване на запетаи (Ако има списък, взимаме първата част)
+    if (rawImage.includes(',')) {
         rawImage = rawImage.split(',')[0].trim();
     }
 
-    // В. Ако няма снимка -> Връщаме логото
-    if (!rawImage || rawImage.length < 5) return FALLBACK_IMAGE;
+    // В. Валидация: Ако няма снимка -> Връщаме FALLBACK
+    if (!rawImage || rawImage.length < 5) {
+        return FALLBACK_IMAGE;
+    }
 
-    // Г. Обработка на URL (Без new URL(), само прост текст)
+    // Г. Обработка на URL
     if (rawImage.startsWith("http")) {
-        // Оптимизация: Само ако видим w=3000, го сменяме на w=1200.
-        // Не пипаме нищо друго, за да не счупим подписа на Unsplash.
-        if (rawImage.includes("w=3000")) {
-            return rawImage.replace("w=3000", "w=1200");
-        }
+        // ВАЖНО: Връщаме URL-а точно както е в базата!
+        // НЕ променяме w=3000 на w=1200, защото това чупи Signed URLs (plus.unsplash.com)
+        // и води до грешка 403, заради която Facebook показва логото.
         return rawImage;
     } else {
-        // Локален път - добавяме домейна
+        // Локален път - правим го абсолютен
+        // Чистим двойни наклонени черти ако има
         const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
         return `${SITE_URL}/${cleanPath}`;
     }
@@ -86,12 +87,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
 
-  // Изчисляваме снимката
+  // Изчисляваме валиден URL за снимката
   const finalImageUrl = getSafeImageUrl(tour);
 
   return {
-    // ВАЖНО: Махаме metadataBase от тук, защото вече го имаш в layout.tsx
-    // Това предотвратява конфликти.
     title: `${tour.title} | Екскурзия до ${tour.country}`,
     description: tour.intro 
         ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 150) + "..." 
