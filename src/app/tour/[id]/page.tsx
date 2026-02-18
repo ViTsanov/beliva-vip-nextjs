@@ -42,61 +42,52 @@ async function getRelatedPost(country: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 3. 🛡️ ПРЕЦИЗНА ОБРАБОТКА НА СНИМКАТА
+// 3. 🛡️ ОПТИМИЗАЦИЯ НА СНИМКАТА (FIXED за plus.unsplash.com)
 const getOptimizedImageUrl = (tour: any) => {
     let rawImage = "";
 
-    // А. Извличане на "суров" URL от базата
-    // Приоритет 1: img
-    if (tour.img) {
-        if (Array.isArray(tour.img)) rawImage = tour.img[0];
-        else if (typeof tour.img === 'string') rawImage = tour.img;
+    // ПРИОРИТЕТ 1: 'img' (Единична снимка, както потвърди)
+    if (tour.img && typeof tour.img === 'string') {
+        // Дори да е една, понякога copy-paste грешки вкарват запетаи.
+        // split(',')[0] е безопасно: ако няма запетая, връща целия стринг.
+        rawImage = tour.img.split(',')[0].trim();
     } 
-    // Приоритет 2: images
+    
+    // ПРИОРИТЕТ 2: 'images' (Списък със запетаи - взимаме първата)
     else if (tour.images && typeof tour.images === 'string') {
-        rawImage = tour.images;
+        rawImage = tour.images.split(',')[0].trim();
     }
-    // Приоритет 3: gallery
+    
+    // ПРИОРИТЕТ 3: 'gallery'
     else if (Array.isArray(tour.gallery) && tour.gallery.length > 0) {
         rawImage = tour.gallery[0];
     }
 
-    // Ако сме намерили стринг, но той съдържа запетаи (чест случай), взимаме само първата част
-    if (rawImage && typeof rawImage === 'string' && rawImage.includes(',')) {
-        rawImage = rawImage.split(',')[0].trim();
-    }
+    // Ако няма нищо -> Логото
+    if (!rawImage || rawImage.length < 5) return FALLBACK_IMAGE;
 
-    // Ако след всичко това нямаме снимка, връщаме логото
-    if (!rawImage || typeof rawImage !== 'string' || rawImage.length < 5) {
-        console.log(`[SEO Warning] No valid image found for tour: ${tour.title}`);
-        return FALLBACK_IMAGE;
-    }
-
-    // Б. Валидация и Оптимизация (Unsplash Fix)
-    try {
-        // Проверка дали е абсолютен URL
-        if (rawImage.startsWith("http")) {
-            const urlObj = new URL(rawImage);
-
-            // Специална логика за Unsplash
-            if (urlObj.hostname.includes('unsplash')) {
-                // Насилствено задаваме параметрите, независимо как са били преди
+    // ВАЖНО: ОПТИМИЗАЦИЯ НА РАЗМЕРА
+    if (rawImage.startsWith("http")) {
+        try {
+            // Проверка дали е Unsplash (хваща и 'images.', и 'plus.')
+            if (rawImage.includes("unsplash.com")) {
+                const urlObj = new URL(rawImage);
+                // Насилствено намаляваме размера, защото 3000px чупи Facebook
                 urlObj.searchParams.set('w', '1200');
                 urlObj.searchParams.set('h', '630');
                 urlObj.searchParams.set('fit', 'crop');
                 urlObj.searchParams.set('q', '80');
                 return urlObj.toString();
             }
-
             return rawImage;
-        } else {
-            // Локален път - махаме водещата наклонена черта и добавяме домейна
-            const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
-            return `${SITE_URL}/${cleanPath}`;
+        } catch (e) {
+            // Ако URL парсването гръмне, връщаме оригинала
+            return rawImage;
         }
-    } catch (error) {
-        console.error("Error parsing image URL:", error);
-        return FALLBACK_IMAGE;
+    } else {
+        // Локален път
+        const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
+        return `${SITE_URL}/${cleanPath}`;
     }
 };
 
@@ -108,9 +99,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
 
   const finalImageUrl = getOptimizedImageUrl(tour);
-  
-  // Логваме в сървърната конзола, за да сме сигурни какво се генерира
-  console.log(`[SEO Check] Tour: ${tour.tourId} | Image: ${finalImageUrl}`);
+
+  // Лог за проверка
+  console.log(`[SEO] ID: ${tour.tourId} | Img Source: ${finalImageUrl}`);
 
   return {
     metadataBase: new URL(SITE_URL),
