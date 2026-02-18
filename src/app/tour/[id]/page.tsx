@@ -5,8 +5,8 @@ import { cache } from 'react';
 import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
 
+// Взимаме домейна от Layout-а, но тук го ползваме за fallback
 const SITE_URL = "https://belivavip.bg";
-// Използваме логото само ако наистина няма друга снимка
 const FALLBACK_IMAGE = `${SITE_URL}/beliva_logo.png`;
 
 type Props = {
@@ -43,12 +43,11 @@ async function getRelatedPost(country: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 3. 🛡️ ОПРОСТЕНА ЛОГИКА (KISS Principle - Keep It Simple)
-// Правим го като при блога, но с обработка на запетаите
-const getFinalImage = (tour: any) => {
+// 3. 🛡️ ЖЕЛЯЗНА ЛОГИКА ЗА СНИМКАТА (SAFE MODE)
+const getSafeImageUrl = (tour: any) => {
     let rawImage = "";
 
-    // 1. Извличане (както преди, защото базата ти е шарена)
+    // А. Извличане (приоритет: img -> images -> gallery)
     if (tour.img && typeof tour.img === 'string') {
         rawImage = tour.img;
     } else if (tour.images && typeof tour.images === 'string') {
@@ -57,28 +56,27 @@ const getFinalImage = (tour: any) => {
         rawImage = tour.gallery[0];
     }
 
-    // 2. Почистване на запетаи (Това е единствената разлика с блога)
+    // Б. Почистване на запетаи (Ако има много снимки, взимаме първата)
     if (rawImage && rawImage.includes(',')) {
         rawImage = rawImage.split(',')[0].trim();
     }
 
-    // 3. Ако няма снимка -> Логото
+    // В. Ако няма снимка -> Връщаме логото
     if (!rawImage || rawImage.length < 5) return FALLBACK_IMAGE;
 
-    // 4. Абсолютен URL (Логиката от Блога)
-    let finalUrl = rawImage.startsWith("http") ? rawImage : `${SITE_URL}/${rawImage.startsWith('/') ? rawImage.substring(1) : rawImage}`;
-
-    // 5. ЕДИНСТВЕНАТА ОПТИМИЗАЦИЯ: Сменяме само ширината като текст, без да парсваме URL
-    // Това е безопасно и не чупи линка.
-    if (finalUrl.includes("w=3000")) {
-        finalUrl = finalUrl.replace("w=3000", "w=1200");
+    // Г. Обработка на URL (Без new URL(), само прост текст)
+    if (rawImage.startsWith("http")) {
+        // Оптимизация: Само ако видим w=3000, го сменяме на w=1200.
+        // Не пипаме нищо друго, за да не счупим подписа на Unsplash.
+        if (rawImage.includes("w=3000")) {
+            return rawImage.replace("w=3000", "w=1200");
+        }
+        return rawImage;
+    } else {
+        // Локален път - добавяме домейна
+        const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
+        return `${SITE_URL}/${cleanPath}`;
     }
-    // Леко вдигаме качеството ако е зададено ниско
-    if (finalUrl.includes("q=60")) {
-        finalUrl = finalUrl.replace("q=60", "q=80");
-    }
-
-    return finalUrl;
 };
 
 // 4. ГЕНЕРИРАНЕ НА МЕТАДАННИ
@@ -88,13 +86,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
 
-  const finalImageUrl = getFinalImage(tour);
-  
-  // Debug log
-  console.log(`[SEO Simple] Tour: ${tour.tourId} | Image: ${finalImageUrl}`);
+  // Изчисляваме снимката
+  const finalImageUrl = getSafeImageUrl(tour);
 
   return {
-    metadataBase: new URL(SITE_URL),
+    // ВАЖНО: Махаме metadataBase от тук, защото вече го имаш в layout.tsx
+    // Това предотвратява конфликти.
     title: `${tour.title} | Екскурзия до ${tour.country}`,
     description: tour.intro 
         ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 150) + "..." 
@@ -136,7 +133,7 @@ export default async function TourPage({ params }: Props) {
     );
   }
 
-  const schemaImage = getFinalImage(tour);
+  const schemaImage = getSafeImageUrl(tour);
   const tourForSchema = { ...tour, img: schemaImage };
 
   return (
