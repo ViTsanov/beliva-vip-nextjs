@@ -6,15 +6,13 @@ import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
 
 const SITE_URL = "https://belivavip.bg";
-
-// Тъй като нямаш og-default.jpg, ползваме логото за краен резервен вариант
 const FALLBACK_IMAGE = `${SITE_URL}/beliva_logo.png`;
 
 type Props = {
   params: { id: string }
 };
 
-// 1. Помощна функция
+// 1. Помощна функция за данни
 const serializeData = (data: any, id: string) => {
   return {
     ...data,
@@ -44,45 +42,61 @@ async function getRelatedPost(country: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 3. 🛡️ ОПТИМИЗАЦИЯ НА СНИМКАТА
+// 3. 🛡️ ПРЕЦИЗНА ОБРАБОТКА НА СНИМКАТА
 const getOptimizedImageUrl = (tour: any) => {
-    let rawImage = FALLBACK_IMAGE; // Започваме с логото, ако нищо друго не се намери
+    let rawImage = "";
 
-    // Проверка 1: Поле 'img'
+    // А. Извличане на "суров" URL от базата
+    // Приоритет 1: img
     if (tour.img) {
-        if (Array.isArray(tour.img)) {
-             rawImage = tour.img[0];
-        } else if (typeof tour.img === 'string') {
-             // Чистим ако има запетаи (понякога се случва)
-             rawImage = tour.img.includes(',') ? tour.img.split(',')[0].trim() : tour.img;
-        }
+        if (Array.isArray(tour.img)) rawImage = tour.img[0];
+        else if (typeof tour.img === 'string') rawImage = tour.img;
     } 
-    // Проверка 2: Поле 'images' (ако img е празно)
+    // Приоритет 2: images
     else if (tour.images && typeof tour.images === 'string') {
-        const splitImages = tour.images.split(',');
-        if (splitImages.length > 0) rawImage = splitImages[0].trim();
+        rawImage = tour.images;
     }
-    // Проверка 3: Поле 'gallery'
+    // Приоритет 3: gallery
     else if (Array.isArray(tour.gallery) && tour.gallery.length > 0) {
         rawImage = tour.gallery[0];
     }
 
-    // ВАЖНО: Тук оправяме проблема с размера (Unsplash w=3000 -> w=1200)
-    if (rawImage.startsWith("http")) {
-        // Facebook не харесва твърде големи снимки. Unsplash често дава w=3000.
-        // Ние го променяме насила на w=1200.
-        if (rawImage.includes("images.unsplash.com")) {
-            let optimized = rawImage.replace("w=3000", "w=1200");
-            optimized = optimized.replace("q=60", "q=80"); // Подобрено качество
-            return optimized;
+    // Ако сме намерили стринг, но той съдържа запетаи (чест случай), взимаме само първата част
+    if (rawImage && typeof rawImage === 'string' && rawImage.includes(',')) {
+        rawImage = rawImage.split(',')[0].trim();
+    }
+
+    // Ако след всичко това нямаме снимка, връщаме логото
+    if (!rawImage || typeof rawImage !== 'string' || rawImage.length < 5) {
+        console.log(`[SEO Warning] No valid image found for tour: ${tour.title}`);
+        return FALLBACK_IMAGE;
+    }
+
+    // Б. Валидация и Оптимизация (Unsplash Fix)
+    try {
+        // Проверка дали е абсолютен URL
+        if (rawImage.startsWith("http")) {
+            const urlObj = new URL(rawImage);
+
+            // Специална логика за Unsplash
+            if (urlObj.hostname.includes('unsplash')) {
+                // Насилствено задаваме параметрите, независимо как са били преди
+                urlObj.searchParams.set('w', '1200');
+                urlObj.searchParams.set('h', '630');
+                urlObj.searchParams.set('fit', 'crop');
+                urlObj.searchParams.set('q', '80');
+                return urlObj.toString();
+            }
+
+            return rawImage;
+        } else {
+            // Локален път - махаме водещата наклонена черта и добавяме домейна
+            const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
+            return `${SITE_URL}/${cleanPath}`;
         }
-        return rawImage;
-    } else {
-        // Локален път (ако не е пълен URL)
-        const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
-        // Предпазваме се от двойни наклонени черти
-        if (cleanPath.startsWith('http')) return cleanPath;
-        return `${SITE_URL}/${cleanPath}`;
+    } catch (error) {
+        console.error("Error parsing image URL:", error);
+        return FALLBACK_IMAGE;
     }
 };
 
@@ -94,6 +108,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
 
   const finalImageUrl = getOptimizedImageUrl(tour);
+  
+  // Логваме в сървърната конзола, за да сме сигурни какво се генерира
+  console.log(`[SEO Check] Tour: ${tour.tourId} | Image: ${finalImageUrl}`);
 
   return {
     metadataBase: new URL(SITE_URL),
@@ -103,7 +120,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         : `Резервирайте незабравимо пътуване до ${tour.country}.`,
     openGraph: {
       title: `${tour.title} | Екскурзия до ${tour.country}`,
-      description: `Разгледайте програмата за ${tour.country}. Цена от ${tour.price}.`,
+      description: `Цена от ${tour.price}. Разгледайте програмата.`,
       url: `${SITE_URL}/tour/${tour.tourId}`,
       siteName: 'Beliva VIP Tour',
       locale: 'bg_BG',
