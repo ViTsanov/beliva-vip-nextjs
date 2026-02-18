@@ -12,7 +12,7 @@ type Props = {
   params: { id: string }
 };
 
-// 1. Помощна функция
+// 1. Помощна функция за данни
 const serializeData = (data: any, id: string) => {
   return {
     ...data,
@@ -42,34 +42,37 @@ async function getRelatedPost(country: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 3. 🛡️ ЛОГИКА ЗА СНИМКАТА (СПЕЦИАЛНО ЗА TVOYATA BAZA)
+// 3. 🛡️ ОПТИМИЗАЦИЯ НА СНИМКАТА (FIXED за plus.unsplash.com)
 const getOptimizedImageUrl = (tour: any) => {
-    // Функция, която изчиства единична стойност
-    const cleanUrl = (val: any) => {
-        if (!val) return null;
-        if (Array.isArray(val)) return val[0]; // Ако е масив, взима първия
-        if (typeof val === 'string') {
-            // ТУК Е КЛЮЧЪТ: Ако има запетая, цепим и взимаме първото!
-            if (val.includes(',')) {
-                return val.split(',')[0].trim();
-            }
-            return val.trim();
-        }
-        return null;
-    };
+    let rawImage = "";
 
-    // Проверяваме полетата по приоритет
-    let rawImage = cleanUrl(tour.img) || cleanUrl(tour.images) || cleanUrl(tour.gallery);
+    // ПРИОРИТЕТ 1: 'img' (Единична снимка, както потвърди)
+    if (tour.img && typeof tour.img === 'string') {
+        // Дори да е една, понякога copy-paste грешки вкарват запетаи.
+        // split(',')[0] е безопасно: ако няма запетая, връща целия стринг.
+        rawImage = tour.img.split(',')[0].trim();
+    } 
+    
+    // ПРИОРИТЕТ 2: 'images' (Списък със запетаи - взимаме първата)
+    else if (tour.images && typeof tour.images === 'string') {
+        rawImage = tour.images.split(',')[0].trim();
+    }
+    
+    // ПРИОРИТЕТ 3: 'gallery'
+    else if (Array.isArray(tour.gallery) && tour.gallery.length > 0) {
+        rawImage = tour.gallery[0];
+    }
 
-    // Ако все още нямаме снимка, връщаме логото
-    if (!rawImage) return FALLBACK_IMAGE;
+    // Ако няма нищо -> Логото
+    if (!rawImage || rawImage.length < 5) return FALLBACK_IMAGE;
 
-    // ОПТИМИЗАЦИЯ ЗА URL
-    try {
-        if (rawImage.startsWith("http")) {
-            // Unsplash логика
-            if (rawImage.includes("images.unsplash.com")) {
+    // ВАЖНО: ОПТИМИЗАЦИЯ НА РАЗМЕРА
+    if (rawImage.startsWith("http")) {
+        try {
+            // Проверка дали е Unsplash (хваща и 'images.', и 'plus.')
+            if (rawImage.includes("unsplash.com")) {
                 const urlObj = new URL(rawImage);
+                // Насилствено намаляваме размера, защото 3000px чупи Facebook
                 urlObj.searchParams.set('w', '1200');
                 urlObj.searchParams.set('h', '630');
                 urlObj.searchParams.set('fit', 'crop');
@@ -77,13 +80,14 @@ const getOptimizedImageUrl = (tour: any) => {
                 return urlObj.toString();
             }
             return rawImage;
-        } else {
-            // Локален път
-            const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
-            return `${SITE_URL}/${cleanPath}`;
+        } catch (e) {
+            // Ако URL парсването гръмне, връщаме оригинала
+            return rawImage;
         }
-    } catch (e) {
-        return FALLBACK_IMAGE;
+    } else {
+        // Локален път
+        const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
+        return `${SITE_URL}/${cleanPath}`;
     }
 };
 
@@ -95,6 +99,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
 
   const finalImageUrl = getOptimizedImageUrl(tour);
+
+  // Лог за проверка
+  console.log(`[SEO] ID: ${tour.tourId} | Img Source: ${finalImageUrl}`);
 
   return {
     metadataBase: new URL(SITE_URL),
