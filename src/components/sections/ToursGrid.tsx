@@ -9,6 +9,37 @@ import FiltersBar from '@/components/FiltersBar';
 import TourCard from '@/components/tours/TourCard';
 import { ITour } from '@/types';
 
+// Помощна функция за нормализиране на датата към YYYY-MM-DD
+// Това оправя проблема със смесените формати (01-05-2026 vs 2026-05-01)
+const getNormalizedDate = (dateStr: string) => {
+  if (!dateStr) return "9999-99-99"; // Без дата отива най-накрая
+  const parts = dateStr.split('-');
+  // Ако е във формат DD-MM-YYYY (първата част е ден), обръщаме го
+  if (parts[0].length === 2) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr; // Вече е YYYY-MM-DD
+};
+
+// Функция, която намира НАЙ-РАННАТА дата за даден тур
+const getEarliestDate = (tour: ITour) => {
+  let allDates: string[] = [];
+  
+  // 1. Добавяме основната дата (нормализирана)
+  if (tour.date) allDates.push(getNormalizedDate(tour.date));
+  
+  // 2. Добавяме датите от масива (нормализирани)
+  if (tour.dates && Array.isArray(tour.dates)) {
+    tour.dates.forEach(d => {
+       if(typeof d === 'string') allDates.push(getNormalizedDate(d));
+    });
+  }
+
+  // 3. Сортираме и взимаме първата
+  allDates.sort(); 
+  return allDates.length > 0 ? allDates[0] : "9999-99-99";
+};
+
 export default function ToursGrid() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,7 +53,6 @@ export default function ToursGrid() {
   const filterCategory = searchParams.get('cat') || '';
   const sortBy = searchParams.get('sort') || 'date';
 
-  // Стейт за всички данни (кеш) и любими
   const [allTours, setAllTours] = useState<ITour[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +73,7 @@ export default function ToursGrid() {
     return () => window.removeEventListener('storage', loadFavorites);
   }, []);
 
-  // 2. 🚀 ИЗВЛИЧАНЕ НА ВСИЧКИ ДАННИ ВЕДНЪЖ
+  // 2. Извличане на данни
   useEffect(() => {
     const fetchAllTours = async () => {
       setLoading(true);
@@ -62,7 +92,7 @@ export default function ToursGrid() {
     fetchAllTours();
   }, []);
 
-  // 3. 🧠 МИГНОВЕНО ФИЛТРИРАНЕ НА КЛИЕНТА
+  // 3. ФИЛТРИРАНЕ И СОРТИРАНЕ (Fix-нато)
   const filteredTours = useMemo(() => {
     let result = allTours.filter(tour => {
       if (searchQuery) {
@@ -72,17 +102,20 @@ export default function ToursGrid() {
         if (!titleMatch && !countryMatch) return false;
       }
       if (filterContinent && tour.continent !== filterContinent) return false;
-      // Тук Next.js searchParams автоматично декодира кирилицата (напр. "Индия")
       if (filterCountry && tour.country !== filterCountry) return false;
       if (filterCategory && (!tour.categories || !tour.categories.includes(filterCategory))) return false;
+      
       if (filterMonth) {
-        const tourDates = [...(tour.dates || [])];
-        if (tour.date) tourDates.push(tour.date);
-        if (!tourDates.some(date => date && date.split('-')[1] === filterMonth)) return false;
+        // Проверяваме дали някоя от датите на тура е в избрания месец
+        const earliest = getEarliestDate(tour);
+        // Взимаме месеца от YYYY-MM-DD (индекс 1 след split)
+        const monthPart = earliest.split('-')[1]; 
+        if (monthPart !== filterMonth) return false;
       }
       return true;
     });
 
+    // СОРТИРАНЕ
     result.sort((a, b) => {
       if (sortBy === 'price_asc') {
         const pA = parseFloat(a.price?.toString().replace(/[^0-9.]/g, '')) || 0;
@@ -94,8 +127,13 @@ export default function ToursGrid() {
         const pB = parseFloat(b.price?.toString().replace(/[^0-9.]/g, '')) || 0;
         return pB - pA;
       }
-      return (a.date || '').localeCompare(b.date || '');
+      
+      // Сортиране по дата (default) - Използваме helper функцията!
+      const dateA = getEarliestDate(a);
+      const dateB = getEarliestDate(b);
+      return dateA.localeCompare(dateB);
     });
+
     return result;
   }, [allTours, filterContinent, filterCountry, filterCategory, filterMonth, sortBy, searchQuery]);
 
@@ -113,9 +151,8 @@ export default function ToursGrid() {
     )).sort(), 
   [allTours, filterContinent]);
 
-  // 5. 🛠️ АВТОМАТИЧНО СКРОЛИРАНЕ ПРИ ЛИНК ОТ ФУТЪРА
+  // 5. Scroll Logic
   useEffect(() => {
-    // Проверяваме дали има активни параметри, които предполагат филтрация
     const hasActiveDeepLink = 
         searchParams.get('country') || 
         searchParams.get('continent') || 
@@ -125,23 +162,18 @@ export default function ToursGrid() {
     if (hasActiveDeepLink && !loading) {
       const element = document.getElementById('tours-grid');
       if (element) {
-        const yOffset = -100; // Офсет заради фиксираното меню
+        const yOffset = -100;
         const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        
-        // Използваме 'smooth' за по-приятно усещане, че сайтът те води там
         window.scrollTo({ top: y, behavior: 'smooth' });
       }
     }
-  }, [loading, searchParams]); // Зависимост от loading, за да изчакаме данните
+  }, [loading, searchParams]);
 
   const updateParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
-    
-    // Ако сменим континента, махаме държавата, за да няма конфликт
     if (key === 'continent') params.delete('country');
-    
     router.push(`/?${params.toString()}#tours-grid`, { scroll: false });
   };
 
@@ -167,15 +199,6 @@ export default function ToursGrid() {
     setFavorites(newFavorites);
     localStorage.setItem('beliva_favorites', JSON.stringify(newFavorites));
     window.dispatchEvent(new Event("storage"));
-  };
-
-  const getAllDates = (tour: ITour) => {
-    let dates = [...(tour.dates || [])];
-    if (tour.date) {
-      const parts = tour.date.split('-');
-      const mainIso = parts[0].length === 2 ? parts.reverse().join('-') : tour.date;
-      if (!dates.includes(mainIso)) dates.push(mainIso);
-    } return dates.sort();
   };
 
   if (loading) {
@@ -204,7 +227,6 @@ export default function ToursGrid() {
               <h2 className="text-4xl md:text-5xl font-serif text-brand-dark leading-tight">
                   Всички <span className="italic text-brand-gold">Предложения</span>
               </h2>
-              {/* Показваме какво е избрано */}
               {(filterCountry || filterContinent || filterCategory) && (
                 <div className="mt-2 flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-500">
                     <div className="h-[1px] w-6 bg-brand-gold"></div>
@@ -273,9 +295,14 @@ export default function ToursGrid() {
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-16 items-start">
             {filteredTours.map((tour) => {
-                let allDatesISO = getAllDates(tour);
-                let tourYear = ""; if (allDatesISO.length > 0) tourYear = allDatesISO[0].split('-')[0];
-                const showYearHeader = tourYear !== lastYear && tourYear !== ""; if (showYearHeader) lastYear = tourYear;
+                // Изчисляваме годината на базата на нормализираната дата
+                const earliestDate = getEarliestDate(tour);
+                let tourYear = earliestDate !== "9999-99-99" ? earliestDate.split('-')[0] : "";
+                
+                // Проверка дали трябва да покажем хедър
+                const showYearHeader = tourYear !== lastYear && tourYear !== ""; 
+                if (showYearHeader) lastYear = tourYear;
+                
                 const isFav = favorites.some((f: any) => f.id === (tour.tourId || tour.id));
 
                 return (

@@ -7,7 +7,7 @@ import TourSchema from "@/components/TourSchema";
 
 // Взимаме домейна от Layout-а, но тук го ползваме за fallback
 const SITE_URL = "https://belivavip.bg";
-const FALLBACK_IMAGE = `${SITE_URL}/beliva_logo.png`;
+const FALLBACK_IMAGE = `${SITE_URL}/hero/australia.webp`;
 
 type Props = {
   params: { id: string }
