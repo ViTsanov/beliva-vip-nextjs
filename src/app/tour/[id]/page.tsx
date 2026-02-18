@@ -6,13 +6,14 @@ import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
 
 const SITE_URL = "https://belivavip.bg";
+// Използваме логото само ако наистина няма друга снимка
 const FALLBACK_IMAGE = `${SITE_URL}/beliva_logo.png`;
 
 type Props = {
   params: { id: string }
 };
 
-// 1. Помощна функция за данни
+// 1. Помощна функция
 const serializeData = (data: any, id: string) => {
   return {
     ...data,
@@ -42,53 +43,42 @@ async function getRelatedPost(country: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 3. 🛡️ ОПТИМИЗАЦИЯ НА СНИМКАТА (FIXED за plus.unsplash.com)
-const getOptimizedImageUrl = (tour: any) => {
+// 3. 🛡️ ОПРОСТЕНА ЛОГИКА (KISS Principle - Keep It Simple)
+// Правим го като при блога, но с обработка на запетаите
+const getFinalImage = (tour: any) => {
     let rawImage = "";
 
-    // ПРИОРИТЕТ 1: 'img' (Единична снимка, както потвърди)
+    // 1. Извличане (както преди, защото базата ти е шарена)
     if (tour.img && typeof tour.img === 'string') {
-        // Дори да е една, понякога copy-paste грешки вкарват запетаи.
-        // split(',')[0] е безопасно: ако няма запетая, връща целия стринг.
-        rawImage = tour.img.split(',')[0].trim();
-    } 
-    
-    // ПРИОРИТЕТ 2: 'images' (Списък със запетаи - взимаме първата)
-    else if (tour.images && typeof tour.images === 'string') {
-        rawImage = tour.images.split(',')[0].trim();
-    }
-    
-    // ПРИОРИТЕТ 3: 'gallery'
-    else if (Array.isArray(tour.gallery) && tour.gallery.length > 0) {
+        rawImage = tour.img;
+    } else if (tour.images && typeof tour.images === 'string') {
+        rawImage = tour.images;
+    } else if (Array.isArray(tour.gallery) && tour.gallery.length > 0) {
         rawImage = tour.gallery[0];
     }
 
-    // Ако няма нищо -> Логото
+    // 2. Почистване на запетаи (Това е единствената разлика с блога)
+    if (rawImage && rawImage.includes(',')) {
+        rawImage = rawImage.split(',')[0].trim();
+    }
+
+    // 3. Ако няма снимка -> Логото
     if (!rawImage || rawImage.length < 5) return FALLBACK_IMAGE;
 
-    // ВАЖНО: ОПТИМИЗАЦИЯ НА РАЗМЕРА
-    if (rawImage.startsWith("http")) {
-        try {
-            // Проверка дали е Unsplash (хваща и 'images.', и 'plus.')
-            if (rawImage.includes("unsplash.com")) {
-                const urlObj = new URL(rawImage);
-                // Насилствено намаляваме размера, защото 3000px чупи Facebook
-                urlObj.searchParams.set('w', '1200');
-                urlObj.searchParams.set('h', '630');
-                urlObj.searchParams.set('fit', 'crop');
-                urlObj.searchParams.set('q', '80');
-                return urlObj.toString();
-            }
-            return rawImage;
-        } catch (e) {
-            // Ако URL парсването гръмне, връщаме оригинала
-            return rawImage;
-        }
-    } else {
-        // Локален път
-        const cleanPath = rawImage.startsWith('/') ? rawImage.substring(1) : rawImage;
-        return `${SITE_URL}/${cleanPath}`;
+    // 4. Абсолютен URL (Логиката от Блога)
+    let finalUrl = rawImage.startsWith("http") ? rawImage : `${SITE_URL}/${rawImage.startsWith('/') ? rawImage.substring(1) : rawImage}`;
+
+    // 5. ЕДИНСТВЕНАТА ОПТИМИЗАЦИЯ: Сменяме само ширината като текст, без да парсваме URL
+    // Това е безопасно и не чупи линка.
+    if (finalUrl.includes("w=3000")) {
+        finalUrl = finalUrl.replace("w=3000", "w=1200");
     }
+    // Леко вдигаме качеството ако е зададено ниско
+    if (finalUrl.includes("q=60")) {
+        finalUrl = finalUrl.replace("q=60", "q=80");
+    }
+
+    return finalUrl;
 };
 
 // 4. ГЕНЕРИРАНЕ НА МЕТАДАННИ
@@ -98,10 +88,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
 
-  const finalImageUrl = getOptimizedImageUrl(tour);
-
-  // Лог за проверка
-  console.log(`[SEO] ID: ${tour.tourId} | Img Source: ${finalImageUrl}`);
+  const finalImageUrl = getFinalImage(tour);
+  
+  // Debug log
+  console.log(`[SEO Simple] Tour: ${tour.tourId} | Image: ${finalImageUrl}`);
 
   return {
     metadataBase: new URL(SITE_URL),
@@ -146,7 +136,7 @@ export default async function TourPage({ params }: Props) {
     );
   }
 
-  const schemaImage = getOptimizedImageUrl(tour);
+  const schemaImage = getFinalImage(tour);
   const tourForSchema = { ...tour, img: schemaImage };
 
   return (
