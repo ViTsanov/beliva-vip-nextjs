@@ -3,6 +3,14 @@ export interface ITour {
   tourId?: string;
   title: string;
   price: string;
+// 👇 ПРОМОЦИИ 👇
+  isPromo?: boolean;
+  discountAmount?: string | number; // Колко пари е отстъпката
+  discountPrice?: string; // Крайната сметната цена
+  promoLabel?: string;
+  promoBgColor?: string; // Цвят на фона
+  promoTextColor?: string; // Цвят на текста
+  // 👆 --------- 👆
   img: string;
   images?: string[] | string; 
   gallery?: string[];

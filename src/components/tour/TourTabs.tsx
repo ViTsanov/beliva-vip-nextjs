@@ -11,32 +11,22 @@ interface TourTabsProps {
 }
 
 export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabsProps) {
-  // State за разпъване на описанието (Впечатления)
   const [isDescExpanded, setIsDescExpanded] = useState(false);
-  
-  // State за разпъване на програмата (Ден по ден)
   const [isProgramExpanded, setIsProgramExpanded] = useState(false);
-
-  // State за разпъване на галерията на мобилни
   const [isGalleryExpanded, setIsGalleryExpanded] = useState(false);
 
   const hasMultipleDates = tour.dates && tour.dates.length > 1;
   const formatDate = (dateStr: string) => dateStr.split('-').reverse().join('.');
   const programData = tour.itinerary || tour.program || [];
-
-  // Логика за показване на програмата: Ако е разпъната показва всичко, ако не - първите 3 дни
   const visibleProgram = isProgramExpanded ? programData : programData.slice(0, 3);
   const hasHiddenDays = programData.length > 3;
 
-  // Логика за показване на галерията:
-  // На desktop (md) винаги показваме всичко (или може да сложим лимит и там).
-  // На mobile (default) показваме 2 снимки, ако не е разпъната.
-  // За да работи responsive логиката в JS, най-чисто е с CSS класове за скриване, 
-  // но тук ще използвам slice за по-лесно управление на бутона.
-  
+  // Проверка за активна промоция
+  const isPromoActive = tour.isPromo && tour.discountPrice;
+
   return (
     <div className="space-y-12">
-        {/* INFO GRID (Без промяна) */}
+        {/* INFO GRID */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {!hasMultipleDates && (
             <div className="bg-white p-5 rounded-3xl shadow-xl border-b-4 border-brand-dark group hover:-translate-y-1 transition-all">
@@ -60,15 +50,32 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             <p className="font-bold text-brand-dark text-sm md:text-lg">{tour.country}</p>
             </div>
 
-            <div className="bg-brand-dark p-5 rounded-3xl shadow-xl border-b-4 border-brand-gold group hover:-translate-y-1 transition-all relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10"><Euro size={64} className="text-white"/></div>
-            <div className="mb-2 text-brand-gold"><Euro size={24}/></div>
-            <p className="text-[10px] uppercase font-black text-brand-gold/70 tracking-widest mb-1">Цена от</p>
-            <p className="font-bold text-white text-lg md:text-xl">{tour.price}</p>
+            {/* 👇 МОДИФИЦИРАНОТО КАРЕ ЗА ЦЕНАТА 👇 */}
+            <div className="bg-brand-dark p-5 rounded-3xl shadow-xl border-b-4 border-brand-gold group hover:-translate-y-1 transition-all relative overflow-hidden flex flex-col justify-center">
+              <div className="absolute top-0 right-0 p-4 opacity-10"><Euro size={64} className="text-white"/></div>
+              <div className="mb-2 text-brand-gold relative z-10"><Euro size={24}/></div>
+              
+              {isPromoActive ? (
+                  <div className="relative z-10 flex flex-col">
+                      <p className="text-[10px] uppercase font-black text-brand-gold/70 tracking-widest mb-0.5">Специална цена</p>
+                      <span className="text-xs text-gray-400 line-through decoration-red-500/50 decoration-2 font-serif leading-none mt-1">
+                          {tour.price}
+                      </span>
+                      <span className="font-bold text-red-500 text-xl md:text-2xl drop-shadow-sm leading-tight">
+                          {tour.discountPrice}
+                      </span>
+                  </div>
+              ) : (
+                  <div className="relative z-10">
+                      <p className="text-[10px] uppercase font-black text-brand-gold/70 tracking-widest mb-1">Цена от</p>
+                      <p className="font-bold text-white text-lg md:text-xl">{tour.price}</p>
+                  </div>
+              )}
             </div>
+            {/* 👆 КРАЙ НА КАРЕТО ЗА ЦЕНА 👆 */}
         </div>
 
-        {/* DATES (Без промяна) */}
+        {/* --- НАДОЛУ Е ОРИГИНАЛНИЯТ ТИ КОД ЗА DATES, PROGRAM, GALLERY --- */}
         {hasMultipleDates && (
             <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 w-2 h-full bg-brand-gold"></div>
@@ -162,8 +169,6 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
                 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {galleryImages.map((url: string, index: number) => {
-                        // Логика за скриване:
-                        // Ако е mobile (чрез клас hidden md:block) и индекс >= 2 и не е разпънато -> скрий
                         const isHiddenOnMobile = !isGalleryExpanded && index >= 2;
                         
                         return (

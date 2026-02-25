@@ -13,7 +13,7 @@ import TourHero from './tour/TourHero';
 import TourTabs from './tour/TourTabs';
 import TourSidebar from './tour/TourSidebar';
 import SimilarTours from './tour/SimilarTours'
-import InquiryModal from './tour/InquiryModal'; // Внасяме го тук;
+import InquiryModal from './tour/InquiryModal'; 
 
 interface TourClientProps {
   tourData: ITour;
@@ -23,7 +23,6 @@ interface TourClientProps {
 
 export default function TourClient({ tourData, relatedPostData, id }: TourClientProps) {
   const [isFavorite, setIsFavorite] = useState(false);
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [showInclusions, setShowInclusions] = useState(false);
@@ -77,15 +76,7 @@ export default function TourClient({ tourData, relatedPostData, id }: TourClient
     window.dispatchEvent(new Event("favoritesUpdated"));
   };
 
-  // Scroll Listener
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 300) setShowScrollTop(true);
-      else setShowScrollTop(false);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -148,16 +139,6 @@ export default function TourClient({ tourData, relatedPostData, id }: TourClient
         </div>
       </div>
 
-      <button 
-        onClick={scrollToTop}
-        className={`fixed bottom-24 right-6 z-40 p-4 bg-brand-gold text-white rounded-full shadow-2xl transition-all duration-300 lg:hidden ${
-            showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
-        }`}
-      >
-        <span className="absolute inset-0 rounded-full border border-white/30 animate-ping"></span>
-        <ArrowUp size={24} />
-      </button>
-
       
 
       <SimilarTours currentTour={tourData} />
@@ -180,6 +161,7 @@ export default function TourClient({ tourData, relatedPostData, id }: TourClient
         tourId={tourData.id}
         tourTitle={tourData.title}
         tourPrice={tourData.price}
+        tourDates={tourData.dates}
       />
 
       {/* 2. Inclusion Modal */}

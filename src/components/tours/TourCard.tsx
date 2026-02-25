@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ITour } from '@/types';
-import { Heart, CheckCircle2, Clock, X, MapPin, Calendar, ArrowRight, Star } from 'lucide-react';
+import { Heart, CheckCircle2, Clock, X, MapPin, Calendar, ArrowRight, Star, Flame } from 'lucide-react';
 
 interface TourCardProps {
   tour: ITour;
@@ -14,12 +14,10 @@ interface TourCardProps {
 }
 
 export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: TourCardProps) {
-  // Логика за датите
   const getAllDates = () => {
     let dates = [...(tour.dates || [])];
     if (tour.date) {
       const parts = tour.date.split('-');
-      // Проверка дали е YYYY-MM-DD или DD-MM-YYYY
       const mainIso = parts[0].length === 2 ? parts.reverse().join('-') : tour.date;
       if (!dates.includes(mainIso)) dates.push(mainIso);
     } 
@@ -28,7 +26,6 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
 
   const allDatesISO = getAllDates();
   
-  // Логика за годината (за групиране, ако се ползва отвън, тук просто визуализираме)
   const formatISOtoDisplay = (isoDate: string) => { 
       if (!isoDate) return ""; 
       return isoDate.split('-').reverse().join('.'); 
@@ -36,11 +33,15 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
 
   const badgeStyle = "backdrop-blur-md text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest shadow-sm flex items-center gap-1 border border-white/20 transition-all";
 
+  // Логика за външен вид при промоция
+  const isPromoActive = tour.isPromo && tour.discountPrice;
+
   return (
     <Link 
       href={`/tour/${tour.tourId || tour.id}`} 
       className={`group bg-white rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border flex flex-col h-full relative hover:-translate-y-2 transform-gpu 
-      ${isLedByPoli ? 'border-2 border-brand-gold shadow-[0_0_15px_rgba(197,163,93,0.3)]' : 'border-brand-gold/5'}`}
+      ${isLedByPoli ? 'border-2 border-brand-gold shadow-[0_0_15px_rgba(197,163,93,0.3)]' : 'border-brand-gold/5'}
+      ${isPromoActive ? 'border-red-500/30 shadow-[0_4px_20px_rgba(220,38,38,0.1)]' : ''}`}
     >
         {isLedByPoli && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-brand-gold text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-lg flex items-center gap-1 border border-white/20 whitespace-nowrap">
@@ -66,6 +67,20 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
             />
             
             <div className="absolute top-6 left-6 flex flex-col gap-2 items-start z-10">
+                {/* 👇 ДИНАМИЧЕН ПРОМО ЕТИКЕТ 👇 */}
+                    {isPromoActive && (
+                    <span 
+                        className={`${badgeStyle} shadow-[0_4px_15px_rgba(0,0,0,0.3)] border-none`}
+                        style={{ 
+                            backgroundColor: tour.promoBgColor || '#dc2626', 
+                            color: tour.promoTextColor || '#ffffff' 
+                        }}
+                        >
+                        <Flame size={12} style={{ color: tour.promoTextColor || '#ffffff', opacity: 0.8 }} /> 
+                        {tour.promoLabel || 'ПРОМОЦИЯ'}
+                    </span>
+)}
+
                 {tour.groupStatus === 'confirmed' && <span className={`${badgeStyle} bg-emerald-800/90 text-white`}><CheckCircle2 size={12} /> Потвърдена</span>}
                 {tour.groupStatus === 'last-places' && <span className={`${badgeStyle} bg-amber-700/90 text-white`}><Clock size={12} /> Последни места</span>}
                 {tour.groupStatus === 'sold-out' && <span className={`${badgeStyle} bg-rose-800/90 text-white`}><X size={12} /> Изчерпана</span>}
@@ -78,10 +93,23 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
             </div>
 
             <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end">
-                <div className="bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-lg border border-brand-gold/10 text-center min-w-20">
-                <p className="text-[12px] font-black text-brand-dark uppercase tracking-tighter opacity-60">Цена от</p>
-                <p className="text-2xl font-serif font-bold text-brand-gold leading-none">{tour.price}</p>
+                {/* 👇 БЛОК ЗА ЦЕНАТА СЪС ЗАЧЕРКВАНЕ 👇 */}
+                <div className="bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-lg border border-brand-gold/10 text-center min-w-24">
+                    <p className="text-[10px] font-black text-brand-dark uppercase tracking-widest opacity-60 mb-1">
+                        {isPromoActive ? 'Стандартна цена' : 'Цена от'}
+                    </p>
+                    <div className="flex flex-col items-center">
+                        <p className={`font-serif font-bold leading-none transition-all ${isPromoActive ? 'text-gray-400 line-through text-lg decoration-red-500/50 decoration-2' : 'text-brand-gold text-2xl'}`}>
+                            {tour.price}
+                        </p>
+                        {isPromoActive && (
+                            <p className="text-2xl font-serif font-bold text-red-600 leading-none mt-1">
+                                {tour.discountPrice}
+                            </p>
+                        )}
+                    </div>
                 </div>
+                {/* 👆 ---------------------------- 👆 */}
             </div>
         </div>
 
