@@ -6,6 +6,7 @@ import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
 
 const SITE_URL = "https://belivavip.bg";
+// ⚠️ ВАЖНО: Увери се, че това е точното Project ID от твоя .firebaserc файл!
 const FIREBASE_PROJECT_ID = "belivavip"; 
 
 type Props = {
@@ -42,7 +43,7 @@ async function getRelatedPost(country: string) {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 }
 
-// 3. ПОМОЩНА ФУНКЦИЯ ЗА СНИМКАТА В САЙТА (Schema.org)
+// 3. ПОМОЩНА ФУНКЦИЯ ЗА СНИМКАТА В САЙТА (За Schema.org и fallback)
 const getRawImageUrl = (tour: any) => {
     let rawImage = "";
     if (tour.img && typeof tour.img === 'string') rawImage = tour.img;
@@ -56,20 +57,23 @@ const getRawImageUrl = (tour: any) => {
         return rawImage.split('?')[0];
     }
     
+    if (rawImage && rawImage.startsWith('/')) {
+        return `${SITE_URL}${rawImage}`;
+    }
+
     return rawImage || `${SITE_URL}/hero/australia.webp`;
 };
 
-// 4. ГЕНЕРИРАНЕ НА МЕТАДАННИ (КЪМ FIREBASE ФУНКЦИЯТА)
+// 4. ГЕНЕРИРАНЕ НА МЕТАДАННИ (С FIREBASE ФУНКЦИЯТА)
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const tour = await getTourData(resolvedParams.id);
 
   if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
 
-  // 🚀 ТУК Е МАГИЯТА:
-  // Вместо да даваме снимката директно, ние даваме линк към функцията във Firebase
-  // Facebook ще отвори този линк и функцията ще му сервира идеално оразмерена снимка.
-  const functionImageUrl = `https://us-central1-${FIREBASE_PROJECT_ID}.cloudfunctions.net/proxyOgImage?id=${tour.tourId}`;
+  // 🚀 ГЕНЕРИРАМЕ ЛИНКА КЪМ FIREBASE ФУНКЦИЯТА
+  // Това пренасочва заявките на Facebook директно към твоя Firebase сървър (proxyOgImage)
+  const proxyImageUrl = `https://us-central1-${FIREBASE_PROJECT_ID}.cloudfunctions.net/proxyOgImage?id=${tour.tourId}`;
 
   return {
     title: `${tour.title} | Екскурзия до ${tour.country}`,
@@ -84,7 +88,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       locale: 'bg_BG',
       type: 'website',
       images: [{
-          url: functionImageUrl, // 👈 Подаваме функцията на Facebook
+          url: proxyImageUrl, // 👈 Подаваме функцията на Facebook!
           width: 1200,
           height: 630,
           alt: tour.title,
@@ -94,7 +98,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title: `${tour.title} | Екскурзия до ${tour.country}`,
       description: `Цена от ${tour.price}.`,
-      images: [functionImageUrl],
+      images: [proxyImageUrl],
     },
   };
 }
@@ -113,7 +117,7 @@ export default async function TourPage({ params }: Props) {
     );
   }
 
-  // За вътрешността на сайта си ползваме директния линк (няма нужда да товарим Firebase функцията)
+  // За Schema.org си ползваме директния линк
   const schemaImage = getRawImageUrl(tour);
   const tourForSchema = { ...tour, img: schemaImage };
 

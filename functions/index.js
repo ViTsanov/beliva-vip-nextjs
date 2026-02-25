@@ -81,7 +81,7 @@ ${tourContext ? `ВАЖНО: Потребителят разглежда в мо
 });
 
 // ============================================================================
-// 2. FACEBOOK OG IMAGE PROXY
+// 2. FACEBOOK OG IMAGE PROXY (СЪС ЗАЩИТА СРЕЩУ БЛОКИРАНЕ)
 // ============================================================================
 exports.proxyOgImage = onRequest({ cors: true, region: "us-central1" }, async (req, res) => {
   const tourId = req.query.id;
@@ -126,9 +126,16 @@ exports.proxyOgImage = onRequest({ cors: true, region: "us-central1" }, async (r
     }
 
     // 4. Теглим и сервираме снимката (Сървърно)
-    const response = await fetch(targetUrl);
+    // 🚀 ТУК Е ФИКСЪТ: Преструваме се на реален Chrome браузър!
+    const response = await fetch(targetUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+      }
+    });
     
     if (!response.ok) {
+       console.error("Unsplash Error:", response.status, response.statusText);
        return res.redirect(fallbackImg);
     }
 
