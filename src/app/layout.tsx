@@ -56,6 +56,9 @@ export const metadata: Metadata = {
     default: "Beliva VIP Tour | Пътешествия и Екзотика",
     template: "%s | Beliva VIP Tour" // На вътрешни страници ще става: "Дубай | Beliva VIP Tour"
   },
+  verification: {
+    google: "viW16VYuK01QV2RWtvOofjfCDAZgkvBb1yCYklkXTqg"
+  },
   description: "Открийте света с нас. Организиране на екзотични почивки, екскурзии и индивидуални пътешествия до Дубай, Малдиви, Тайланд и още.",
   keywords: ["туристическа агенция", "екскурзии", "почивки", "екзотика", "лукс", "Дубай", "Малдиви", "Тайланд", "Beliva", "tours", "туристическа", "Перу", "екскурзия", "почивка"],
   authors: [{ name: "Beliva VIP Tour" }],
