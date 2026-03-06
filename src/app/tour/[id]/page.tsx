@@ -80,6 +80,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: tour.intro 
         ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 150) + "..." 
         : `Резервирайте незабравимо пътуване до ${tour.country}.`,
+    alternates: {
+      canonical: `${SITE_URL}/tour/${tour.tourId}`,
+    },
     openGraph: {
       title: `${tour.title} | Екскурзия до ${tour.country}`,
       description: `Цена от ${tour.price}. Разгледайте програмата.`,

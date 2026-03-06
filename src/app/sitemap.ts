@@ -69,7 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${BASE_URL}/?country=${encodeURIComponent(country)}`, 
       lastModified: new Date(),
       changeFrequency: 'weekly',
-      priority: 0.8, // Висок приоритет, защото са като Landing Pages
+      priority: 0.8, 
     }));
 
   } catch (error) {
