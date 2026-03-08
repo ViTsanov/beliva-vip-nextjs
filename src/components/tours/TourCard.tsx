@@ -33,9 +33,13 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
 
   const badgeStyle = "backdrop-blur-md text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest shadow-sm flex items-center gap-1 border border-white/20 transition-all";
 
-  // Логика за външен вид при промоция
-  const isPromoActive = tour.isPromo && tour.discountPrice;
-
+  // Интелигентна логика за промоция (отчита и кампании с дати)
+  let isPromoActive = !!(tour.isPromo && tour.discountPrice);
+  if (tour.campaignId && tour.promoStart && tour.promoEnd) {
+      const now = new Date().toISOString();
+      isPromoActive = now >= tour.promoStart && now <= tour.promoEnd;
+  }
+  
   return (
     <Link 
       href={`/tour/${tour.tourId || tour.id}`} 
@@ -43,12 +47,6 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
       ${isLedByPoli ? 'border-2 border-brand-gold shadow-[0_0_15px_rgba(197,163,93,0.3)]' : 'border-brand-gold/5'}
       ${isPromoActive ? 'border-red-500/30 shadow-[0_4px_20px_rgba(220,38,38,0.1)]' : ''}`}
     >
-        {isLedByPoli && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-brand-gold text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-lg flex items-center gap-1 border border-white/20 whitespace-nowrap">
-                <Star size={10} fill="currentColor" /> Водена от Поли
-            </div>
-        )}
-        
         <button 
             onClick={(e) => toggleFavorite(e, tour)} 
             aria-label={isFav ? "Премахни от любими" : "Добави в любими"}
@@ -57,7 +55,8 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
             <Heart size={20} className={`transition-colors ${isFav ? 'fill-red-500 text-red-500' : 'text-white group-hover/heart:text-red-500'}`} />
         </button>
         
-        <div className="relative h-72 overflow-hidden bg-gray-200">
+        {/* ✨ ИЗОЛИРАН КОНТЕЙНЕР ЗА СНИМКА (РЕШАВА ПРОБЛЕМА С КВАДРАТНИТЕ ЪГЛИ) ✨ */}
+        <div className="relative h-72 overflow-hidden bg-gray-200 isolate transform-gpu rounded-t-[2.5rem]">
             <Image
                 src={tour.img}
                 alt={`Екскурзия до ${tour.country} - ${tour.title}`}
@@ -66,9 +65,9 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
             
+            {/* ГОРЕ ВЛЯВО: ПРОМОЦИИ И СТАТУСИ */}
             <div className="absolute top-6 left-6 flex flex-col gap-2 items-start z-10">
-                {/* 👇 ДИНАМИЧЕН ПРОМО ЕТИКЕТ 👇 */}
-                    {isPromoActive && (
+                {isPromoActive && (
                     <span 
                         className={`${badgeStyle} shadow-[0_4px_15px_rgba(0,0,0,0.3)] border-none`}
                         style={{ 
@@ -79,21 +78,31 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
                         <Flame size={12} style={{ color: tour.promoTextColor || '#ffffff', opacity: 0.8 }} /> 
                         {tour.promoLabel || 'ПРОМОЦИЯ'}
                     </span>
-)}
+                )}
 
                 {tour.groupStatus === 'confirmed' && <span className={`${badgeStyle} bg-emerald-800/90 text-white`}><CheckCircle2 size={12} /> Потвърдена</span>}
                 {tour.groupStatus === 'last-places' && <span className={`${badgeStyle} bg-amber-700/90 text-white`}><Clock size={12} /> Последни места</span>}
                 {tour.groupStatus === 'sold-out' && <span className={`${badgeStyle} bg-rose-800/90 text-white`}><X size={12} /> Изчерпана</span>}
                 {tour.groupStatus === 'active' && <span className={`${badgeStyle} bg-brand-gold/90 text-brand-dark`}>● Оформяща група</span>}
             </div>
+
+            {/* ДОЛУ ВДЯСНО: ВОДЕНА ОТ ПОЛИ */}
+            {isLedByPoli && (
+                <div className="absolute bottom-4 right-4 z-10">
+                    <span className="bg-brand-gold text-brand-dark px-3 py-1.5 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-[0_4px_15px_rgba(212,175,55,0.4)] flex items-center gap-1.5">
+                        <Star size={12} fill="currentColor" /> С Поли
+                    </span>
+                </div>
+            )}
             
+            {/* КАТЕГОРИИ */}
             <div className="absolute top-16 right-6 flex flex-col items-end gap-1 z-10">
                 {tour.categories?.filter(c => c !== 'Водена от ПОЛИ').slice(0, 2).map(cat => ( <span key={cat} className="bg-white/90 backdrop-blur-sm text-[9px] font-bold uppercase px-2 py-1 rounded-lg text-brand-dark shadow-sm">{cat}</span>))}
                 {(tour.categories?.filter(c => c !== 'Водена от ПОЛИ').length || 0) > 2 && (<span className="bg-white/90 backdrop-blur-sm text-[9px] font-bold uppercase px-2 py-1 rounded-lg text-brand-dark shadow-sm">+{((tour.categories?.filter(c => c !== 'Водена от ПОЛИ').length || 0) - 2)}</span>)}
             </div>
 
             <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end">
-                {/* 👇 БЛОК ЗА ЦЕНАТА СЪС ЗАЧЕРКВАНЕ 👇 */}
+                {/* ЦЕНА */}
                 <div className="bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-lg border border-brand-gold/10 text-center min-w-24">
                     <p className="text-[10px] font-black text-brand-dark uppercase tracking-widest opacity-60 mb-1">
                         {isPromoActive ? 'Стандартна цена' : 'Цена от'}
@@ -109,7 +118,6 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
                         )}
                     </div>
                 </div>
-                {/* 👆 ---------------------------- 👆 */}
             </div>
         </div>
 

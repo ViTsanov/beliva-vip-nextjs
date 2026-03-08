@@ -19,6 +19,17 @@ const config: Config = {
         sans: ["var(--font-sans)"], 
         serif: ["var(--font-serif)"],
       },
+      // 👇 ДОБАВЯМЕ АНИМАЦИЯТА ЗА ОТБЛЯСЪК ТУК 👇
+      keyframes: {
+        shimmer: {
+          '0%': { transform: 'translateX(-150%) skewX(-12deg)' },
+          '100%': { transform: 'translateX(250%) skewX(-12deg)' },
+        },
+      },
+      animation: {
+        shimmer: 'shimmer 3s infinite',
+      },
+      // 👆 ---------------------------------- 👆
     },
   },
   plugins: [

@@ -45,7 +45,7 @@ export default function HomePage() {
       <TopDestinations />
 
       {/* 2. ТЪРСАЧКА + ОФЕРТИ - Започват веднага след Hero-то */}
-      <div className="bg-[#fcf9f2] min-h-[600px]"> 
+      <div id="tours-grid" className="bg-[#fcf9f2] min-h-[600px]"> 
 
          <Suspense fallback={<div className="text-center py-20 ">Зареждане на оферти...</div>}>
             <ToursGrid />

@@ -9,33 +9,23 @@ import FiltersBar from '@/components/FiltersBar';
 import TourCard from '@/components/tours/TourCard';
 import { ITour } from '@/types';
 
-// Помощна функция за нормализиране на датата към YYYY-MM-DD
-// Това оправя проблема със смесените формати (01-05-2026 vs 2026-05-01)
 const getNormalizedDate = (dateStr: string) => {
-  if (!dateStr) return "9999-99-99"; // Без дата отива най-накрая
+  if (!dateStr) return "9999-99-99"; 
   const parts = dateStr.split('-');
-  // Ако е във формат DD-MM-YYYY (първата част е ден), обръщаме го
   if (parts[0].length === 2) {
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
   }
-  return dateStr; // Вече е YYYY-MM-DD
+  return dateStr; 
 };
 
-// Функция, която намира НАЙ-РАННАТА дата за даден тур
 const getEarliestDate = (tour: ITour) => {
   let allDates: string[] = [];
-  
-  // 1. Добавяме основната дата (нормализирана)
   if (tour.date) allDates.push(getNormalizedDate(tour.date));
-  
-  // 2. Добавяме датите от масива (нормализирани)
   if (tour.dates && Array.isArray(tour.dates)) {
     tour.dates.forEach(d => {
        if(typeof d === 'string') allDates.push(getNormalizedDate(d));
     });
   }
-
-  // 3. Сортираме и взимаме първата
   allDates.sort(); 
   return allDates.length > 0 ? allDates[0] : "9999-99-99";
 };
@@ -45,7 +35,6 @@ export default function ToursGrid() {
   const searchParams = useSearchParams();
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // URL STATE
   const searchQuery = searchParams.get('q') || '';
   const filterContinent = searchParams.get('continent') || '';
   const filterCountry = searchParams.get('country') || '';
@@ -60,7 +49,6 @@ export default function ToursGrid() {
 
   const hasActiveFilters = !!(searchQuery || filterContinent || filterCountry || filterMonth || filterCategory);
 
-  // 1. Зареждане на любими
   useEffect(() => {
     const loadFavorites = () => {
       if (typeof window !== 'undefined') {
@@ -73,7 +61,6 @@ export default function ToursGrid() {
     return () => window.removeEventListener('storage', loadFavorites);
   }, []);
 
-  // 2. Извличане на данни
   useEffect(() => {
     const fetchAllTours = async () => {
       setLoading(true);
@@ -92,30 +79,42 @@ export default function ToursGrid() {
     fetchAllTours();
   }, []);
 
-  // 3. ФИЛТРИРАНЕ И СОРТИРАНЕ (Fix-нато)
   const filteredTours = useMemo(() => {
     let result = allTours.filter(tour => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const titleMatch = tour.title?.toLowerCase().includes(q);
-        const countryMatch = tour.country?.toLowerCase().includes(q);
+        
+        // ПРОВЕРКА ЗА ДЪРЖАВА (поддържа и масив, и стринг)
+        const countryMatch = Array.isArray(tour.country) 
+          ? tour.country.some(c => c.toLowerCase().includes(q))
+          : tour.country?.toLowerCase().includes(q);
+
         if (!titleMatch && !countryMatch) return false;
       }
+
       if (filterContinent && tour.continent !== filterContinent) return false;
-      if (filterCountry && tour.country !== filterCountry) return false;
+
+      // ПРОВЕРКА ЗА ИЗБРАНА ДЪРЖАВА ОТ ФИЛТЪРА
+      if (filterCountry) {
+        if (Array.isArray(tour.country)) {
+          if (!tour.country.includes(filterCountry)) return false;
+        } else {
+          if (tour.country !== filterCountry) return false;
+        }
+      }
+
       if (filterCategory && (!tour.categories || !tour.categories.includes(filterCategory))) return false;
       
       if (filterMonth) {
-        // Проверяваме дали някоя от датите на тура е в избрания месец
         const earliest = getEarliestDate(tour);
-        // Взимаме месеца от YYYY-MM-DD (индекс 1 след split)
         const monthPart = earliest.split('-')[1]; 
         if (monthPart !== filterMonth) return false;
       }
       return true;
     });
 
-    // СОРТИРАНЕ
+    // ... (сортирането остава същото)
     result.sort((a, b) => {
       if (sortBy === 'price_asc') {
         const pA = parseFloat(a.price?.toString().replace(/[^0-9.]/g, '')) || 0;
@@ -127,8 +126,6 @@ export default function ToursGrid() {
         const pB = parseFloat(b.price?.toString().replace(/[^0-9.]/g, '')) || 0;
         return pB - pA;
       }
-      
-      // Сортиране по дата (default) - Използваме helper функцията!
       const dateA = getEarliestDate(a);
       const dateB = getEarliestDate(b);
       return dateA.localeCompare(dateB);
@@ -137,21 +134,19 @@ export default function ToursGrid() {
     return result;
   }, [allTours, filterContinent, filterCountry, filterCategory, filterMonth, sortBy, searchQuery]);
 
-  // 4. ОПЦИИ ЗА МЕНЮТАТА
   const uniqueContinents = useMemo(() => 
     Array.from(new Set(allTours.map(t => t.continent).filter(Boolean))).sort(), 
   [allTours]);
 
-  const uniqueCountries = useMemo(() => 
-    Array.from(new Set(
-      allTours
+  const uniqueCountries = useMemo(() => {
+    const allCountriesFound = allTours
         .filter(t => filterContinent ? t.continent === filterContinent : true)
-        .map(t => t.country)
-        .filter(Boolean)
-    )).sort(), 
-  [allTours, filterContinent]);
+        .flatMap(t => Array.isArray(t.country) ? t.country : [t.country]) // "разпъва" масивите в един общ списък
+        .filter(Boolean);
+    
+    return Array.from(new Set(allCountriesFound)).sort();
+  }, [allTours, filterContinent]);
 
-  // 5. Scroll Logic
   useEffect(() => {
     const hasActiveDeepLink = 
         searchParams.get('country') || 
@@ -218,9 +213,10 @@ export default function ToursGrid() {
       <div className="absolute bottom-40 right-0 w-80 h-80 bg-blue-900/5 rounded-full blur-[100px] pointer-events-none translate-x-1/2" />
 
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12 relative z-20 border-b border-brand-gold/10 pb-6">
-          <div>
-              <div className="flex items-center gap-2 mb-2">
+      {/* 👇 ПРОМЯНА: mb-6 за мобилни (вместо mb-12), за да няма дупка, когато филтърът е затворен 👇 */}
+      <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-6 mb-6 md:mb-12 relative z-20 border-b border-brand-gold/10 pb-6">
+          <div className="text-center md:text-left w-full md:w-auto">
+              <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                   <Globe2 size={18} className="text-brand-gold"/>
                   <span className="text-brand-gold text-xs font-black uppercase tracking-[0.2em]">Пътешествия</span>
               </div>
@@ -228,7 +224,7 @@ export default function ToursGrid() {
                   Всички <span className="italic text-brand-gold">Предложения</span>
               </h2>
               {(filterCountry || filterContinent || filterCategory) && (
-                <div className="mt-2 flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-500">
+                <div className="mt-2 flex items-center justify-center md:justify-start gap-2 animate-in fade-in slide-in-from-left-4 duration-500">
                     <div className="h-[1px] w-6 bg-brand-gold"></div>
                     <span className="text-xl md:text-2xl font-serif italic text-brand-dark/70">
                         {filterCountry || filterContinent || (filterCategory === 'Водена от ПОЛИ' ? 'Групи с Поли' : filterCategory)}
@@ -237,7 +233,8 @@ export default function ToursGrid() {
               )}
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* 👇 ПРОМЯНА: justify-center за центриране на мобилни 👇 */}
+          <div className="flex items-center justify-center md:justify-end gap-4 w-full md:w-auto mt-4 md:mt-0">
               <div className="text-right hidden md:block">
                   <p className="text-3xl font-bold text-brand-dark leading-none">{filteredTours.length}</p>
                   <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Намерени</p>
@@ -245,7 +242,7 @@ export default function ToursGrid() {
 
               <button 
                 onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                className={`flex items-center gap-3 px-6 py-3 rounded-full font-bold uppercase tracking-widest text-xs transition-all duration-300 border
+                className={`flex items-center justify-center w-full md:w-auto gap-3 px-8 md:px-6 py-4 md:py-3 rounded-full font-bold uppercase tracking-widest text-xs transition-all duration-300 border
                     ${isFiltersOpen ? 'bg-brand-dark text-white border-brand-dark shadow-lg scale-105' : 'bg-white text-brand-dark border-brand-gold/30 hover:border-brand-gold hover:shadow-md'}
                 `}
               >
@@ -263,7 +260,7 @@ export default function ToursGrid() {
       </div>
 
       {/* ФИЛТЪР ПАНЕЛ */}
-      <div className={`${isFiltersOpen ? 'block' : 'hidden'} animate-in slide-in-from-top-4 fade-in duration-300 mb-12`}>
+      <div className={`${isFiltersOpen ? 'block' : 'hidden'} animate-in slide-in-from-top-4 fade-in duration-300`}>
          <FiltersBar 
             isOpen={true} 
             toggleOpen={() => {}} 
@@ -284,7 +281,7 @@ export default function ToursGrid() {
       </div>
 
       {/* РЕЗУЛТАТИ */}
-      <div ref={resultsRef} className="scroll-mt-32 relative z-10">
+      <div ref={resultsRef} className="scroll-mt-32 relative z-10 pt-4 md:pt-0">
         {filteredTours.length === 0 ? (
             <div className="text-center py-20 opacity-50 min-h-[400px] flex flex-col items-center justify-center">
                 <Filter size={48} className="mx-auto text-gray-300 mb-4"/>
@@ -295,11 +292,9 @@ export default function ToursGrid() {
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-16 items-start">
             {filteredTours.map((tour) => {
-                // Изчисляваме годината на базата на нормализираната дата
                 const earliestDate = getEarliestDate(tour);
                 let tourYear = earliestDate !== "9999-99-99" ? earliestDate.split('-')[0] : "";
                 
-                // Проверка дали трябва да покажем хедър
                 const showYearHeader = tourYear !== lastYear && tourYear !== ""; 
                 if (showYearHeader) lastYear = tourYear;
                 

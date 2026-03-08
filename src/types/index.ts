@@ -3,6 +3,8 @@ export interface ITour {
   tourId?: string;
   title: string;
   price: string;
+  operator?: string;
+  durationDays?: string | number;
 // 👇 ПРОМОЦИИ 👇
   isPromo?: boolean;
   discountAmount?: string | number; // Колко пари е отстъпката
@@ -10,11 +12,17 @@ export interface ITour {
   promoLabel?: string;
   promoBgColor?: string; // Цвят на фона
   promoTextColor?: string; // Цвят на текста
+  campaignId?: string;
+  promoStart?: string;
+  promoEnd?: string;
+  promoEffect?: string;
+  historicalDates?: string[];
   // 👆 --------- 👆
   img: string;
   images?: string[] | string; 
   gallery?: string[];
-  country: string;
+  country: string | string[];
+  visitedPlaces?: string[];
   continent: string;
   status: string;
   groupStatus: 'active' | 'confirmed' | 'last-places' | 'sold-out';

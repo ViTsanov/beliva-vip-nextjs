@@ -1,9 +1,8 @@
 "use client";
 
-import { MapPin, Calendar, ArrowUpDown, Search, X, Trash2, Star, Check } from 'lucide-react'; // Добавих Check иконка
+import { MapPin, Calendar, ArrowUpDown, Search, X, Trash2, Star, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ... (константите са същите) ...
 const ALL_MONTHS = [
   { value: '01', label: 'Януари' }, { value: '02', label: 'Февруари' },
   { value: '03', label: 'Март' }, { value: '04', label: 'Април' },
@@ -29,8 +28,8 @@ interface FiltersBarProps {
     updateParam: (key: string, value: string) => void;
     clearFilters: () => void;
     hasActiveFilters: boolean;
-    resultsCount: number; // 👈 НОВ ПРОПС: Брой резултати
-    scrollToResults: () => void; // 👈 НОВ ПРОПС: Функция за скрол
+    resultsCount: number;
+    scrollToResults: () => void;
 }
 
 export default function FiltersBar({
@@ -39,7 +38,8 @@ export default function FiltersBar({
 }: FiltersBarProps) {
 
   return (
-    <div className="relative mb-8 z-30 w-full">
+    // 👇 ПРОМЯНА: mb-2 за телефони, mb-8 за десктоп (намалява дупката) 👇
+    <div className="relative mb-2 md:mb-8 z-30 w-full">
         <AnimatePresence>
             {isOpen && (
                 <motion.div 
@@ -49,11 +49,9 @@ export default function FiltersBar({
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                     className="overflow-hidden w-full"
                 >
-                    <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-[0_20px_50px_rgba(197,163,93,0.15)] border border-brand-gold/20 mt-6 mx-1">
+                    <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-6 md:p-8 shadow-[0_20px_50px_rgba(197,163,93,0.15)] border border-brand-gold/20 mt-4 md:mt-6 mx-1">
                         
-                        {/* ... (Търсачката и Selects са същите като преди) ... */}
-                        {/* ПРОМЯНА: items-start за мобилни (ляво), md:items-end за десктоп (долу/дясно) */}
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-8 gap-4">
                             <h3 className="text-xl font-serif italic text-brand-dark hidden lg:block">Намери своето пътешествие</h3>
                             <div className="flex w-full lg:w-auto items-center gap-4 flex-grow lg:justify-end">
                                 <div className="relative w-full lg:max-w-xl group">
@@ -71,7 +69,6 @@ export default function FiltersBar({
                                         </button>
                                     )}
                                 </div>
-                                {/* Махаме "Изчисти" от тук, защото ще го сложим долу */}
                             </div>
                         </div>
 
@@ -131,10 +128,8 @@ export default function FiltersBar({
                                 </div>
                             </div>
 
-                            {/* 👇 БУТОНИ ЗА ДЕЙСТВИЕ */}
                             <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto mt-4 xl:mt-0">
                                 
-                                {/* БУТОН ИЗЧИСТИ */}
                                 <button 
                                     onClick={clearFilters} 
                                     disabled={!hasActiveFilters} 
@@ -149,7 +144,6 @@ export default function FiltersBar({
                                     <Trash2 size={16}/> Изчисти
                                 </button>
 
-                                {/* 👇 НОВ БУТОН: ВИЖ РЕЗУЛТАТИТЕ */}
                                 <button 
                                     onClick={scrollToResults}
                                     className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-bold uppercase text-xs tracking-wider bg-brand-dark text-white border border-brand-dark hover:bg-black hover:shadow-lg transition-all transform hover:-translate-y-0.5"

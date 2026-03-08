@@ -6,11 +6,49 @@ import { PlusCircle, Minus, X, Info, Globe, Tag, Bed, MapPin, FileText, ListChec
 import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
 
-export default function TourForm({ initialData, onClose, allTours }: any) {
+// ПОМОЩЕН КОМПОНЕНТ ЗА СПИСЪЦИ (Тагове)
+const TagsInput = ({ tags, setTags, placeholder, label }: any) => {
+    const handleKeyDown = (e: any) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = e.target.value.trim();
+            if (val && !tags.includes(val)) {
+                setTags([...tags, val]);
+                e.target.value = '';
+            }
+        }
+    };
+    const removeTag = (idx: number) => {
+        setTags(tags.filter((_: any, i: number) => i !== idx));
+    };
+
+    return (
+        <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-[0.15em] ml-2 mb-2 block">{label}</label>
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-2 flex flex-wrap gap-2 items-center focus-within:bg-white focus-within:border-brand-gold transition-all">
+                {tags.map((tag: string, idx: number) => (
+                    <span key={idx} className="bg-brand-dark text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                        {tag} <button type="button" onClick={() => removeTag(idx)} className="text-gray-400 hover:text-white"><X size={12}/></button>
+                    </span>
+                ))}
+                <input 
+                    type="text" 
+                    placeholder={tags.length === 0 ? placeholder : "Добави още (натисни Enter)..."} 
+                    onKeyDown={handleKeyDown}
+                    className="flex-grow bg-transparent outline-none min-w-[150px] p-2 text-sm text-brand-dark"
+                />
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1 ml-2">Натисни Enter след всяко въвеждане.</p>
+        </div>
+    );
+};
+
+export default function TourForm({ initialData, onClose, allTours, allCampaigns }: any) {
   const [form, setForm] = useState({
     tourId: '', title: '', price: '', country: '', continent: 'Европа', cities: '', landmarks: '', 
     date: '', dates: [] as string[], img: '', duration: '', nights: '', route: '', 
     groupStatus: 'active', status: 'public',
+    
     included: '', notIncluded: '', documents: '', pdfUrl: '', generalInfo: '', intro: '', images: '', categories: [] as string[],
     
     // CRM & АВТОМАТИЗАЦИЯ
@@ -133,8 +171,24 @@ export default function TourForm({ initialData, onClose, allTours }: any) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div><label className={labelStyle}>Държава *</label><input className={inputStyle} value={form.country} onChange={e => setForm({...form, country: e.target.value})} required /></div>
-                <div><label className={labelStyle}>Континент *</label><select className={inputStyle} value={form.continent} onChange={e => setForm({...form, continent: e.target.value})} required><option value="Европа">Европа</option><option value="Азия">Азия</option><option value="Африка">Африка</option><option value="Северна Америка">Северна Америка</option><option value="Южна Америка">Южна Америка</option></select></div>
+                {/* НОВОТО ПОЛЕ ЗА ДЪРЖАВИ (Възможност за повече от една) */}
+<TagsInput 
+    label="Държави (може и повече от една)" 
+    placeholder="пр. Япония" 
+    tags={Array.isArray(form.country) ? form.country : (form.country ? [form.country] : [])} 
+    setTags={(newTags: string[]) => setForm({...form, country: newTags})} 
+/>
+
+{/* НОВО ПОЛЕ ЗА ГРАДОВЕ / ЗАБЕЛЕЖИТЕЛНОСТИ */}
+<div className="md:col-span-2">
+    <TagsInput 
+        label="Посетени градове и Забележителности" 
+        placeholder="пр. Токио, Киото, Осака..." 
+        tags={form.visitedPlaces || []} 
+        setTags={(newTags: string[]) => setForm({...form, visitedPlaces: newTags})} 
+    />
+</div>
+                <div><label className={labelStyle}>Континент *</label><select className={inputStyle} value={form.continent} onChange={e => setForm({...form, continent: e.target.value})} required><option value="Европа">Европа</option><option value="Азия">Азия</option><option value="Африка">Африка</option><option value="Австралия">Австралия</option><option value="Северна Америка">Северна Америка</option><option value="Южна Америка">Южна Америка</option></select></div>
                 <div><label className={labelStyle}>Нощувки (текст)</label><input className={inputStyle} placeholder="пр. 7 нощувки" value={form.nights} onChange={e => setForm({...form, nights: e.target.value})} /></div>
             </div>
             
@@ -156,27 +210,37 @@ export default function TourForm({ initialData, onClose, allTours }: any) {
                 </div>
             </div>
 
-            <div className={`p-8 rounded-[2.5rem] border-2 transition-all ${form.isPromo ? 'bg-red-50/50 border-red-200 shadow-md' : 'bg-white border-gray-200'}`}>
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold uppercase tracking-widest text-sm text-red-600">Специална Промоция</h3>
-                    <input type="checkbox" checked={form.isPromo} onChange={e => setForm({...form, isPromo: e.target.checked})} className="w-6 h-6 accent-red-600 cursor-pointer" />
-                </div>
-                {form.isPromo && (
-                    <div className="space-y-4 animate-in fade-in zoom-in duration-300">
-                        <div>
-                            <label className={labelStyle}>Отстъпка (число в Евро)</label>
-                            <input type="number" className={inputStyle} value={form.discountAmount} onChange={e => setForm({...form, discountAmount: e.target.value})} />
-                        </div>
-                        <div className="bg-red-600 text-white p-6 rounded-2xl text-center shadow-lg">
-                            <p className="text-[10px] uppercase font-black tracking-[0.2em] opacity-80">Нова Промо Цена</p>
-                            <p className="text-3xl font-black">{form.discountPrice}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                            <div><label className={labelStyle}>Текст Етикет</label><input className={inputStyle} value={form.promoLabel} onChange={e => setForm({...form, promoLabel: e.target.value})} /></div>
-                            <div className="flex items-end gap-2"><input type="color" className="h-12 w-full rounded-xl cursor-pointer" value={form.promoBgColor} onChange={e => setForm({...form, promoBgColor: e.target.value})} /><input type="color" className="h-12 w-full rounded-xl cursor-pointer" value={form.promoTextColor} onChange={e => setForm({...form, promoTextColor: e.target.value})} /></div>
-                        </div>
+            {/* 👇 НОВАТА СИСТЕМА С КАМПАНИИ 👇 */}
+            <div className={`p-8 rounded-[2.5rem] border-2 transition-all ${form.campaignId ? 'bg-red-50/50 border-red-200 shadow-md' : 'bg-white border-gray-200'}`}>
+                <div className="flex items-center gap-3 mb-6 text-red-600"><Tag size={20}/> <h3 className="font-bold uppercase tracking-widest text-sm">Свържи с Кампания</h3></div>
+                <div className="space-y-6">
+                    <div>
+                        <label className={labelStyle}>Избери активна кампания</label>
+                        <select className={inputStyle} value={form.campaignId || ''} onChange={e => {
+                            const camp = allCampaigns?.find((c: any) => c.id === e.target.value);
+                            if (camp) {
+                                setForm({...form, campaignId: camp.id, isPromo: true, promoStart: camp.startDate, promoEnd: camp.endDate, promoLabel: camp.label, promoBgColor: camp.bgColor, promoTextColor: camp.textColor, promoEffect: camp.effect});
+                            } else {
+                                setForm({...form, campaignId: '', isPromo: false});
+                            }
+                        }}>
+                            <option value="">-- Без промоция --</option>
+                            {allCampaigns?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
                     </div>
-                )}
+
+                    {form.campaignId && (
+                        <div className="animate-in fade-in zoom-in duration-300">
+                            <label className={labelStyle}>Отстъпка за ТАЗИ екскурзия (число в Евро)</label>
+                            <input type="number" className={inputStyle} value={form.discountAmount} onChange={e => setForm({...form, discountAmount: e.target.value})} />
+                            
+                            <div className="bg-red-600 text-white p-6 rounded-2xl text-center shadow-lg mt-4">
+                                <p className="text-[10px] uppercase font-black tracking-[0.2em] opacity-80">Нова Промо Цена</p>
+                                <p className="text-3xl font-black">{form.discountPrice || '-'}</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
 

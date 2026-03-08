@@ -76,7 +76,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
   if (similarTours.length === 0) return null;
 
   return (
-    <section className="mt-24 pt-16 border-t border-brand-gold/10 container mx-auto px-6 mb-20">
+    <section className="mt-24 pt-16 border-t border-brand-gold/20 container mx-auto px-6 mb-20">
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
           <div>
               <span className="text-brand-gold font-bold uppercase tracking-widest text-xs mb-2 block">
@@ -108,7 +108,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
               href={`/tour/${tour.tourId || tour.id}`}
               // min-w-full прави картата да заема целия екран на мобилно
               // snap-center центрира картата при спиране на скрола
-              className="min-w-full md:min-w-0 snap-center group bg-white rounded-[2rem] overflow-hidden border border-brand-gold/10 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col h-full"
+              className="min-w-full md:min-w-0 snap-center group bg-white rounded-[2rem] overflow-hidden border border-brand-gold/100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col h-full"
               >
               <div className="relative h-60 md:h-60 overflow-hidden">
                   <Image
