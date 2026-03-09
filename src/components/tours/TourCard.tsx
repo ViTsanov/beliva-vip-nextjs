@@ -33,7 +33,6 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
 
   const badgeStyle = "backdrop-blur-md text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest shadow-sm flex items-center gap-1 border border-white/20 transition-all";
 
-  // Интелигентна логика за промоция (отчита и кампании с дати)
   let isPromoActive = !!(tour.isPromo && tour.discountPrice);
   if (tour.campaignId && tour.promoStart && tour.promoEnd) {
       const now = new Date().toISOString();
