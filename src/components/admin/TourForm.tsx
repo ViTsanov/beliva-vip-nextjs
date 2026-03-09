@@ -140,6 +140,9 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     
     included: '', notIncluded: '', documents: '', pdfUrl: '', generalInfo: '', intro: '', images: '', categories: [] as string[],
     
+    peakViewId: '',
+    source: 'own', // По подразбиране е собствена екскурзия
+
     visitedPlaces: [] as string[],
     // CRM & АВТОМАТИЗАЦИЯ
     operator: 'Beliva VIP', 
@@ -354,6 +357,21 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                                 <p className="text-[10px] uppercase font-black tracking-[0.2em] opacity-80">Нова Промо Цена</p>
                                 <p className="text-3xl font-black">{form.discountPrice || '-'}</p>
                             </div>
+                            {/* LIVE PREVIEW НА ЕФЕКТА */}
+                            <div className="mt-6 flex justify-center pb-4">
+                                <span 
+                                    className={`
+                                        px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] shadow-lg flex items-center gap-1.5
+                                        effect-${form.promoEffect}
+                                    `}
+                                    style={{ 
+                                        backgroundColor: form.promoBgColor || '#dc2626', 
+                                        color: form.promoTextColor || '#ffffff' 
+                                    }}
+                                >
+                                    <span className="relative z-10">{form.promoLabel || 'ПРОМОЦИЯ'}</span>
+                                </span>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -408,13 +426,24 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
             <h3 className="font-bold uppercase tracking-widest text-sm text-brand-gold mb-6">Дати на заминаване</h3>
             <div className="flex gap-4 mb-6">
                 <input type="date" className={inputStyle} value={tempDate} onChange={e => setTempDate(e.target.value)} />
-                <button type="button" onClick={() => {if(tempDate && !form.dates.includes(tempDate)) setForm({...form, dates: [...form.dates, tempDate]})}} className="bg-brand-dark text-white px-8 rounded-2xl font-bold uppercase text-xs hover:bg-brand-gold transition-all">Добави дата</button>
+                <button type="button" onClick={() => {
+                    if (tempDate) {
+                        // 1. Обръщаме датата веднага в красив формат
+                        const formattedDate = tempDate.split('-').reverse().join('.');
+                        // 2. Проверяваме дали вече не е добавена
+                        if (!form.dates.includes(formattedDate) && !form.dates.includes(tempDate)) {
+                            setForm({...form, dates: [...form.dates, formattedDate]});
+                            setTempDate(''); // 3. Изчистваме полето за следващата дата
+                        }
+                    }
+                }} className="bg-brand-dark text-white px-8 rounded-2xl font-bold uppercase text-xs hover:bg-brand-gold transition-all">Добави дата</button>
             </div>
             <div className="flex flex-wrap gap-2 p-6 bg-gray-50 rounded-[2rem] border border-gray-100">
                 {form.dates.length === 0 && <p className="text-gray-400 text-sm font-medium">Няма добавени дати.</p>}
                 {form.dates.map((d: string) => (
                     <span key={d} className="bg-white border px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-3 shadow-sm group">
-                        {d.split('-').reverse().join('.')}
+                        {/* Показваме я директно, или я обръщаме, ако случайно е останала стара дата с тирета */}
+                        {d.includes('-') ? d.split('-').reverse().join('.') : d}
                         <button type="button" onClick={() => setForm({...form, dates: form.dates.filter((x:string) => x !== d)})} className="text-red-400 hover:text-red-600 transition-colors"><X size={16}/></button>
                     </span>
                 ))}

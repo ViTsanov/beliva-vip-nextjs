@@ -68,14 +68,17 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
             <div className="absolute top-6 left-6 flex flex-col gap-2 items-start z-10">
                 {isPromoActive && (
                     <span 
-                        className={`${badgeStyle} shadow-[0_4px_15px_rgba(0,0,0,0.3)] border-none`}
+                        className={`
+                            ${badgeStyle} border-none font-black shadow-[0_4px_15px_rgba(0,0,0,0.3)]
+                            effect-${tour.promoEffect}
+                        `}
                         style={{ 
                             backgroundColor: tour.promoBgColor || '#dc2626', 
                             color: tour.promoTextColor || '#ffffff' 
                         }}
                         >
-                        <Flame size={12} style={{ color: tour.promoTextColor || '#ffffff', opacity: 0.8 }} /> 
-                        {tour.promoLabel || 'ПРОМОЦИЯ'}
+                        <Flame size={12} className="relative z-10" style={{ color: tour.promoTextColor || '#ffffff', opacity: 0.8 }} /> 
+                        <span className="relative z-10">{tour.promoLabel || 'ПРОМОЦИЯ'}</span>
                     </span>
                 )}
 

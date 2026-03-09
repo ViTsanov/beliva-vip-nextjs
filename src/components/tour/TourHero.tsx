@@ -58,11 +58,17 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
           {/* ПРОМО ЕТИКЕТ */}
           {isPromoActive && (
              <span 
-               className="px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] shadow-2xl backdrop-blur-md border border-white/20 flex items-center gap-1.5"
-               style={{ backgroundColor: tour.promoBgColor || '#dc2626', color: tour.promoTextColor || '#ffffff' }}
+               className={`
+                   px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] shadow-2xl backdrop-blur-md border border-white/20 flex items-center gap-1.5
+                   effect-${tour.promoEffect}
+               `}
+               style={{ 
+                   backgroundColor: tour.promoBgColor || '#dc2626', 
+                   color: tour.promoTextColor || '#ffffff' 
+               }}
              >
-               <Flame size={14} style={{ color: tour.promoTextColor || '#ffffff' }} /> 
-               {tour.promoLabel || 'ПРОМОЦИЯ'}
+               <Flame size={14} className="relative z-10" style={{ color: tour.promoTextColor || '#ffffff' }} /> 
+               <span className="relative z-10">{tour.promoLabel || 'ПРОМОЦИЯ'}</span>
              </span>
           )}
         </div>

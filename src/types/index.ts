@@ -1,6 +1,8 @@
 export interface ITour {
   id: string;
   tourId?: string;
+  peakViewId?: string; // 👈 Уникално ID от PeakView
+  source?: string;     // 👈 Източник (напр. 'peakview' или 'own')
   title: string;
   price: string;
   operator?: string;

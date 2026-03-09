@@ -45,6 +45,10 @@ export default function AdminDashboardClient() {
   const [subscribers, setSubscribers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]); 
 
+  const [archivedSubTab, setArchivedSubTab] = useState('drafts'); // 'drafts' или 'archived'
+  const [reviewsSubTab, setReviewsSubTab] = useState('auto'); // 'auto' или 'manual'
+  const [searchReview, setSearchReview] = useState('');
+
   // Търсачка за добавяне на пътуване
   const [tripSearchCountry, setTripSearchCountry] = useState('');
   const [tripSearchMonth, setTripSearchMonth] = useState('');
@@ -231,7 +235,16 @@ export default function AdminDashboardClient() {
   // Филтри
   const filteredCustomers = customers.filter(c => c.name?.toLowerCase().includes(searchCustomer.toLowerCase()) || c.phone?.includes(searchCustomer));
   const filteredInquiries = inquiries.filter(i => i.clientName?.toLowerCase().includes(searchInquiry.toLowerCase()) || i.tourTitle?.toLowerCase().includes(searchInquiry.toLowerCase()));
-  const filteredTours = allTours.filter(t => t.title?.toLowerCase().includes(searchTour.toLowerCase())).filter((t: any) => activeTab === 'archived' ? t.status === 'archived' : t.status !== 'archived');
+  const filteredTours = allTours
+    .filter((t: any) => t.title?.toLowerCase().includes(searchTour.toLowerCase()))
+    .filter((t: any) => {
+        if (activeTab === 'tours') return t.status === 'public';
+        if (activeTab === 'archived') {
+            if (archivedSubTab === 'drafts') return t.status === 'draft';
+            if (archivedSubTab === 'archived') return t.status === 'archived';
+        }
+        return false;
+    });
 
   const stats = {
     activeTours: allTours.filter((t: any) => t.status === 'public').length,
@@ -477,7 +490,62 @@ export default function AdminDashboardClient() {
         )}
 
         {/* Останалите табове */}
-        {(activeTab === 'tours' || activeTab === 'archived') && <><SearchBar value={searchTour} onChange={setSearchTour} placeholder="Търси оферта..." /><div className="space-y-4">{filteredTours.map((tour: any) => (<div key={tour.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-brand-gold/5 flex flex-col md:flex-row items-center gap-6 hover:shadow-xl transition-all"><img src={tour.img} className="w-24 h-24 rounded-2xl object-cover shadow-sm" alt="" /><div className="flex-grow"><h3 className="font-bold text-brand-dark leading-tight">{tour.title}</h3><p className="text-xs text-gray-400 mt-1">{tour.country} • {tour.price}</p></div><div className="flex gap-2"><ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(tour)} /><ActionBtn icon={Copy} color="text-purple-500 bg-purple-50" onClick={() => handleCopyTour(tour)} /><ActionBtn icon={tour.status === 'archived' ? CheckCircle2 : Archive} color={tour.status === 'archived' ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'} onClick={async () => await updateDoc(doc(db, "tours", tour.id), { status: tour.status === 'archived' ? 'public' : 'archived' })} /><ActionBtn icon={Trash2} color="text-red-500 bg-red-50" onClick={async () => { if(confirm('Изтриване?')) await deleteDoc(doc(db, "tours", tour.id)) }} /></div></div>))}</div></>}
+        {/* ТАБ: АКТИВНИ ОФЕРТИ */}
+        {activeTab === 'tours' && (
+            <div className="space-y-6 animate-in fade-in">
+                <SearchBar value={searchTour} onChange={setSearchTour} placeholder="Търси активна оферта..." />
+                <div className="space-y-4">
+                    {filteredTours.map((tour: any) => (
+                        <div key={tour.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-brand-gold/5 flex flex-col md:flex-row items-center gap-6 hover:shadow-xl transition-all">
+                            <img src={tour.img} className="w-24 h-24 rounded-2xl object-cover shadow-sm" alt="" />
+                            <div className="flex-grow">
+                                <h3 className="font-bold text-brand-dark leading-tight">{tour.title}</h3>
+                                <p className="text-xs text-gray-400 mt-1">{tour.country} • {tour.price}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(tour)} />
+                                <ActionBtn icon={Copy} color="text-purple-500 bg-purple-50" onClick={() => handleCopyTour(tour)} />
+                                <ActionBtn icon={Archive} color="text-orange-500 bg-orange-50" onClick={async () => await updateDoc(doc(db, "tours", tour.id), { status: 'archived' })} />
+                                <ActionBtn icon={Trash2} color="text-red-500 bg-red-50" onClick={async () => { if(confirm('Изтриване?')) await deleteDoc(doc(db, "tours", tour.id)) }} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* ТАБ: АРХИВ И ЧЕРНОВИ (С ПОД-ТАБОВЕ) */}
+        {activeTab === 'archived' && (
+            <div className="space-y-6 animate-in fade-in">
+                <div className="flex flex-wrap gap-2 bg-white rounded-2xl p-2 shadow-sm border border-gray-100 w-fit mb-4">
+                    <button onClick={() => setArchivedSubTab('drafts')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${archivedSubTab === 'drafts' ? 'bg-brand-dark text-white shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>Чакащи промени (Чернови/XML)</button>
+                    <button onClick={() => setArchivedSubTab('archived')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${archivedSubTab === 'archived' ? 'bg-brand-dark text-white shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>Архивирани (Стари)</button>
+                </div>
+                
+                <SearchBar value={searchTour} onChange={setSearchTour} placeholder="Търси екскурзия..." />
+                
+                <div className="space-y-4">
+                    {filteredTours.length === 0 && <p className="text-gray-400 p-8 bg-white rounded-[2rem] text-center font-medium">Няма намерени екскурзии в тази секция.</p>}
+                    {filteredTours.map((tour: any) => (
+                        <div key={tour.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-brand-gold/5 flex flex-col md:flex-row items-center gap-6 hover:shadow-xl transition-all opacity-80 hover:opacity-100">
+                            <img src={tour.img || '/placeholder.jpg'} className="w-24 h-24 rounded-2xl object-cover shadow-sm grayscale" alt="" />
+                            <div className="flex-grow">
+                                <h3 className="font-bold text-brand-dark leading-tight flex items-center gap-2">
+                                    {tour.title}
+                                    {tour.source === 'peakview' && <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-md text-[9px] uppercase">PeakView</span>}
+                                </h3>
+                                <p className="text-xs text-gray-400 mt-1">{tour.country} • {tour.price}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(tour)} />
+                                <ActionBtn icon={CheckCircle2} color="text-emerald-600 bg-emerald-50" onClick={async () => await updateDoc(doc(db, "tours", tour.id), { status: 'public' })} />
+                                <ActionBtn icon={Trash2} color="text-red-500 bg-red-50" onClick={async () => { if(confirm('Изтриване завинаги?')) await deleteDoc(doc(db, "tours", tour.id)) }} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
         {activeTab === 'media' && <div className="h-[80vh] rounded-[3rem] overflow-hidden border shadow-sm"><MediaLibrary /></div>}
         {activeTab === 'blog' && <><SearchBar value={searchBlog} onChange={setSearchBlog} placeholder="Търси статия..." /><div className="space-y-4 animate-in fade-in">{posts.filter(p => p.title?.toLowerCase().includes(searchBlog.toLowerCase())).map(post => (<div key={post.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-brand-gold/5 flex items-center gap-6 hover:shadow-md transition-shadow"><img src={post.coverImg || post.img} className="w-20 h-20 rounded-2xl object-cover" alt="" /><div className="flex-grow"><h3 className="font-bold text-brand-dark">{post.title}</h3></div><div className="flex gap-2"><ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(post)} /><ActionBtn icon={Trash2} color="text-red-500 bg-red-50" onClick={async () => { if(confirm('Изтриване?')) await deleteDoc(doc(db, "posts", post.id)) }} /></div></div>))}</div></>}
         {activeTab === 'subscribers' && <div className="bg-white rounded-[3rem] shadow-xl overflow-hidden border-0"><div className="p-10 bg-gray-50 flex justify-between items-center border-b"><h3 className="text-2xl font-serif italic text-brand-dark">Абонати на бюлетина</h3><button onClick={() => { const csv = subscribers.map(s => s.email).join('\n'); navigator.clipboard.writeText(csv); alert('Копирано!'); }} className="bg-brand-gold text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-dark transition-all shadow-lg shadow-brand-gold/20">Експортирай списъка</button></div><table className="w-full text-left text-sm"><thead className="bg-white text-[10px] uppercase font-black text-gray-400 border-b tracking-widest"><tr><th className="p-10">Имейл Адрес</th><th className="p-10">Дата на записване</th><th className="p-10 text-right">Действие</th></tr></thead><tbody className="divide-y divide-gray-50">{subscribers.map((sub: any) => (<tr key={sub.id} className="hover:bg-gray-50/50 transition-colors"><td className="p-10 font-bold text-brand-dark">{sub.email}</td><td className="p-10 text-gray-400">{sub.createdAt?.seconds ? new Date(sub.createdAt.seconds * 1000).toLocaleDateString('bg-BG') : 'Сега'}</td><td className="p-10 text-right"><button onClick={async () => await deleteDoc(doc(db, "subscribers", sub.id))} className="text-red-400 p-3 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>}
@@ -562,8 +630,9 @@ export default function AdminDashboardClient() {
         )}
 
         {/* ТАБ: РЕВЮТА (РАЗДЕЛЕНИ И С ПРАВА ЗА ПУБЛИКУВАНЕ) */}
+        {/* ТАБ: РЕВЮТА */}
         {activeTab === 'reviews' && (
-            <div className="space-y-12 animate-in fade-in">
+            <div className="space-y-8 animate-in fade-in">
                 
                 {/* HEAD & EXPORT */}
                 <div className="flex flex-col md:flex-row justify-between items-center bg-white p-8 rounded-[3rem] shadow-sm gap-4">
@@ -571,89 +640,96 @@ export default function AdminDashboardClient() {
                         <h2 className="text-2xl font-serif italic text-brand-dark">Отзиви от клиенти</h2>
                         <p className="text-sm text-gray-400 mt-1">Управление на обратната връзка и публикациите на сайта.</p>
                     </div>
-                    <div className="flex gap-4 w-full md:w-auto">
-                        <select className={inputClass} style={{padding: '1rem', borderRadius: '1rem'}} value={reviewOperatorFilter} onChange={e => setReviewOperatorFilter(e.target.value)}>
-                            <option value="">Всички туроператори</option>
-                            {Array.from(new Set(reviews.filter(r => r.tourId).map(r => r.tourOperator).filter(Boolean))).map((op: any) => <option key={op} value={op}>{op}</option>)}
-                        </select>
-                        <a 
-                            href={`mailto:?subject=Отзиви за ${reviewOperatorFilter || 'всички'}&body=Здравейте, изпращаме ви списък с отзиви.%0D%0A%0D%0A${reviews.filter(r => r.tourId && (reviewOperatorFilter ? r.tourOperator === reviewOperatorFilter : true)).map(r => `Екскурзия: ${r.tourTitle} (${r.tourDate})%0D%0AКлиент: ${r.customerName}%0D%0AОценка: ${r.rating}/5%0D%0AКоментар: ${r.comment}%0D%0A-------------------`).join('%0D%0A')}`}
-                            className="bg-brand-gold text-white px-6 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-brand-dark transition-all flex items-center justify-center shrink-0"
-                        >
-                            Експорт за Туроператор
-                        </a>
-                    </div>
+                    {reviewsSubTab === 'auto' && (
+                        <div className="flex gap-4 w-full md:w-auto">
+                            <select className={inputClass} style={{padding: '1rem', borderRadius: '1rem'}} value={reviewOperatorFilter} onChange={e => setReviewOperatorFilter(e.target.value)}>
+                                <option value="">Всички туроператори</option>
+                                {Array.from(new Set(reviews.filter(r => r.tourId).map(r => r.tourOperator).filter(Boolean))).map((op: any) => <option key={op} value={op}>{op}</option>)}
+                            </select>
+                            <a 
+                                href={`mailto:?subject=Отзиви за ${reviewOperatorFilter || 'всички'}&body=Здравейте, изпращаме ви списък с отзиви.%0D%0A%0D%0A${reviews.filter(r => r.tourId && (reviewOperatorFilter ? r.tourOperator === reviewOperatorFilter : true)).map(r => `Екскурзия: ${r.tourTitle} (${r.tourDate})%0D%0AКлиент: ${r.customerName}%0D%0AОценка: ${r.rating}/5%0D%0AКоментар: ${r.comment}%0D%0A-------------------`).join('%0D%0A')}`}
+                                className="bg-brand-gold text-white px-6 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-brand-dark transition-all flex items-center justify-center shrink-0"
+                            >
+                                Експорт
+                            </a>
+                        </div>
+                    )}
                 </div>
 
-                {/* СЕКЦИЯ 1: ОТЗИВИ ОТ АВТОМАТИЧНАТА СИСТЕМА (ПО ЕКСКУРЗИИ) */}
-                <div>
-                    <h3 className="text-xl font-bold text-brand-dark mb-6 pl-4 border-l-4 border-brand-gold">Отзиви от конкретни пътувания (Автоматични)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {reviews.filter((r: any) => r.tourId && (reviewOperatorFilter ? r.tourOperator === reviewOperatorFilter : true)).map((r: any) => (
-                        <div key={r.id} className="bg-white p-8 rounded-[3rem] border border-gray-50 shadow-sm relative flex flex-col transition-all hover:shadow-lg">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-brand-gold rounded-full flex items-center justify-center text-white font-bold shadow-lg">{r.customerName?.charAt(0) || 'K'}</div>
-                                    <div>
-                                        <p className="font-bold text-brand-dark leading-tight">{r.customerName}</p>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{r.tourTitle} • {r.tourDate}</p>
+                {/* SUB-TABS ЗА РЕВЮТА */}
+                <div className="flex flex-wrap gap-2 bg-white rounded-2xl p-2 shadow-sm border border-gray-100 w-fit">
+                    <button onClick={() => setReviewsSubTab('auto')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${reviewsSubTab === 'auto' ? 'bg-brand-gold text-white shadow-lg shadow-brand-gold/20' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>От конкретни пътувания</button>
+                    <button onClick={() => setReviewsSubTab('manual')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${reviewsSubTab === 'manual' ? 'bg-brand-gold text-white shadow-lg shadow-brand-gold/20' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>Общи (За сайта)</button>
+                </div>
+
+                <SearchBar value={searchReview} onChange={setSearchReview} placeholder="Търси отзив по име на клиент..." />
+
+                {/* СЕКЦИЯ 1: ОТЗИВИ ОТ ПЪТУВАНИЯ */}
+                {reviewsSubTab === 'auto' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+                        {reviews
+                            .filter((r: any) => r.tourId && (reviewOperatorFilter ? r.tourOperator === reviewOperatorFilter : true))
+                            .filter((r: any) => !searchReview || r.customerName?.toLowerCase().includes(searchReview.toLowerCase()))
+                            .map((r: any) => (
+                            <div key={r.id} className="bg-white p-8 rounded-[3rem] border border-gray-50 shadow-sm relative flex flex-col transition-all hover:shadow-lg">
+                                {/* ... (Старият код за единично ревю си остава същият) ... */}
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-brand-gold rounded-full flex items-center justify-center text-white font-bold shadow-lg">{r.customerName?.charAt(0) || 'K'}</div>
+                                        <div>
+                                            <p className="font-bold text-brand-dark leading-tight">{r.customerName}</p>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{r.tourTitle} • {r.tourDate}</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-[10px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold uppercase tracking-widest">{r.tourOperator || 'Общо'}</span>
+                                </div>
+                                
+                                <div className="flex gap-1 mb-3 text-brand-gold">
+                                    {[1,2,3,4,5].map(star => <Star key={star} size={14} fill={star <= r.rating ? 'currentColor' : 'none'} />)}
+                                </div>
+                                
+                                <p className="text-gray-500 italic leading-relaxed text-sm bg-gray-50 p-4 rounded-2xl flex-grow">"{r.comment || r.text}"</p>
+                                
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-3">
+                                    <div className="flex items-center gap-2 text-xs">
+                                        {r.consentToPublish ? (
+                                            <span className="text-emerald-600 flex items-center gap-1 font-bold"><CheckCircle2 size={14}/> Съгласен за публикация</span>
+                                        ) : (
+                                            <span className="text-red-400 flex items-center gap-1 font-medium"><XCircle size={14}/> Без съгласие (само за вътрешно ползване)</span>
+                                        )}
+                                    </div>
+                                    <div className="flex justify-between items-center gap-2">
+                                        <button disabled={!r.consentToPublish} onClick={async () => await updateDoc(doc(db, "reviews", r.id), { isPublished: !r.isPublished })} className={`flex-grow py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${!r.consentToPublish ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : r.isPublished ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
+                                            {r.isPublished ? 'Свали от сайта' : '🌍 Одобри за Сайта'}
+                                        </button>
+                                        <button onClick={async () => await deleteDoc(doc(db, "reviews", r.id))} className="text-red-400 p-3 bg-red-50 hover:bg-red-500 hover:text-white rounded-xl transition-all"><Trash2 size={16}/></button>
                                     </div>
                                 </div>
-                                <span className="text-[10px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold uppercase tracking-widest">{r.tourOperator || 'Общо'}</span>
                             </div>
-                            
-                            <div className="flex gap-1 mb-3 text-brand-gold">
-                                {[1,2,3,4,5].map(star => <Star key={star} size={14} fill={star <= r.rating ? 'currentColor' : 'none'} />)}
-                            </div>
-                            
-                            <p className="text-gray-500 italic leading-relaxed text-sm bg-gray-50 p-4 rounded-2xl flex-grow">"{r.comment || r.text}"</p>
-                            
-                            {/* КОНТРОЛЕН ПАНЕЛ ЗА ПУБЛИКУВАНЕ */}
-                            <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-3">
-                                <div className="flex items-center gap-2 text-xs">
-                                    {r.consentToPublish ? (
-                                        <span className="text-emerald-600 flex items-center gap-1 font-bold"><CheckCircle2 size={14}/> Клиентът е съгласен за публикация</span>
-                                    ) : (
-                                        <span className="text-red-400 flex items-center gap-1 font-medium"><XCircle size={14}/> Без съгласие (само за вътрешно ползване)</span>
-                                    )}
-                                </div>
-                                <div className="flex justify-between items-center gap-2">
-                                    <button 
-                                        disabled={!r.consentToPublish}
-                                        onClick={async () => await updateDoc(doc(db, "reviews", r.id), { isPublished: !r.isPublished })} 
-                                        className={`flex-grow py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${!r.consentToPublish ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : r.isPublished ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
-                                    >
-                                        {r.isPublished ? 'Свали от сайта' : '🌍 Одобри за Сайта'}
-                                    </button>
-                                    <button onClick={async () => await deleteDoc(doc(db, "reviews", r.id))} className="text-red-400 p-3 bg-red-50 hover:bg-red-500 hover:text-white rounded-xl transition-all"><Trash2 size={16}/></button>
-                                </div>
-                            </div>
-                        </div>
                         ))}
-                        {reviews.filter((r: any) => r.tourId).length === 0 && (
-                            <p className="text-gray-400 p-4 col-span-full">Все още няма попълнени отзиви от клиенти.</p>
-                        )}
                     </div>
-                </div>
+                )}
 
-                {/* СЕКЦИЯ 2: ОБЩИ ОТЗИВИ (СТАРИТЕ/РЪЧНИТЕ) */}
-                <div>
-                    <h3 className="text-xl font-bold text-brand-dark mb-6 pl-4 border-l-4 border-gray-300">Общи отзиви (Ръчно добавени)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {reviews.filter((r: any) => !r.tourId).map((r: any) => (
-                        <div key={r.id} className="bg-white p-8 rounded-[3rem] border border-gray-50 flex justify-between gap-6 shadow-sm">
-                            <div>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs uppercase">{r.name?.charAt(0) || 'K'}</div>
-                                    <p className="font-bold text-brand-dark">{r.name}</p>
+                {/* СЕКЦИЯ 2: ОБЩИ ОТЗИВИ */}
+                {reviewsSubTab === 'manual' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+                        {reviews
+                            .filter((r: any) => !r.tourId)
+                            .filter((r: any) => !searchReview || r.name?.toLowerCase().includes(searchReview.toLowerCase()))
+                            .map((r: any) => (
+                            <div key={r.id} className="bg-white p-8 rounded-[3rem] border border-gray-50 flex justify-between gap-6 shadow-sm">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs uppercase">{r.name?.charAt(0) || 'K'}</div>
+                                        <p className="font-bold text-brand-dark">{r.name}</p>
+                                    </div>
+                                    <p className="text-gray-500 italic leading-relaxed text-sm">"{r.text}"</p>
                                 </div>
-                                <p className="text-gray-500 italic leading-relaxed text-sm">"{r.text}"</p>
+                                <button onClick={async () => await deleteDoc(doc(db, "reviews", r.id))} className="text-red-400 shrink-0 p-3 h-fit bg-red-50 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={18}/></button>
                             </div>
-                            <button onClick={async () => await deleteDoc(doc(db, "reviews", r.id))} className="text-red-400 shrink-0 p-3 h-fit bg-red-50 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={18}/></button>
-                        </div>
                         ))}
                     </div>
-                </div>
+                )}
 
             </div>
         )}
