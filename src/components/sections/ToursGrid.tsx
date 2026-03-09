@@ -96,12 +96,15 @@ export default function ToursGrid() {
       if (filterContinent && tour.continent !== filterContinent) return false;
 
       // ПРОВЕРКА ЗА ИЗБРАНА ДЪРЖАВА ОТ ФИЛТЪРА
+      // ПРОВЕРКА ЗА ИЗБРАНА ДЪРЖАВА ОТ ФИЛТЪРА
       if (filterCountry) {
+        let hasCountry = false;
         if (Array.isArray(tour.country)) {
-          if (!tour.country.includes(filterCountry)) return false;
-        } else {
-          if (tour.country !== filterCountry) return false;
+          hasCountry = tour.country.includes(filterCountry);
+        } else if (typeof tour.country === 'string') {
+          hasCountry = tour.country.split(',').map(c => c.trim()).includes(filterCountry);
         }
+        if (!hasCountry) return false;
       }
 
       if (filterCategory && (!tour.categories || !tour.categories.includes(filterCategory))) return false;
@@ -138,10 +141,16 @@ export default function ToursGrid() {
     Array.from(new Set(allTours.map(t => t.continent).filter(Boolean))).sort(), 
   [allTours]);
 
-  const uniqueCountries = useMemo(() => {
+ const uniqueCountries = useMemo(() => {
     const allCountriesFound = allTours
         .filter(t => filterContinent ? t.continent === filterContinent : true)
-        .flatMap(t => Array.isArray(t.country) ? t.country : [t.country]) // "разпъва" масивите в един общ списък
+        .flatMap(t => {
+            // Ако е новият формат (масив)
+            if (Array.isArray(t.country)) return t.country;
+            // Ако е старият формат (стринг със запетаи), разделяме го
+            if (typeof t.country === 'string') return t.country.split(',').map(c => c.trim());
+            return [];
+        })
         .filter(Boolean);
     
     return Array.from(new Set(allCountriesFound)).sort();

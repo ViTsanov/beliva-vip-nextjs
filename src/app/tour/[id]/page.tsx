@@ -35,12 +35,40 @@ const getTourData = cache(async (id: string) => {
   return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
 });
 
-async function getRelatedPost(country: string) {
-  if (!country) return null;
-  const q = query(collection(db, "posts"), where("relatedCountry", "==", country));
+async function getRelatedPosts(countryData: string | string[], continentData?: string) {
+  if (!countryData || countryData.length === 0) return [];
+  
+  const tourCountries = Array.isArray(countryData) 
+      ? countryData 
+      : countryData.split(',').map(c => c.trim());
+      
+  if (tourCountries.length === 0) return [];
+
+  // Взимаме всички статии (ако са много, можеш да сложиш лимит)
+  const q = query(collection(db, "posts"));
   const snapshot = await getDocs(q);
-  if (snapshot.empty) return null;
-  return serializeData(snapshot.docs[0].data(), snapshot.docs[0].id);
+  
+  if (snapshot.empty) return [];
+  
+  const allPosts = snapshot.docs.map(doc => serializeData(doc.data(), doc.id));
+  
+  // Филтрираме ръчно: Търсим статии, които съдържат ПОНЕ ЕДНА от държавите на екскурзията,
+  // ИЛИ статии, които са за целия континент (ако континентът е зададен).
+  const matchedPosts = allPosts.filter(post => {
+      // 1. Проверка по Континент
+      if (continentData && post.relatedCountry === continentData) return true;
+      
+      // 2. Проверка по Държави
+      if (!post.relatedCountry) return false;
+      
+      const postCountries = Array.isArray(post.relatedCountry) 
+          ? post.relatedCountry 
+          : post.relatedCountry.split(',').map((c: string) => c.trim());
+          
+      return tourCountries.some(tc => postCountries.includes(tc));
+  });
+
+  return matchedPosts;
 }
 
 // 3. ПОМОЩНА ФУНКЦИЯ ЗА СНИМКАТА В САЙТА (За Schema.org и fallback)
@@ -110,7 +138,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function TourPage({ params }: Props) {
   const resolvedParams = await params;
   const tour = await getTourData(resolvedParams.id);
-  const relatedPost = tour && tour.country ? await getRelatedPost(tour.country) : null;
+  
+  // Взимаме МАСИВ от свързани статии
+  const relatedPosts = tour && tour.country ? await getRelatedPosts(tour.country, tour.continent) : [];
 
   if (!tour) {
     return (
@@ -120,14 +150,14 @@ export default async function TourPage({ params }: Props) {
     );
   }
 
-  // За Schema.org си ползваме директния линк
   const schemaImage = getRawImageUrl(tour);
   const tourForSchema = { ...tour, img: schemaImage };
 
   return (
     <>
       <TourSchema tour={tourForSchema} />
-      <TourClient tourData={tour} relatedPostData={relatedPost} id={resolvedParams.id} />
+      {/* Подаваме relatedPostsData вместо relatedPostData */}
+      <TourClient tourData={tour} relatedPostsData={relatedPosts} id={resolvedParams.id} />
     </>
   );
 }

@@ -40,14 +40,16 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             <div className="mb-2 text-gray-400 group-hover:text-brand-gold transition-colors"><Clock size={24}/></div>
             <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">Продължителност</p>
             <p className="font-bold text-brand-dark text-sm md:text-lg">
-                {tour.duration} {tour.nights && `/ ${tour.nights} Нощувки`}
+                {tour.durationDays ? `${tour.durationDays} дни` : ''}
+                {tour.durationDays && tour.nights ? ' / ' : ''}
+                {tour.nights ? `${tour.nights} нощувки` : tour.duration}
             </p>
             </div>
 
             <div className="bg-white p-5 rounded-3xl shadow-xl border-b-4 border-brand-dark group hover:-translate-y-1 transition-all">
             <div className="mb-2 text-gray-400 group-hover:text-brand-gold transition-colors"><Globe size={24}/></div>
             <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">Държава</p>
-            <p className="font-bold text-brand-dark text-sm md:text-lg">{tour.country}</p>
+            <p className="font-bold text-brand-dark text-sm md:text-lg">{Array.isArray(tour.country) ? tour.country.join(', ') : tour.country}</p>
             </div>
 
             {/* 👇 МОДИФИЦИРАНОТО КАРЕ ЗА ЦЕНАТА 👇 */}
@@ -93,6 +95,25 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             </div>
         )}
 
+        {tour.visitedPlaces && tour.visitedPlaces.length > 0 && (
+            <div className="bg-gradient-to-r from-[#fcf9f2] to-white p-6 sm:p-8 rounded-[2rem] border border-brand-gold/20 shadow-sm mb-10 animate-in fade-in duration-700">
+                <p className="text-sm font-serif italic text-brand-dark mb-4 flex items-center gap-2">
+                    <span className="w-8 h-[1px] bg-brand-gold inline-block"></span>
+                    В тази екскурзия ще посетите:
+                </p>
+                <div className="flex flex-wrap gap-2.5">
+                    {tour.visitedPlaces.map((place: string, idx: number) => (
+                        <span 
+                            key={idx} 
+                            className="bg-white text-brand-dark px-4 py-2 rounded-2xl text-[11px] font-bold uppercase tracking-wider shadow-sm border border-gray-100 flex items-center gap-2 hover:border-brand-gold transition-colors"
+                        >
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-gold"></span>
+                            {place}
+                        </span>
+                    ))}
+                </div>
+            </div>
+        )}
         {/* DESCRIPTION (Впечатления) - С разпъване */}
         {tour.generalInfo && (
             <div className="bg-[#fffdf5] p-8 md:p-12 rounded-[2.5rem] shadow-lg border border-brand-gold/10 relative">

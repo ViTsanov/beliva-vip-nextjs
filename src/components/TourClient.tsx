@@ -17,11 +17,11 @@ import InquiryModal from './tour/InquiryModal';
 
 interface TourClientProps {
   tourData: ITour;
-  relatedPostData: IPost | null;
+  relatedPostsData: IPost[]; // 👈 Вече е масив от постове
   id: string;
 }
 
-export default function TourClient({ tourData, relatedPostData, id }: TourClientProps) {
+export default function TourClient({ tourData, relatedPostsData, id }: TourClientProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
@@ -102,9 +102,6 @@ export default function TourClient({ tourData, relatedPostData, id }: TourClient
       
       <TourHero tour={tourData} isFavorite={isFavorite} toggleFavorite={toggleFavorite} />
 
-      {/* ✨ СТИКИ БАНЕР "ВОДЕНА ОТ ПОЛИ" ✨ */}
-      
-
       <div className="container mx-auto px-4 sm:px-6 -mt-10 relative z-30">
         {/* ✨ НОВ, СТАТИЧЕН БАНЕР "ВОДЕНА ОТ ПОЛИ" ✨ */}
         {isLedByPoli && (
@@ -124,21 +121,8 @@ export default function TourClient({ tourData, relatedPostData, id }: TourClient
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
           
-          <div className="lg:col-span-8 space-y-12 lg:pt-0">
-            {/* 👇 ДОБАВИ ТУК: ПОСЕТЕНИ МЕСТА 👇 */}
-            {tourData.visitedPlaces && tourData.visitedPlaces.length > 0 && (
-                <div className="animate-in fade-in slide-in-from-top-4 duration-700 delay-200">
-                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mb-4 ml-1">Маршрутът включва:</p>
-                    <div className="flex flex-wrap gap-2">
-                        {tourData.visitedPlaces.map((place: string, idx: number) => (
-                            <span key={idx} className="bg-white text-brand-dark border border-brand-gold/20 px-5 py-2.5 rounded-2xl text-xs font-bold shadow-sm hover:border-brand-gold hover:shadow-md transition-all flex items-center gap-2">
-                                <span className="text-brand-gold">📍</span> {place}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-            )}
-            {/* 👆 -------------------------- 👆 */}
+          <div className="lg:col-span-8 space-y-12 pt-10 lg:pt-0">
+
             <TourTabs 
                 tour={tourData} 
                 galleryImages={galleryImages} 
@@ -150,7 +134,7 @@ export default function TourClient({ tourData, relatedPostData, id }: TourClient
             <div className="sticky top-28 space-y-6 pt-10 lg:pt-0">
                 <TourSidebar
                   tour={tourData} 
-                  relatedPost={relatedPostData} 
+                  relatedPosts={relatedPostsData} 
                   onOpenInquiry={() => setShowInquiryModal(true)} 
                   onOpenInclusions={() => setShowInclusions(true)}
                   onOpenDocuments={() => setShowDocuments(true)}

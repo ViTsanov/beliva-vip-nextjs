@@ -43,6 +43,95 @@ const TagsInput = ({ tags, setTags, placeholder, label }: any) => {
     );
 };
 
+// СПИСЪК С ДЪРЖАВИ
+const WORLD_COUNTRIES = [
+  "Австралия", "Австрия", "Азербайджан", "Албания", "Алжир", "Ангола", "Андора", "Антигуа и Барбуда", "Аржентина", "Армения", "Афганистан",
+  "Бангладеш", "Барбадос", "Бахамски острови", "Бахрейн", "Беларус", "Белгия", "Белиз", "Бенин", "Боливия", "Босна и Херцеговина", "Ботсвана", "Бразилия", "Бруней", "Буркина Фасо", "Бурунди", "България", "Бутан",
+  "Вануату", "Ватикан", "Великобритания", "Венецуела", "Виетнам",
+  "Габон", "Гамбия", "Гана", "Гвиана", "Гватемала", "Гвинея", "Гвинея-Бисау", "Германия", "Гренада", "Грузия", "Гърция",
+  "Дания", "Джибути", "Доминика", "Доминиканска република",
+  "Египет", "Еквадор", "Екваториална Гвинея", "Ел Салвадор", "Еритрея", "Есватини", "Естония", "Етиопия",
+  "Замбия", "Зимбабве",
+  "Израел", "Източен Тимор", "Индия", "Индонезия", "Ирак", "Иран", "Ирландия", "Исландия", "Испания", "Италия",
+  "Йемен", "Йордания",
+  "Кабо Верде", "Казахстан", "Камбоджа", "Камерун", "Канада", "Катар", "Кения", "Кипър", "Киргизстан", "Кирибати", "Китай", "Колумбия", "Коморски острови", "ДР Конго", "Република Конго", "Косово", "Коста Рика", "Кот д'Ивоар", "Куба", "Кувейт",
+  "Лаос", "Латвия", "Лесото", "Либерия", "Либия", "Ливан", "Литва", "Лихтенщайн", "Люксембург",
+  "Мавритания", "Мавриций", "Мадагаскар", "Малави", "Малайзия", "Малдиви", "Мали", "Малта", "Мароко", "Маршалови острови", "Мексико", "Мианмар", "Микронезия", "Мозамбик", "Молдова", "Монако", "Монголия",
+  "Намибия", "Науру", "Непал", "Нигер", "Нигерия", "Нидерландия", "Никарагуа", "Нова Зеландия", "Норвегия",
+  "ОАЕ", "Оман",
+  "Пакистан", "Палау", "Палестина", "Панама", "Папуа Нова Гвинея", "Парагвай", "Перу", "Полша", "Португалия",
+  "Руанда", "Румъния", "Русия",
+  "САЩ", "Самоа", "Сан Марино", "Сао Томе и Принсипи", "Саудитска Арабия", "Северна Корея", "Северна Македония", "Сейнт Винсент и Гренадини", "Сейнт Китс и Невис", "Сейнт Лусия", "Сейшели", "Сенегал", "Сингапур", "Сирия", "Словакия", "Словения", "Сомалия", "Судан", "Суринам", "Сърбия",
+  "Таджикистан", "Тайван", "Тайланд", "Танзания", "Того", "Тонга", "Тринидад и Тобаго", "Тувалу", "Тунис", "Туркменистан", "Турция",
+  "Уганда", "Узбекистан", "Украйна", "Унгария", "Уругвай",
+  "Фиджи", "Филипини", "Финландия", "Франция",
+  "Хаити", "Хондурас", "Хърватия",
+  "Централноафриканска република",
+  "Чад", "Черна гора", "Чехия", "Чили",
+  "Швейцария", "Швеция", "Шри Ланка",
+  "Южен Судан", "Южна Африка", "Южна Корея",
+  "Ямайка", "Япония"
+];
+
+// НОВ КОМПОНЕНТ ЗА ДЪРЖАВИ С ТЪРСАЧКА
+const CountryMultiSelect = ({ selected, setSelected, label }: any) => {
+    const [search, setSearch] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+
+    // Филтрираме държавите, които съвпадат с търсенето и още не са избрани
+    const filtered = WORLD_COUNTRIES.filter(c => 
+        c.toLowerCase().includes(search.toLowerCase()) && !selected.includes(c)
+    );
+
+    const addCountry = (c: string) => {
+        setSelected([...selected, c]);
+        setSearch('');
+        setIsOpen(false);
+    };
+
+    const removeCountry = (idx: number) => {
+        setSelected(selected.filter((_: any, i: number) => i !== idx));
+    };
+
+    return (
+        <div className="relative">
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-[0.15em] ml-2 mb-2 block">{label}</label>
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-2 flex flex-wrap gap-2 items-center focus-within:bg-white focus-within:border-brand-gold transition-all relative z-10">
+                {selected.map((tag: string, idx: number) => (
+                    <span key={idx} className="bg-brand-dark text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                        {tag} <button type="button" onClick={() => removeCountry(idx)} className="text-gray-400 hover:text-white"><X size={12}/></button>
+                    </span>
+                ))}
+                <input 
+                    type="text" 
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setIsOpen(true); }}
+                    onFocus={() => setIsOpen(true)}
+                    onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Изчакваме клика
+                    placeholder={selected.length === 0 ? "Търси държава..." : "Добави още..."} 
+                    className="flex-grow bg-transparent outline-none min-w-[150px] p-2 text-sm text-brand-dark"
+                />
+            </div>
+            
+            {/* ПАДАЩО МЕНЮ С РЕЗУЛТАТИ */}
+            {isOpen && filtered.length > 0 && (
+                <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 shadow-xl rounded-2xl max-h-48 overflow-y-auto">
+                    {filtered.map(c => (
+                        <button 
+                            key={c}
+                            type="button"
+                            onClick={() => addCountry(c)}
+                            className="w-full text-left px-4 py-3 hover:bg-brand-gold/10 text-sm text-brand-dark font-medium border-b border-gray-50 last:border-0 transition-colors"
+                        >
+                            {c}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export default function TourForm({ initialData, onClose, allTours, allCampaigns }: any) {
   const [form, setForm] = useState({
     tourId: '', title: '', price: '', country: '', continent: 'Европа', cities: '', landmarks: '', 
@@ -51,6 +140,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     
     included: '', notIncluded: '', documents: '', pdfUrl: '', generalInfo: '', intro: '', images: '', categories: [] as string[],
     
+    visitedPlaces: [] as string[],
     // CRM & АВТОМАТИЗАЦИЯ
     operator: 'Beliva VIP', 
     durationDays: '',      
@@ -109,11 +199,38 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     try {
         const sortedDates = [...form.dates].sort();
         const mainDateFormatted = sortedDates[0]?.split('-').reverse().join('-');
-        const data = { ...form, date: mainDateFormatted, dates: sortedDates, itinerary, updatedAt: serverTimestamp() };
+        
+        // 👇 ТУК ГАРАНТИРАМЕ, ЧЕ ДЪРЖАВИТЕ СЕ ЗАПИСВАТ КАТО МАСИВ 👇
+        let finalCountries: string[] = [];
+        if (Array.isArray(form.country)) {
+            finalCountries = form.country;
+        } else if (typeof form.country === 'string' && form.country) {
+            // Ако по някаква причина е стигнало като стринг "Япония, Южна Корея"
+            finalCountries = form.country.split(',').map((c: string) => c.trim()).filter(Boolean);
+        }
+        
+        const data = { 
+            ...form, 
+            country: finalCountries, // Записваме масива с държави
+            durationDays: Number(form.durationDays) || 0,
+            nights: Number(form.nights) || 0,
+            visitedPlaces: form.visitedPlaces || [],
+            date: mainDateFormatted, 
+            dates: sortedDates, 
+            itinerary, 
+            updatedAt: serverTimestamp() 
+        };
+
         if (initialData?.id) await updateDoc(doc(db, "tours", initialData.id), data);
         else await addDoc(collection(db, "tours"), { ...data, createdAt: serverTimestamp() });
+        
         onClose();
-    } catch (error) { alert("Грешка при запис"); } finally { setIsSubmitting(false); }
+    } catch (error) { 
+        console.error(error);
+        alert("Грешка при запис"); 
+    } finally { 
+        setIsSubmitting(false); 
+    }
   };
 
   const handleMediaSelect = (url: string) => {
@@ -172,22 +289,21 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 {/* НОВОТО ПОЛЕ ЗА ДЪРЖАВИ (Възможност за повече от една) */}
-<TagsInput 
-    label="Държави (може и повече от една)" 
-    placeholder="пр. Япония" 
-    tags={Array.isArray(form.country) ? form.country : (form.country ? [form.country] : [])} 
-    setTags={(newTags: string[]) => setForm({...form, country: newTags})} 
-/>
+                <CountryMultiSelect 
+                    label="Избери Държави (с търсачка)" 
+                    selected={Array.isArray(form.country) ? form.country : (form.country ? form.country.split(',').map((c: string) => c.trim()).filter(Boolean) : [])} 
+                    setSelected={(newTags: string[]) => setForm({...form, country: newTags})} 
+                />
 
-{/* НОВО ПОЛЕ ЗА ГРАДОВЕ / ЗАБЕЛЕЖИТЕЛНОСТИ */}
-<div className="md:col-span-2">
-    <TagsInput 
-        label="Посетени градове и Забележителности" 
-        placeholder="пр. Токио, Киото, Осака..." 
-        tags={form.visitedPlaces || []} 
-        setTags={(newTags: string[]) => setForm({...form, visitedPlaces: newTags})} 
-    />
-</div>
+                {/* НОВО ПОЛЕ ЗА ГРАДОВЕ / ЗАБЕЛЕЖИТЕЛНОСТИ */}
+                <div className="md:col-span-2">
+                    <TagsInput 
+                        label="Посетени градове и Забележителности" 
+                        placeholder="пр. Токио, Киото, Осака..." 
+                        tags={form.visitedPlaces || []} 
+                        setTags={(newTags: string[]) => setForm({...form, visitedPlaces: newTags})} 
+                    />
+                </div>
                 <div><label className={labelStyle}>Континент *</label><select className={inputStyle} value={form.continent} onChange={e => setForm({...form, continent: e.target.value})} required><option value="Европа">Европа</option><option value="Азия">Азия</option><option value="Африка">Африка</option><option value="Австралия">Австралия</option><option value="Северна Америка">Северна Америка</option><option value="Южна Америка">Южна Америка</option></select></div>
                 <div><label className={labelStyle}>Нощувки (текст)</label><input className={inputStyle} placeholder="пр. 7 нощувки" value={form.nights} onChange={e => setForm({...form, nights: e.target.value})} /></div>
             </div>

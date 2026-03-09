@@ -58,7 +58,7 @@ export interface IPost {
   excerpt?: string;
   content?: string;
   author?: string;
-  relatedCountry?: string;
+  relatedCountry?: string | string[];
   createdAt?: any; 
   readTime?: number;
   gallery?: string;

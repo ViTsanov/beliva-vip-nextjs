@@ -124,7 +124,9 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
         <div className="p-8 flex flex-col grow">
             <div className="flex items-center gap-2 text-brand-gold mb-3">
                 <MapPin size={14} />
-                <span className="text-xl font-bold uppercase tracking-widest">{tour.country}</span>
+                <span className="text-xl font-bold uppercase tracking-widest">
+                    {Array.isArray(tour.country) ? tour.country.join(' и ') : tour.country}
+                </span>
             </div>
             <h3 className="text-2xl font-serif font-bold text-brand-dark mb-4 group-hover:text-brand-gold transition-colors leading-tight">
                 {tour.title}

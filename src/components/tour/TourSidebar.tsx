@@ -1,88 +1,149 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ITour, IPost } from "@/types";
-import { CheckCircle2, ScrollText, FileText, XCircle, X, Flame } from 'lucide-react';
+import { CheckCircle2, ScrollText, FileText, Flame, ChevronLeft, ChevronRight } from 'lucide-react';
 import ShareButtons from '@/components/ShareButtons';
 
 interface TourSidebarProps {
   tour: ITour;
-  relatedPost: IPost | null;
+  relatedPosts: IPost[];
   onOpenInquiry: () => void; 
   onOpenInclusions: () => void; 
   onOpenDocuments: () => void;  
 }
 
-export default function TourSidebar({ tour, relatedPost, onOpenInquiry, onOpenInclusions, onOpenDocuments}: TourSidebarProps) {
+export default function TourSidebar({ tour, relatedPosts, onOpenInquiry, onOpenInclusions, onOpenDocuments}: TourSidebarProps) {
   const isPromoActive = tour.isPromo && tour.discountPrice;
+
+  // Стейт за слайдера с блогове
+  const [currentPostIndex, setCurrentPostIndex] = useState(0);
+
+  // Автоматично сменяне на блога на всеки 5 секунди
+  useEffect(() => {
+    if (!relatedPosts || relatedPosts.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentPostIndex((prev) => (prev + 1) % relatedPosts.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [relatedPosts]);
+
+  const nextPost = () => setCurrentPostIndex((prev) => (prev + 1) % relatedPosts.length);
+  const prevPost = () => setCurrentPostIndex((prev) => (prev - 1 + relatedPosts.length) % relatedPosts.length);
 
   return (
     <>
-      <div className="bg-brand-dark p-8 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
+      {/* СВИТ И КОМПАКТЕН РЕЗЕРВАЦИОНЕН БЛОК */}
+      <div className="bg-brand-dark p-6 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         
-        <h3 className="text-2xl font-serif italic mb-6 relative z-10 text-center">Резервирайте сега</h3>
+        <h3 className="text-xl font-serif italic mb-4 relative z-10 text-center">Резервирайте сега</h3>
         
-        <div className="space-y-4 relative z-10">
+        <div className="space-y-3 relative z-10">
           
-          {/* 👇 ФИН ПРОМО АКЦЕНТ ПРЕДИ БУТОНА 👇 */}
           {isPromoActive && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-100 p-2 rounded-xl mb-4 text-center">
-                  <p className="text-xs uppercase tracking-widest font-bold flex items-center justify-center">
-                      <Flame size={14} className="text-red-400" /> Ограничена промоция
+              <div className="bg-red-500/10 border border-red-500/20 text-red-100 py-2 px-3 rounded-xl mb-3 text-center">
+                  <p className="text-[10px] uppercase tracking-widest font-bold flex items-center justify-center">
+                      <Flame size={12} className="text-red-400 mr-1" /> Ограничена промоция
                   </p>
                   {tour.discountAmount && (
-                      <p className="text-[10px] mt-1 opacity-80">
-                          Спестявате {tour.discountAmount} {tour.price.replace(/[0-9.,\s]/g, '') || '€'} при резервация днес!
+                      <p className="text-[9px] mt-0.5 opacity-80">
+                          Спестявате {tour.discountAmount} {tour.price.replace(/[0-9.,\s]/g, '') || '€'}!
                       </p>
                   )}
               </div>
           )}
-          {/* 👆 ---------------------------- 👆 */}
 
           <button 
             onClick={onOpenInquiry} 
-            className="w-full bg-gradient-to-r from-brand-gold to-yellow-600 text-white py-4 rounded-2xl font-black uppercase text-[15px] tracking-widest hover:shadow-lg hover:scale-[1.02] transition-all shadow-md border border-white/10"
+            className="w-full bg-gradient-to-r from-brand-gold to-yellow-600 text-white py-3.5 rounded-xl font-black uppercase text-[13px] tracking-widest hover:shadow-lg hover:scale-[1.02] transition-all shadow-md border border-white/10"
           >
             Изпрати запитване
           </button>
           
-          <div className="grid grid-cols-2 gap-3">
-              <button onClick={onOpenInclusions} className="flex flex-col items-center justify-center gap-2 bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-white/10 transition-all group">
-                <CheckCircle2 size={20} className="text-emerald-400 group-hover:scale-110 transition-transform"/>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Какво включва</span>
+          <div className="grid grid-cols-2 gap-2">
+              <button onClick={onOpenInclusions} className="flex flex-col items-center justify-center gap-1.5 bg-white/5 border border-white/10 py-3 rounded-xl hover:bg-white/10 transition-all group">
+                <CheckCircle2 size={16} className="text-emerald-400 group-hover:scale-110 transition-transform"/>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-gray-300">Какво включва</span>
               </button>
-              <button onClick={onOpenDocuments} className="flex flex-col items-center justify-center gap-2 bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-white/10 transition-all group">
-                <ScrollText size={20} className="text-brand-gold group-hover:scale-110 transition-transform"/>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Документи</span>
+              <button onClick={onOpenDocuments} className="flex flex-col items-center justify-center gap-1.5 bg-white/5 border border-white/10 py-3 rounded-xl hover:bg-white/10 transition-all group">
+                <ScrollText size={16} className="text-brand-gold group-hover:scale-110 transition-transform"/>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-gray-300">Документи</span>
               </button>
           </div>
 
           {tour.pdfUrl && (
-            <a href={tour.pdfUrl} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center gap-2 border border-white/20 py-4 rounded-2xl font-bold text-xs uppercase hover:bg-white hover:text-brand-dark transition-all">
-              <FileText size={16}/> Изтегли PDF
+            <a href={tour.pdfUrl} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center gap-2 border border-white/20 py-3 rounded-xl font-bold text-[10px] uppercase hover:bg-white hover:text-brand-dark transition-all mt-1">
+              <FileText size={14}/> Изтегли PDF
             </a>
           )}
         </div>
       </div>
 
-      {relatedPost && (
-          <Link href={`/blog/${relatedPost.slug || relatedPost.id}`} className="block bg-white p-1 rounded-[2.5rem] shadow-lg group hover:-translate-y-1 transition-transform">
-              <div className="relative h-40 overflow-hidden rounded-[2rem]">
-                  <img src={relatedPost.coverImg || relatedPost.img || '/placeholder.jpg'} className="w-full h-full object-cover" alt="" />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <span className="bg-white/20 backdrop-blur-md text-white px-4 py-1 rounded-full text-xs font-bold uppercase border border-white/30">Пътеводител</span>
-                  </div>
+      {/* 🔄 АВТОМАТИЧЕН СЛАЙДЕР ЗА БЛОГОВЕ */}
+      {relatedPosts && relatedPosts.length > 0 && (
+          <div className="relative bg-white p-1 rounded-[2rem] shadow-lg border border-gray-100 group overflow-hidden">
+              
+              {/* Контейнерът, който се плъзга */}
+              <div 
+                  className="flex transition-transform duration-700 ease-in-out"
+                  style={{ transform: `translateX(-${currentPostIndex * 100}%)` }}
+              >
+                  {relatedPosts.map(post => (
+                      <div key={post.id} className="min-w-full shrink-0">
+                          <Link href={`/blog/${post.slug || post.id}`} className="block w-full">
+                              {/* Върнахме голямата снимка (h-40) */}
+                              <div className="relative h-40 overflow-hidden rounded-[1.5rem]">
+                                  <img src={post.coverImg || post.img || '/placeholder.jpg'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
+                                  <div className="absolute top-3 left-3 bg-black/40 backdrop-blur-md text-white px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm border border-white/20">
+                                      Пътеводител
+                                  </div>
+                              </div>
+                              <div className="p-4 text-center">
+                                  <h4 className="font-serif font-bold text-brand-dark text-[15px] group-hover:text-brand-gold transition-colors line-clamp-1">За {post.relatedCountry}</h4>
+                                  <span className="text-[10px] text-gray-400 uppercase mt-1 block font-bold tracking-wider group-hover:text-brand-gold transition-colors">Прочети статията &rarr;</span>
+                              </div>
+                          </Link>
+                      </div>
+                  ))}
               </div>
-              <div className="p-6 text-center">
-                  <h4 className="font-serif font-bold text-brand-dark text-lg group-hover:text-brand-gold transition-colors">Научете повече за {tour.country}</h4>
-                  <span className="text-xs text-gray-400 uppercase mt-2 block font-bold tracking-wider">Прочети статията &rarr;</span>
-              </div>
-          </Link>
+
+              {/* Навигация (Показва се само ако има повече от 1 статия) */}
+              {relatedPosts.length > 1 && (
+                  <>
+                      {/* Стрелки */}
+                      <button 
+                          onClick={(e) => { e.preventDefault(); prevPost(); }} 
+                          className="absolute left-2 top-20 -translate-y-1/2 w-8 h-8 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-brand-dark shadow-md hover:bg-brand-gold hover:text-white transition-all z-10 opacity-0 group-hover:opacity-100"
+                      >
+                          <ChevronLeft size={18} />
+                      </button>
+                      <button 
+                          onClick={(e) => { e.preventDefault(); nextPost(); }} 
+                          className="absolute right-2 top-20 -translate-y-1/2 w-8 h-8 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-brand-dark shadow-md hover:bg-brand-gold hover:text-white transition-all z-10 opacity-0 group-hover:opacity-100"
+                      >
+                          <ChevronRight size={18} />
+                      </button>
+
+                      {/* Индикатори (Точици) под снимката */}
+                      <div className="absolute bottom-[4.5rem] left-1/2 -translate-x-1/2 flex gap-1.5 z-10 drop-shadow-md">
+                          {relatedPosts.map((_, i) => (
+                              <button 
+                                  key={i} 
+                                  onClick={(e) => { e.preventDefault(); setCurrentPostIndex(i); }}
+                                  className={`h-1.5 rounded-full transition-all shadow-sm ${i === currentPostIndex ? 'w-4 bg-brand-gold' : 'w-1.5 bg-white/70 hover:bg-white'}`}
+                                  aria-label={`Виж статия ${i + 1}`}
+                              />
+                          ))}
+                      </div>
+                  </>
+              )}
+          </div>
       )}
 
-      <div className="bg-white p-8 rounded-[2.5rem] shadow-lg border border-gray-100 text-center">
+      {/* БУТОНИ ЗА СПОДЕЛЯНЕ */}
+      <div className="bg-white p-6 rounded-[2.5rem] shadow-lg border border-gray-100 text-center">
           <ShareButtons url={typeof window !== 'undefined' ? window.location.href : ''} title={tour.title} />
       </div>
     </>
