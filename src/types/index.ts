@@ -64,4 +64,5 @@ export interface IPost {
   createdAt?: any; 
   readTime?: number;
   gallery?: string;
+  externalSourceLink?: string;
 }

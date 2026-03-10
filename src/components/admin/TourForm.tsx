@@ -134,9 +134,9 @@ const CountryMultiSelect = ({ selected, setSelected, label }: any) => {
 
 export default function TourForm({ initialData, onClose, allTours, allCampaigns }: any) {
   const [form, setForm] = useState({
-    tourId: '', title: '', price: '', country: '', continent: 'Европа', cities: '', landmarks: '', 
+    tourId: '', externalSourceLink: '', title: '', price: '', country: '', continent: 'Европа', cities: '', landmarks: '', 
     date: '', dates: [] as string[], img: '', duration: '', nights: '', route: '', 
-    groupStatus: 'active', status: 'public',
+    groupStatus: 'active', status: 'public', 
     
     included: '', notIncluded: '', documents: '', pdfUrl: '', generalInfo: '', intro: '', images: '', categories: [] as string[],
     
@@ -273,6 +273,92 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                     <label className={labelStyle}>Заглавие на офертата *</label>
                     <input className={`${inputStyle} text-lg font-bold`} value={form.title} onChange={e => setForm({...form, title: e.target.value})} required />
                 </div>
+                {/* ПОЛЕ ЗА БОТА - МАГИЧЕСКОТО ИЗВЛИЧАНЕ */}
+                {/* ПОЛЕ ЗА БОТА */}
+                    <div className="bg-blue-50/50 p-6 rounded-[2rem] border border-blue-100 mb-6">
+                        <label className={`${labelStyle} flex items-center gap-2 text-blue-800`}><Globe size={16}/> Оригинален линк към туроператора</label>
+                        <div className="flex flex-col md:flex-row gap-3 mt-2">
+                            <input 
+                                className={`${inputStyle} flex-grow text-blue-600 bg-white border-blue-200 focus:border-blue-500`} 
+                                value={form.externalSourceLink || ''} 
+                                onChange={e => setForm({...form, externalSourceLink: e.target.value})} 
+                                placeholder="https://2mko.com/..." 
+                            />
+                            
+                            <div className="flex gap-2 shrink-0">
+                                {form.externalSourceLink && (
+                                    <a href={form.externalSourceLink} target="_blank" rel="noopener noreferrer" className="p-4 bg-white text-blue-600 border border-blue-200 rounded-2xl hover:bg-blue-50 transition-all flex items-center justify-center shadow-sm" title="Отвори сайта ръчно">
+                                        🔗
+                                    </a>
+                                )}
+                                
+                                <button 
+                                    type="button"
+                                    onClick={async () => {
+                                        if(!form.externalSourceLink) return alert("Първо постави линк!");
+                                        
+                                        // Тук викаме Бота!
+                                        try {
+                                            const btn = document.getElementById('bot-btn');
+                                            if(btn) btn.innerHTML = '⏳ Четене...';
+                                            
+                                            const res = await fetch('/api/scrape', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ url: form.externalSourceLink })
+                                            });
+                                            const data = await res.json();
+                                            
+                                            if(data.success) {
+                                                // 1. ПОПЪЛВАМЕ ОСНОВНИТЕ ПОЛЕТА
+                                                const updatedForm = { ...form };
+                                                
+                                                if (data.title) updatedForm.title = data.title;
+                                                if (data.price) updatedForm.price = data.price;
+                                                
+                                                // 2. ПОПЪЛВАМЕ ПРОГРАМАТА (ТУК БЕШЕ КЛЮЧЪТ 🔑)
+                                                if (data.program && data.program.length > 0) {
+                                                    // Превеждаме данните от Бота към формата на твоя Itinerary
+                                                    const mappedItinerary = data.program.map((p: any) => ({
+                                                        day: p.day,
+                                                        title: p.title || `Ден ${p.day}`,
+                                                        content: p.description || '' 
+                                                    }));
+                                                    
+                                                    // Слагаме ги в правилната променлива (setItinerary)
+                                                    setItinerary(mappedItinerary); 
+                                                    
+                                                    // Попълваме и полето за Продължителност (durationDays)
+                                                    updatedForm.durationDays = data.program.length.toString(); 
+                                                }
+                                                
+                                                if (data.isSoldOut) {
+                                                    updatedForm.groupStatus = 'sold-out';
+                                                }
+
+                                                // Обновяваме формата на екрана
+                                                setForm(updatedForm); 
+                                                
+                                                alert(`✅ Успех!\nЗаглавие: ${data.title || '-'}\nЦена: ${data.price ? data.price + ' лв' : '-'}\nПрограма: Открити ${data.program?.length || 0} дни.`);
+                                            } else {
+                                                alert("Грешка: " + data.error);
+                                            }
+                                        } catch(e) {
+                                            alert("Неуспешна връзка с Бота!");
+                                        } finally {
+                                            const btn = document.getElementById('bot-btn');
+                                            if(btn) btn.innerHTML = '🤖 Провери с Бот';
+                                        }
+                                    }}
+                                    id="bot-btn"
+                                    className="px-6 py-4 bg-blue-600 text-white font-bold uppercase text-[10px] tracking-widest rounded-2xl hover:bg-blue-700 transition-all shadow-md flex items-center gap-2"
+                                >
+                                    🤖 Провери с Бот
+                                </button>
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-blue-500 mt-3 font-medium opacity-80">* Ботът в момента "разбира" сайтовете на: 2MKO.</p>
+                    </div>
                 <div>
                     <label className={labelStyle}>Туроператор / Партньор *</label>
                     <select className={inputStyle} value={form.operator} onChange={e => setForm({...form, operator: e.target.value})} required>
