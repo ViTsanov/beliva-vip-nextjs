@@ -24,6 +24,11 @@ export interface ITour {
   images?: string[] | string; 
   gallery?: string[];
   country: string | string[];
+
+  continentSlug?: string;      // Въпросителната значи, че е незадължително
+  countrySlugs?: string[];     // Масив от стрингове на латиница
+  categorySlugs?: string[];    // Масив от стрингове на латиница
+
   visitedPlaces?: string[];
   continent: string;
   status: string;

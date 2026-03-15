@@ -14,6 +14,7 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [isProgramExpanded, setIsProgramExpanded] = useState(false);
   const [isGalleryExpanded, setIsGalleryExpanded] = useState(false);
+  const [isInfoExpanded, setIsInfoExpanded] = useState(false);
 
   const hasMultipleDates = tour.dates && tour.dates.length > 1;
   const formatDate = (dateStr: string) => dateStr.split('-').reverse().join('.');
@@ -115,12 +116,12 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             </div>
         )}
         {/* DESCRIPTION (Впечатления) - С разпъване */}
-        {tour.generalInfo && (
+        {tour.intro && (
             <div className="bg-[#fffdf5] p-8 md:p-12 rounded-[2.5rem] shadow-lg border border-brand-gold/10 relative">
             <div className="absolute top-6 left-8 text-6xl text-brand-gold/10 font-serif italic">"</div>
             <h2 className="text-3xl font-serif italic mb-6 text-brand-dark relative z-10">Впечатления</h2>
             <div className={`relative transition-all duration-700 overflow-hidden ${!isDescExpanded ? 'max-h-40' : 'max-h-[5000px]'}`}>
-                <p className="leading-relaxed whitespace-pre-wrap text-[18px] text-gray-700 font-light relative z-10">{tour.generalInfo}</p>
+                <p className="leading-relaxed whitespace-pre-wrap text-[18px] text-gray-700 font-light relative z-10">{tour.intro}</p>
                 {!isDescExpanded && <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#fffdf5] to-transparent z-20"></div>}
             </div>
             <button 
@@ -182,6 +183,23 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
                 </div>
             )}
         </div>
+
+        {/* ДОПЪЛНИТЕЛНА ИНФОРМАЦИЯ (След програмата) */}
+        {tour.generalInfo && (
+            <div className="bg-white p-8 md:p-10 rounded-[3rem] shadow-xl border border-gray-100 relative">
+                <h2 className="text-3xl md:text-4xl font-serif italic mb-6 text-brand-dark pl-4 border-l-4 border-brand-gold">Допълнителна информация</h2>
+                <div className={`relative transition-all duration-700 overflow-hidden ${!isInfoExpanded ? 'max-h-48' : 'max-h-[10000px]'}`}>
+                    <p className="leading-relaxed whitespace-pre-wrap text-[16px] text-gray-600 font-light">{tour.generalInfo}</p>
+                    {!isInfoExpanded && <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent z-20"></div>}
+                </div>
+                <button 
+                    onClick={() => setIsInfoExpanded(!isInfoExpanded)} 
+                    className="mt-6 flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-widest hover:text-brand-dark transition-colors relative z-30"
+                >
+                    {isInfoExpanded ? <>Скрий информацията <ChevronUp size={14}/></> : <>Виж цялата информация <ChevronDown size={14}/></>}
+                </button>
+            </div>
+        )}
 
         {/* GALLERY - С мобилно ограничение */}
         {galleryImages.length > 0 && (

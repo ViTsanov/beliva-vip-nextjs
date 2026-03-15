@@ -12,6 +12,18 @@ const ALL_MONTHS = [
   { value: '11', label: 'Ноември' }, { value: '12', label: 'Декември' },
 ];
 
+const slugify = (text: string) => {
+  const chars: { [key: string]: string } = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sht', 'ъ': 'a', 'ь': 'y', 'ю': 'yu', 'я': 'ya'
+  };
+  return text.toLowerCase().split('').map(char => chars[char] || char).join('')
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
+};
+
 const CATEGORY_OPTIONS = ['Водена от ПОЛИ', 'Почивка', 'Екскурзия', 'Екзотика', 'Приключение', 'Круиз', 'Last Minute', 'City Break'];
 
 interface FiltersBarProps {
@@ -74,8 +86,8 @@ export default function FiltersBar({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                              {[
-                                { label: 'Континент', val: filterContinent, set: (v:string) => updateParam('continent', v), opts: uniqueContinents, icon: MapPin },
-                                { label: 'Държава', val: filterCountry, set: (v:string) => updateParam('country', v), opts: uniqueCountries, icon: MapPin, dis: !uniqueCountries.length },
+                                { label: 'Континент', val: filterContinent, set: (v:string) => updateParam('continent', v === ""?"" : slugify(v)), opts: uniqueContinents, icon: MapPin },
+                                { label: 'Държава', val: filterCountry, set: (v:string) => updateParam('country', v === "" ? "" : slugify(v)), opts: uniqueCountries, icon: MapPin, dis: !uniqueCountries.length },
                                 { label: 'Месец', val: filterMonth, set: (v:string) => updateParam('month', v), opts: ALL_MONTHS, icon: Calendar, isMonth: true },
                                 { label: 'Сортирай', val: sortBy, set: (v:string) => updateParam('sort', v), opts: [{label:'Най-скорошни', value:'date'}, {label:'Цена (↑)', value:'price_asc'}, {label:'Цена (↓)', value:'price_desc'}], icon: ArrowUpDown, isSort: true }
                             ].map((field, idx) => (
@@ -105,11 +117,11 @@ export default function FiltersBar({
                                 <div className="flex flex-wrap gap-2">
                                     {CATEGORY_OPTIONS.map(cat => {
                                         const isSpecial = cat === 'Водена от ПОЛИ';
-                                        const isSelected = filterCategory === cat; 
+                                        const isSelected = filterCategory === slugify(cat); 
                                         return (
                                             <button 
                                                 key={cat} 
-                                                onClick={() => updateParam('cat', isSelected ? '' : cat)} 
+                                                onClick={() => updateParam('cat', isSelected ? '' : slugify(cat))} 
                                                 className={`
                                                     relative px-4 py-2 rounded-xl text-xs font-black uppercase transition-all duration-300 border
                                                     ${isSelected 

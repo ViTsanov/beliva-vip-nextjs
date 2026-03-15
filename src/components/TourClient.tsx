@@ -174,12 +174,35 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
       {/* 3. Documents Modal */}
       {showDocuments && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md text-left">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 md:p-12 relative shadow-2xl">
-            <button onClick={() => setShowDocuments(false)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-brand-dark hover:text-white transition-all"><X size={20} /></button>
-            <h2 className="text-3xl font-serif italic mb-8 text-brand-dark text-center">Необходими документи</h2>
-            <div className="bg-gray-50 p-8 rounded-3xl border border-gray-100">
-              <ul className="space-y-4">{getListItems(tourData.documents).map((item, i) => (<li key={i} className="text-sm text-gray-700 flex items-start gap-4"><div className="w-6 h-6 bg-brand-gold/20 text-brand-dark rounded-full flex items-center justify-center shrink-0 font-bold text-xs">{i+1}</div>{item}</li>))}</ul>
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 md:p-12 relative shadow-2xl flex flex-col max-h-[90vh]">
+            
+            {/* Бутон за затваряне (Винаги видим) */}
+            <button 
+              onClick={() => setShowDocuments(false)} 
+              className="absolute top-6 right-6 z-10 p-2 bg-gray-100 rounded-full hover:bg-brand-dark hover:text-white transition-all shrink-0"
+            >
+              <X size={20} />
+            </button>
+      
+            {/* Заглавие (Не се свива) */}
+            <h2 className="text-3xl font-serif italic mb-6 text-brand-dark text-center shrink-0 pr-8">
+              Необходими документи
+            </h2>
+      
+            {/* Съдържание със СКРОЛ (Тук се случва магията) */}
+            <div className="bg-gray-50 p-6 md:p-8 rounded-3xl border border-gray-100 overflow-y-auto">
+              <ul className="space-y-4">
+                {getListItems(tourData.documents).map((item, i) => (
+                  <li key={i} className="text-sm text-gray-700 flex items-start gap-4">
+                    <div className="w-6 h-6 bg-brand-gold/20 text-brand-dark rounded-full flex items-center justify-center shrink-0 font-bold text-xs">
+                      {i + 1}
+                    </div>
+                    <span className="leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
+              
           </div>
         </div>
       )}

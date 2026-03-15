@@ -81,11 +81,10 @@ export default function ToursGrid() {
 
   const filteredTours = useMemo(() => {
     let result = allTours.filter(tour => {
+      // 1. Търсене по ключова дума (Търсим в кирилицата)
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const titleMatch = tour.title?.toLowerCase().includes(q);
-        
-        // ПРОВЕРКА ЗА ДЪРЖАВА (поддържа и масив, и стринг)
         const countryMatch = Array.isArray(tour.country) 
           ? tour.country.some(c => c.toLowerCase().includes(q))
           : tour.country?.toLowerCase().includes(q);
@@ -93,22 +92,21 @@ export default function ToursGrid() {
         if (!titleMatch && !countryMatch) return false;
       }
 
-      if (filterContinent && tour.continent !== filterContinent) return false;
+      // 2. Филтър Континент (използваме continentSlug)
+      if (filterContinent && tour.continentSlug !== filterContinent) return false;
 
-      // ПРОВЕРКА ЗА ИЗБРАНА ДЪРЖАВА ОТ ФИЛТЪРА
-      // ПРОВЕРКА ЗА ИЗБРАНА ДЪРЖАВА ОТ ФИЛТЪРА
+      // 3. Филтър Държава (използваме масива countrySlugs)
       if (filterCountry) {
-        let hasCountry = false;
-        if (Array.isArray(tour.country)) {
-          hasCountry = tour.country.includes(filterCountry);
-        } else if (typeof tour.country === 'string') {
-          hasCountry = tour.country.split(',').map(c => c.trim()).includes(filterCountry);
-        }
-        if (!hasCountry) return false;
+        // Проверяваме дали латинският slug от URL съществува в масива countrySlugs
+        if (!tour.countrySlugs?.includes(filterCountry)) return false;
       }
 
-      if (filterCategory && (!tour.categories || !tour.categories.includes(filterCategory))) return false;
+      // 4. Филтър Категория (използваме масива categorySlugs)
+      if (filterCategory) {
+        if (!tour.categorySlugs?.includes(filterCategory)) return false;
+      }
       
+      // 5. Филтър Месец
       if (filterMonth) {
         const earliest = getEarliestDate(tour);
         const monthPart = earliest.split('-')[1]; 

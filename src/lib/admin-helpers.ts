@@ -3,10 +3,15 @@ import { db } from "./firebase";
 import { updateDoc, doc } from "firebase/firestore";
 
 // Slugify функция
-export const slugify = (text: string) => {
-  if (!text) return '';
+export const slugify = (text: string | string[]) => {
+  if (!text || text.length === 0) return '';
+  
+  // Ако текстът е масив (списък от държави), ги събираме в един общ стринг
+  const str = Array.isArray(text) ? text.join('-') : String(text);
+
   const map: { [key: string]: string } = { 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sht', 'ъ': 'a', 'ь': 'y', 'ю': 'yu', 'я': 'ya', ' ': '-', '_': '-' };
-  let slug = text.toLowerCase().split('').map(char => map[char] || char).join('');
+  
+  let slug = str.toLowerCase().split('').map(char => map[char] || char).join('');
   return slug.replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
 };
 

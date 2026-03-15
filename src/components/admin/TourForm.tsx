@@ -5,6 +5,7 @@ import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/fi
 import { PlusCircle, Minus, X, Info, Globe, Tag, Bed, MapPin, FileText, ListChecks } from 'lucide-react';
 import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
+import { WORLD_COUNTRIES } from '@/lib/constants';
 
 // ПОМОЩЕН КОМПОНЕНТ ЗА СПИСЪЦИ (Тагове)
 const TagsInput = ({ tags, setTags, placeholder, label }: any) => {
@@ -42,36 +43,6 @@ const TagsInput = ({ tags, setTags, placeholder, label }: any) => {
         </div>
     );
 };
-
-// СПИСЪК С ДЪРЖАВИ
-const WORLD_COUNTRIES = [
-  "Австралия", "Австрия", "Азербайджан", "Албания", "Алжир", "Ангола", "Андора", "Антигуа и Барбуда", "Аржентина", "Армения", "Афганистан",
-  "Бангладеш", "Барбадос", "Бахамски острови", "Бахрейн", "Беларус", "Белгия", "Белиз", "Бенин", "Боливия", "Босна и Херцеговина", "Ботсвана", "Бразилия", "Бруней", "Буркина Фасо", "Бурунди", "България", "Бутан",
-  "Вануату", "Ватикан", "Великобритания", "Венецуела", "Виетнам",
-  "Габон", "Гамбия", "Гана", "Гвиана", "Гватемала", "Гвинея", "Гвинея-Бисау", "Германия", "Гренада", "Грузия", "Гърция",
-  "Дания", "Джибути", "Доминика", "Доминиканска република",
-  "Египет", "Еквадор", "Екваториална Гвинея", "Ел Салвадор", "Еритрея", "Есватини", "Естония", "Етиопия",
-  "Замбия", "Зимбабве",
-  "Израел", "Източен Тимор", "Индия", "Индонезия", "Ирак", "Иран", "Ирландия", "Исландия", "Испания", "Италия",
-  "Йемен", "Йордания",
-  "Кабо Верде", "Казахстан", "Камбоджа", "Камерун", "Канада", "Катар", "Кения", "Кипър", "Киргизстан", "Кирибати", "Китай", "Колумбия", "Коморски острови", "ДР Конго", "Република Конго", "Косово", "Коста Рика", "Кот д'Ивоар", "Куба", "Кувейт",
-  "Лаос", "Латвия", "Лесото", "Либерия", "Либия", "Ливан", "Литва", "Лихтенщайн", "Люксембург",
-  "Мавритания", "Мавриций", "Мадагаскар", "Малави", "Малайзия", "Малдиви", "Мали", "Малта", "Мароко", "Маршалови острови", "Мексико", "Мианмар", "Микронезия", "Мозамбик", "Молдова", "Монако", "Монголия",
-  "Намибия", "Науру", "Непал", "Нигер", "Нигерия", "Нидерландия", "Никарагуа", "Нова Зеландия", "Норвегия",
-  "ОАЕ", "Оман",
-  "Пакистан", "Палау", "Палестина", "Панама", "Папуа Нова Гвинея", "Парагвай", "Перу", "Полша", "Португалия",
-  "Руанда", "Румъния", "Русия",
-  "САЩ", "Самоа", "Сан Марино", "Сао Томе и Принсипи", "Саудитска Арабия", "Северна Корея", "Северна Македония", "Сейнт Винсент и Гренадини", "Сейнт Китс и Невис", "Сейнт Лусия", "Сейшели", "Сенегал", "Сингапур", "Сирия", "Словакия", "Словения", "Сомалия", "Судан", "Суринам", "Сърбия",
-  "Таджикистан", "Тайван", "Тайланд", "Танзания", "Того", "Тонга", "Тринидад и Тобаго", "Тувалу", "Тунис", "Туркменистан", "Турция",
-  "Уганда", "Узбекистан", "Украйна", "Унгария", "Уругвай",
-  "Фиджи", "Филипини", "Финландия", "Франция",
-  "Хаити", "Хондурас", "Хърватия",
-  "Централноафриканска република",
-  "Чад", "Черна гора", "Чехия", "Чили",
-  "Швейцария", "Швеция", "Шри Ланка",
-  "Южен Судан", "Южна Африка", "Южна Корея",
-  "Ямайка", "Япония"
-];
 
 // НОВ КОМПОНЕНТ ЗА ДЪРЖАВИ С ТЪРСАЧКА
 const CountryMultiSelect = ({ selected, setSelected, label }: any) => {
@@ -184,15 +155,21 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     }
   }, [form.price, form.discountAmount, form.isPromo]);
 
-  // ГЕНЕРИРАНЕ НА ID
+ // ГЕНЕРИРАНЕ НА ID
   useEffect(() => {
     if (!initialData && form.country && form.dates.length > 0) {
         const countrySlug = slugify(form.country);
         const firstDate = [...form.dates].sort()[0];
-        const [year, month] = firstDate.split('-');
-        const prefix = `${countrySlug}-${month}-${year}-`;
-        const existing = allTours.filter((t: any) => t.tourId?.startsWith(prefix));
-        setForm((prev: any) => ({ ...prev, tourId: prefix + (existing.length + 1) }));
+        // Разделяме датата независимо дали е с точки (07.04) или тирета (2026-04)
+        const parts = firstDate.includes('.') ? firstDate.split('.') : firstDate.split('-');
+        const month = parts.length === 3 ? parts[1] : undefined;
+        const year = parts.length === 3 ? parts[2] : undefined;
+        
+        if (month && year) {
+            const prefix = `${countrySlug}-${month}-${year}-`;
+            const existing = allTours.filter((t: any) => t.tourId?.startsWith(prefix));
+            setForm((prev: any) => ({ ...prev, tourId: prefix + (existing.length + 1) }));
+        }
     }
   }, [form.country, form.dates, initialData, allTours]);
 
@@ -201,22 +178,37 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     setIsSubmitting(true);
     try {
         const sortedDates = [...form.dates].sort();
-        const mainDateFormatted = sortedDates[0]?.split('-').reverse().join('-');
+        // Вземаме първата дата. Ако е във формат DD.MM.YYYY, я обръщаме в YYYY-MM-DD
+        let mainDateFormatted = '';
+        if (sortedDates.length > 0) {
+            const firstDate = sortedDates[0];
+            mainDateFormatted = firstDate.includes('.') 
+                ? firstDate.split('.').reverse().join('-') 
+                : firstDate.split('-').reverse().join('-'); 
+        }
         
-        // 👇 ТУК ГАРАНТИРАМЕ, ЧЕ ДЪРЖАВИТЕ СЕ ЗАПИСВАТ КАТО МАСИВ 👇
+        // ГАРАНТИРАМЕ, ЧЕ ДЪРЖАВИТЕ СЕ ЗАПИСВАТ КАТО МАСИВ
         let finalCountries: string[] = [];
         if (Array.isArray(form.country)) {
             finalCountries = form.country;
         } else if (typeof form.country === 'string' && form.country) {
-            // Ако по някаква причина е стигнало като стринг "Япония, Южна Корея"
             finalCountries = form.country.split(',').map((c: string) => c.trim()).filter(Boolean);
         }
-        
+
+        // --- НОВО: ГЕНЕРИРАНЕ НА SEO SLUGS (Вариант 1) ---
+        const countrySlugs = finalCountries.map(c => slugify(c));
+        const continentSlug = form.continent ? slugify(form.continent) : '';
+        const categorySlugs = (form.categories || []).map((cat: string) => slugify(cat));
+        // ------------------------------------------------
+
         const data = { 
             ...form, 
-            country: finalCountries, // Записваме масива с държави
+            country: finalCountries,
+            countrySlugs,      // Добавяме SEO масива
+            continentSlug,    // Добавяме SEO стринг
+            categorySlugs,    // Добавяме SEO масива за категории
             durationDays: Number(form.durationDays) || 0,
-            nights: Number(form.nights) || 0,
+            nights: Number(String(form.nights).replace(/[^\d]/g, '')) || 0,
             visitedPlaces: form.visitedPlaces || [],
             date: mainDateFormatted, 
             dates: sortedDates, 
@@ -224,8 +216,11 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
             updatedAt: serverTimestamp() 
         };
 
-        if (initialData?.id) await updateDoc(doc(db, "tours", initialData.id), data);
-        else await addDoc(collection(db, "tours"), { ...data, createdAt: serverTimestamp() });
+        if (initialData?.id) {
+            await updateDoc(doc(db, "tours", initialData.id), data);
+        } else {
+            await addDoc(collection(db, "tours"), { ...data, createdAt: serverTimestamp() });
+        }
         
         onClose();
     } catch (error) { 
@@ -234,7 +229,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     } finally { 
         setIsSubmitting(false); 
     }
-  };
+};
 
   const handleMediaSelect = (url: string) => {
       if (mediaField === 'img') setForm({...form, img: url});
@@ -295,12 +290,11 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                                 <button 
                                     type="button"
                                     onClick={async () => {
-                                        if(!form.externalSourceLink) return alert("Първо постави линк!");
-                                        
-                                        // Тук викаме Бота!
+                                        if(!form.externalSourceLink) return alert("Първо постави линк към екскурзията!");
+                                                                        
                                         try {
                                             const btn = document.getElementById('bot-btn');
-                                            if(btn) btn.innerHTML = '⏳ Четене...';
+                                            if(btn) btn.innerHTML = '⏳ Изтегляне...';
                                             
                                             const res = await fetch('/api/scrape', {
                                                 method: 'POST',
@@ -310,44 +304,53 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                                             const data = await res.json();
                                             
                                             if(data.success) {
-                                                // 1. ПОПЪЛВАМЕ ОСНОВНИТЕ ПОЛЕТА
                                                 const updatedForm = { ...form };
                                                 
+                                                // 1. Основни
                                                 if (data.title) updatedForm.title = data.title;
-                                                if (data.price) updatedForm.price = data.price;
-                                                
-                                                // 2. ПОПЪЛВАМЕ ПРОГРАМАТА (ТУК БЕШЕ КЛЮЧЪТ 🔑)
+                                                if (data.price) updatedForm.price = data.price + ' €'; // Автоматично добавя валутата
+                                                if (data.route) updatedForm.route = data.route;
+                                                if (data.durationDays) updatedForm.durationDays = data.durationDays;
+                                                if (data.durationNights) updatedForm.nights = data.durationNights; 
+
+                                                // 2. Държави
+                                                if (data.detectedCountries && data.detectedCountries.length > 0) {
+                                                    updatedForm.country = data.detectedCountries;
+                                                }
+
+                                                // 3. Дати
+                                                if (data.dates && data.dates.length > 0) {
+                                                    const currentDates = updatedForm.dates || [];
+                                                    updatedForm.dates = [...new Set([...currentDates, ...data.dates])];
+                                                }
+
+                                                // 4. Допълнителни полета
+                                                if (data.included) updatedForm.included = data.included;
+                                                if (data.notIncluded) updatedForm.notIncluded = data.notIncluded;
+                                                if (data.documents) updatedForm.documents = data.documents;
+                                                if (data.generalInfo) updatedForm.generalInfo = data.generalInfo;
+
+                                                // 5. Програма
                                                 if (data.program && data.program.length > 0) {
-                                                    // Превеждаме данните от Бота към формата на твоя Itinerary
                                                     const mappedItinerary = data.program.map((p: any) => ({
                                                         day: p.day,
                                                         title: p.title || `Ден ${p.day}`,
                                                         content: p.description || '' 
                                                     }));
-                                                    
-                                                    // Слагаме ги в правилната променлива (setItinerary)
                                                     setItinerary(mappedItinerary); 
-                                                    
-                                                    // Попълваме и полето за Продължителност (durationDays)
                                                     updatedForm.durationDays = data.program.length.toString(); 
                                                 }
                                                 
-                                                if (data.isSoldOut) {
-                                                    updatedForm.groupStatus = 'sold-out';
-                                                }
+                                                if (data.isSoldOut) updatedForm.groupStatus = 'sold-out';
 
-                                                // Обновяваме формата на екрана
                                                 setForm(updatedForm); 
-                                                
-                                                alert(`✅ Успех!\nЗаглавие: ${data.title || '-'}\nЦена: ${data.price ? data.price + ' лв' : '-'}\nПрограма: Открити ${data.program?.length || 0} дни.`);
-                                            } else {
-                                                alert("Грешка: " + data.error);
+                                                alert(`✅ Успех!\nДати: ${data.dates?.length || 0}\nДържави: ${data.detectedCountries?.join(', ')}\nСекции: Всички полета са попълнени!`);
                                             }
                                         } catch(e) {
-                                            alert("Неуспешна връзка с Бота!");
+                                            alert("Сървърна грешка при свързване с Бота!");
                                         } finally {
                                             const btn = document.getElementById('bot-btn');
-                                            if(btn) btn.innerHTML = '🤖 Провери с Бот';
+                                            if(btn) btn.innerHTML = '⚡ ИЗТЕГЛИ ДАННИ';
                                         }
                                     }}
                                     id="bot-btn"
@@ -397,6 +400,34 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                 <div><label className={labelStyle}>Нощувки (текст)</label><input className={inputStyle} placeholder="пр. 7 нощувки" value={form.nights} onChange={e => setForm({...form, nights: e.target.value})} /></div>
             </div>
             
+            {/* КАТЕГОРИИ / ВИД ЕКСКУРЗИЯ */}
+            <div className="pt-6 border-t border-gray-50 mt-2 md:col-span-2">
+                <label className={labelStyle}>Вид екскурзия / Категории *</label>
+                <div className="flex flex-wrap gap-2 mt-3">
+                    {['Водена от ПОЛИ', 'Почивка', 'Екскурзия', 'Екзотика', 'Приключение', 'Круиз', 'Last Minute', 'City Break'].map(cat => (
+                        <button
+                            type="button"
+                            key={cat}
+                            onClick={() => {
+                                const cats = form.categories || [];
+                                if (cats.includes(cat)) {
+                                    setForm({...form, categories: cats.filter((c: string) => c !== cat)});
+                                } else {
+                                    setForm({...form, categories: [...cats, cat]});
+                                }
+                            }}
+                            className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition-all shadow-sm ${
+                                form.categories?.includes(cat) 
+                                    ? 'bg-brand-dark text-brand-gold border-brand-dark scale-105' 
+                                    : 'bg-white text-gray-500 border-gray-200 hover:border-brand-gold hover:text-brand-dark'
+                            }`}
+                        >
+                            {form.categories?.includes(cat) ? '✓ ' : '+ '} {cat}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-50">
                 <div><label className={labelStyle}>Посещавани градове</label><input className={inputStyle} placeholder="пр. Рим, Флоренция, Венеция" value={form.cities} onChange={e => setForm({...form, cities: e.target.value})} /></div>
                 <div><label className={labelStyle}>Маршрут (текст)</label><input className={inputStyle} placeholder="пр. София - Рим - София" value={form.route} onChange={e => setForm({...form, route: e.target.value})} /></div>
