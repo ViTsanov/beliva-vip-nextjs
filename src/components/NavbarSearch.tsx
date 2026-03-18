@@ -59,7 +59,7 @@ export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: Na
         setAllPosts(postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
         // Извличаме уникалните държави от всички турове
-        const countries = Array.from(new Set(tours.map((t: any) => t.country).filter(Boolean))) as string[];
+        const countries = Array.from(new Set(tours.flatMap((t: any) => Array.isArray(t.country) ? t.country : [t.country]).filter(Boolean))) as string[];
         setUniqueCountries(countries);
 
       } catch (error) {
@@ -89,11 +89,15 @@ export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: Na
     // Търсене в държави (за бърз филтър)
     const matchedCountries = uniqueCountries.filter(c => c.toLowerCase().includes(lowerQuery));
 
-    // Търсене в турове
-    const tours = allTours.filter((t: any) => 
-      t.title?.toLowerCase().includes(lowerQuery) || 
-      t.country?.toLowerCase().includes(lowerQuery)
-    );
+
+    const tours = allTours.filter((t: any) => {
+      const titleMatch = t.title?.toLowerCase().includes(lowerQuery);
+      const countryMatch = Array.isArray(t.country) 
+        ? t.country.some((c: string) => c.toLowerCase().includes(lowerQuery))
+        : t.country?.toLowerCase().includes(lowerQuery);
+      
+      return titleMatch || countryMatch;
+    });
 
     // Търсене в постове
     const posts = allPosts.filter((p: any) => 
@@ -252,7 +256,7 @@ export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: Na
                                 >
                                     <div className="flex flex-col gap-1 pl-2">
                                         <div className="flex items-center gap-2 text-[10px] font-black uppercase text-brand-gold">
-                                            {item.country}
+                                            {Array.isArray(item.country) ? item.country.join(', ') : item.country}
                                         </div>
                                         <h4 className="font-bold text-brand-dark text-lg leading-tight group-hover:text-brand-gold transition-colors">
                                             {item.title}

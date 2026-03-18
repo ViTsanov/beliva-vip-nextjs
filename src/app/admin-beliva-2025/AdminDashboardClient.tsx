@@ -20,6 +20,7 @@ import DashboardCharts from '@/components/DashboardCharts';
 import TourForm from '@/components/admin/TourForm'; 
 import BlogForm from '@/components/admin/BlogForm'; 
 import { performAutoMaintenance, slugify } from '@/lib/admin-helpers';
+import { IClient } from '@/types';
 
 // Редизайн на Търсачката
 const SearchBar = ({ value, onChange, placeholder }: any) => (
@@ -48,6 +49,9 @@ export default function AdminDashboardClient() {
   const [archivedSubTab, setArchivedSubTab] = useState('drafts'); // 'drafts' или 'archived'
   const [reviewsSubTab, setReviewsSubTab] = useState('auto'); // 'auto' или 'manual'
   const [searchReview, setSearchReview] = useState('');
+
+  const [selectedClient, setSelectedClient] = useState<IClient | null>(null);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
 
   // Търсачка за добавяне на пътуване
   const [tripSearchCountry, setTripSearchCountry] = useState('');

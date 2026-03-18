@@ -46,10 +46,17 @@ export default function SitemapPage() {
   // 🔄 ГРУПИРАНЕ: Континент -> Държава -> Списък с турове
   const groupedTours = tours.reduce((acc: any, tour) => {
     const cont = tour.continent ? tour.continent.trim() : 'Други';
-    const country = tour.country ? tour.country.trim() : 'Разни';
+    
+    // ПРОМЯНА: Проверяваме дали е масив, преди да го форматираме
+    let country = 'Разни';
+    if (Array.isArray(tour.country) && tour.country.length > 0) {
+      country = tour.country.join(', ').trim();
+    } else if (typeof tour.country === 'string' && tour.country) {
+      country = tour.country.trim();
+    }
 
-    if (!acc[cont]) acc[cont] = {}; // Създаваме обект за континента
-    if (!acc[cont][country]) acc[cont][country] = []; // Създаваме масив за държавата
+    if (!acc[cont]) acc[cont] = {}; 
+    if (!acc[cont][country]) acc[cont][country] = []; 
 
     acc[cont][country].push(tour);
     return acc;

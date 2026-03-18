@@ -71,3 +71,74 @@ export interface IPost {
   gallery?: string;
   externalSourceLink?: string;
 }
+
+// ==========================================
+// CRM & ERP ТИПОВЕ ЗА АДМИН ПАНЕЛА
+// ==========================================
+
+// 1. КЛИЕНТ (Client)
+export interface IClient {
+  id?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  discountFlag: boolean;       // Има ли право на отстъпка за лоялност
+  discountPercentage?: number; // Напр. 5%
+  tripsCount: number;          // Брой реализирани пътувания
+  notes?: string;              // Вътрешни бележки за агента
+
+  // НОВО: Опционална банкова сметка
+  iban?: string;
+  
+  // Данни за пътуване (попълват се при резервация)
+  latinName?: string;          // Имена по паспорт
+  egn?: string;                // За застраховки
+  passportNumber?: string;
+  passportValidity?: string;
+
+  createdAt: any;
+  updatedAt?: any;
+}
+
+// 2. РЕЗЕРВАЦИЯ (Booking)
+export type BookingStatus = 'new_inquiry' | 'offer_sent' | 'deposit_paid' | 'fully_paid' | 'completed' | 'cancelled';
+
+export interface IBooking {
+  id?: string;
+  bookingNumber: string;       // Напр. RES-20260407-001
+  clientId: string;            // Връзка с IClient
+  tourId: string;              // Връзка с ITour
+  tourDate: string;            // Конкретната дата на пътуване
+  
+  status: BookingStatus;
+  
+  // Финанси (всичко е в Евро)
+  totalPrice: number;
+  paidAmount: number;
+  
+  // Пътници и Настаняване
+  paxCount: number;            // Брой пътуващи
+  roomType: 'double' | 'single' | 'triple' | 'other';
+  passengersInfo?: string;     // Текст с имената на другите пътуващи, ако не са главният клиент
+  
+  notes?: string;
+  createdAt: any;
+  updatedAt?: any;
+}
+
+// 3. КОНКРЕТНО ЗАМИНАВАНЕ / ГРУПА (Departure)
+// Този обект обединява всички резервации за дадена дата
+export interface IDeparture {
+  id?: string;                 // Обикновено tourId + date (напр. yuar-07-04-2026)
+  tourId: string;
+  date: string;
+  
+  status: 'gathering' | 'confirmed' | 'departed' | 'completed' | 'cancelled';
+  
+  guideName?: string;          // Кой ще води групата (напр. Поли)
+  totalCapacity: number;       // Напр. 20 човека
+  currentBooked: number;       // Колко са записани до момента (сумира paxCount от резервациите)
+  
+  notes?: string;
+}
