@@ -99,6 +99,7 @@ export default function ContactFormClient() {
                 <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-2 flex items-center gap-1 mb-1"><Globe size={10}/> Избери Екскурзия (по избор)</label>
                 <select 
                     className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-brand-gold transition-all cursor-pointer text-sm"
+                    value={selectedTour?.id || ""} // <-- ДОБАВЕНО: За да помни точно коя екскурзия е избрана
                     onChange={e => {
                         const tour = tours.find(t => t.id === e.target.value);
                         setSelectedTour(tour || null);
@@ -110,7 +111,8 @@ export default function ContactFormClient() {
                 </select>
             </div>
 
-            {selectedTour && selectedTour.dates && selectedTour.dates.length > 0 && (
+            {/* ПРОМЯНА: Показваме датите ВИНАГИ щом има избрана екскурзия */}
+            {selectedTour && (
                 <div className="space-y-1 animate-in slide-in-from-left-4">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-2 flex items-center gap-1 mb-1"><Calendar size={10}/> Желана дата</label>
                     <select 
@@ -119,7 +121,9 @@ export default function ContactFormClient() {
                         onChange={e => setSelectedDate(e.target.value)}
                     >
                         <option value="" className="bg-brand-dark">-- Изберете дата --</option>
-                        {selectedTour.dates.slice().sort().map((d: string) => (
+                        <option value="Без точна дата" className="bg-brand-dark">Без точна дата / Още не съм решил(а)</option>
+                        
+                        {selectedTour.dates && selectedTour.dates.length > 0 && selectedTour.dates.slice().sort().map((d: string) => (
                             <option key={d} value={d} className="bg-brand-dark">{d.split('-').reverse().join('.')}</option>
                         ))}
                     </select>

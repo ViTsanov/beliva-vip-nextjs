@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, limit, getDocs } from 'firebase/firestore'; 
 import { MapPin, Calendar, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ITour } from "@/types";
+import { slugify } from '@/lib/admin-helpers';
 
 export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
   const [similarTours, setSimilarTours] = useState<ITour[]>([]);
@@ -87,7 +88,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
               </h2>
           </div>
           <Link 
-              href={`/?continent=${encodeURIComponent(currentTour.continent)}`}
+              href={`/?continent=${slugify(currentTour.continent)}`}
               className="hidden md:flex group items-center gap-2 text-brand-dark font-bold hover:text-brand-gold transition-colors"
           >
               Всички предложения <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -177,7 +178,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
         {/* Линк "Всички" за мобилно (показваме го долу центрирано) */}
         <div className="md:hidden text-center mt-8">
             <Link 
-              href={`/?continent=${encodeURIComponent(currentTour.continent)}#tours-grid`}
+              href={`/?continent=${slugify(currentTour.continent)}`}
               className="inline-flex items-center gap-2 text-brand-dark font-bold hover:text-brand-gold transition-colors text-sm uppercase tracking-wider"
             >
               Всички предложения <ArrowRight className="w-4 h-4" />

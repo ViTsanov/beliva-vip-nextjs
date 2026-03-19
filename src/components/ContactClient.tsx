@@ -22,7 +22,7 @@ export default function ContactClient() {
 
   const [formData, setFormData] = useState({
     user_name: '', user_email: '', user_phone: '',
-    user_message: '', tour_title: 'Общо запитване', tour_price: 'N/A'
+    user_message: '', tour_title: 'Общо запитване', tour_id: 'general-contact', tour_price: 'N/A', tour_date: ''
   });
 
   // Schema.org данни за Туристическа агенция (без физически адрес)
@@ -56,7 +56,13 @@ export default function ContactClient() {
       try {
         const q = query(collection(db, "tours"), where("status", "==", "public"));
         const snap = await getDocs(q);
-        setTours(snap.docs.map(d => ({ title: d.data().title, price: d.data().price })));
+        // ПРОМЯНА: Взимаме и id, и dates!
+        setTours(snap.docs.map(d => ({ 
+            id: d.id, 
+            title: d.data().title, 
+            price: d.data().price,
+            dates: d.data().dates || [] 
+        })));
       } catch (err) {
         console.error("Error fetching tours:", err);
       }
@@ -85,12 +91,13 @@ export default function ContactClient() {
     try {
         // 1. Запис в Firebase
         await addDoc(collection(db, "inquiries"), {
-            tourId: 'general-contact',
+            tourId: formData.tour_id, // Вече предаваме истинското ID!
             tourTitle: formData.tour_title,
+            tourDate: formData.tour_date || 'Без точна дата', // Добавяме датата
             clientName: formData.user_name,
             clientEmail: formData.user_email,
             clientPhone: formData.user_phone,
-            message: formData.user_message,
+            message: formData.user_message, // Това е оригиналното съобщение на клиента
             status: 'new',
             createdAt: serverTimestamp(),
             isRead: false,
@@ -115,7 +122,8 @@ export default function ContactClient() {
         setErrors({});
         setFormData({
             user_name: '', user_email: '', user_phone: '',
-            user_message: '', tour_title: 'Общо запитване', tour_price: 'N/A'
+            user_message: '', tour_title: 'Общо запитване', tour_price: 'N/A',
+            tour_id: 'general-contact', tour_date: ''
         });
 
         setTimeout(() => setStatus('idle'), 5000);
@@ -279,19 +287,46 @@ export default function ContactClient() {
                     </div>
                   </div>
 
-                  <div className="relative">
-                    <select 
-                      value={formData.tour_title}
-                      className="modern-input appearance-none cursor-pointer font-medium text-brand-dark pr-12"
-                      onChange={e => {
-                        const selected = tours.find(t => t.title === e.target.value);
-                        setFormData({...formData, tour_title: e.target.value, tour_price: selected ? selected.price : 'N/A'});
-                      }}
-                    >
-                      <option value="Общо запитване">Общо запитване</option>
-                      {tours.map((t, i) => <option key={i} value={t.title}>{t.title}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-brand-gold" size={20} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* ИЗБОР НА ЕКСКУРЗИЯ */}
+                    <div className="relative">
+                      <select 
+                        value={formData.tour_title}
+                        className="modern-input appearance-none cursor-pointer font-medium text-brand-dark pr-12"
+                        onChange={e => {
+                          const selected = tours.find(t => t.title === e.target.value);
+                          setFormData({
+                              ...formData, 
+                              tour_title: e.target.value, 
+                              tour_id: selected ? selected.id : 'general-contact',
+                              tour_price: selected ? selected.price : 'N/A',
+                              tour_date: '' // Нулираме датата при смяна на екскурзията
+                          });
+                        }}
+                      >
+                        <option value="Общо запитване">Общо запитване</option>
+                        {tours.map((t, i) => <option key={i} value={t.title}>{t.title}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-brand-gold" size={20} />
+                    </div>
+
+                    {/* ИЗБОР НА ДАТА */}
+                    <div className="relative">
+                      <select 
+                        value={formData.tour_date}
+                        className="modern-input appearance-none cursor-pointer font-medium text-brand-dark pr-12"
+                        onChange={e => setFormData({...formData, tour_date: e.target.value})}
+                      >
+                        <option value="">-- Изберете дата --</option>
+                        <option value="Без точна дата">Без точна дата</option>
+                        
+                        {/* Динамично показваме датите само за избраната екскурзия */}
+                        {tours.find(t => t.title === formData.tour_title)?.dates?.slice().sort().map((d: string) => (
+                            <option key={d} value={d}>{d.split('-').reverse().join('.')}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-brand-gold" size={20} />
+                    </div>
                   </div>
 
                   <textarea 

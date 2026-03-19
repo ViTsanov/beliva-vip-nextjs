@@ -7,6 +7,7 @@ import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
 import { WORLD_COUNTRIES } from '@/lib/constants';
 
+
 // ПОМОЩЕН КОМПОНЕНТ ЗА СПИСЪЦИ (Тагове)
 const TagsInput = ({ tags, setTags, placeholder, label }: any) => {
     const handleKeyDown = (e: any) => {
@@ -307,7 +308,11 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                                                 const updatedForm = { ...form };
                                                 
                                                 // 1. Основни
-                                                if (data.title) updatedForm.title = data.title;
+                                                if (data.title) {
+                                                    updatedForm.title = data.title;
+                                                    // 👇 ДОБАВИ ТОЗИ РЕД: Автоматично генерира slug от заглавието
+                                                    updatedForm.slug = slugify(data.title); 
+                                                }
                                                 if (data.price) updatedForm.price = data.price + ' €'; // Автоматично добавя валутата
                                                 if (data.route) updatedForm.route = data.route;
                                                 if (data.durationDays) updatedForm.durationDays = data.durationDays;

@@ -5,17 +5,8 @@ import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, MapPin, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-
-const DESTINATIONS = [
-  { name: "Тайланд", image: "/hero/singapore.webp" },
-  { name: "Египет", image: "/hero/peru.webp" },
-  { name: "ОАЕ", image: "/hero/thailand.webp" },
-  { name: "Италия", image: "/hero/china.webp" },
-  { name: "Мавриций", image: "/hero/australia.webp" },
-  { name: "Малдиви", image: "/hero/thailand.webp" },
-  { name: "Испания", image: "/hero/china.webp" },
-];
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
+import { slugify } from '@/lib/admin-helpers';
 
 export default function TopDestinations() {
   const router = useRouter();
@@ -24,35 +15,54 @@ export default function TopDestinations() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
+  const [destinations, setDestinations] = useState<any[]>([]);
+
   useEffect(() => {
-    const fetchCounts = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
+        // 1. Извличаме конфигурацията за Топ Дестинации (снимки и имена)
+        const configSnap = await getDoc(doc(db, "settings", "homepage"));
+        if (configSnap.exists() && configSnap.data().topDestinations) {
+          setDestinations(configSnap.data().topDestinations);
+        }
+
+        // 2. Извличаме всички публични турове, за да преброим офертите
         const q = query(collection(db, "tours"), where("status", "==", "public"));
-        const snapshot = await getDocs(q);
+        const tourSnap = await getDocs(q);
         
         const newCounts: Record<string, number> = {};
 
-        snapshot.docs.forEach(doc => {
+        tourSnap.docs.forEach(doc => {
           const data = doc.data();
-          const country = data.country;
-          if (country) {
-            newCounts[country] = (newCounts[country] || 0) + 1;
+          if (data.country) {
+            // Разделяме държавите, ако са написани със запетая (напр. "Ботсвана, Намибия")
+            const countries = typeof data.country === 'string'
+              ? data.country.split(',').map((c: string) => c.trim())
+              : (Array.isArray(data.country) ? data.country : [data.country]);
+
+            // Увеличаваме брояча за всяка държава
+            countries.forEach((c: string) => {
+              if (c) {
+                newCounts[c] = (newCounts[c] || 0) + 1;
+              }
+            });
           }
         });
 
         setCounts(newCounts);
       } catch (error) {
-        console.error("Error fetching tour counts:", error);
+        console.error("Грешка при зареждане на данни:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCounts();
+    fetchData();
   }, []);
 
   const handleSelect = (country: string) => {
-    router.push(`/?country=${encodeURIComponent(country)}#tours-grid`, { scroll: false });
+    router.push(`/?country=${slugify(country)}#tours-grid`, { scroll: false });
     setTimeout(() => {
         const grid = document.getElementById('tours-grid');
         if (grid) {
@@ -113,7 +123,7 @@ export default function TopDestinations() {
             className="flex gap-6 overflow-x-auto pb-8 snap-x snap-mandatory custom-scrollbar scroll-smooth -mx-6 px-6 md:mx-0 md:px-0"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-            {DESTINATIONS.map((dest, index) => {
+            {destinations.map((dest, index) => {
                 const count = counts[dest.name] || 0;
 
                 return (

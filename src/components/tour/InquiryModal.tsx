@@ -104,19 +104,21 @@ export default function InquiryModal({ isOpen, onClose, tourId, tourTitle, tourP
             ) : (
                 <>
                     <h2 className="text-3xl font-serif italic mb-2 text-brand-dark leading-none">Запитване</h2>
-                    <div className="h-1 w-16 bg-brand-gold mt-4 mb-8 rounded-full"></div>
-                    
                     <form onSubmit={handleSendEmail} className="space-y-4">
-                        {tourDates && tourDates.length > 0 && (
-                            <div className="relative">
-                                <CalendarDays className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                <select className="w-full p-4 pl-12 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-brand-gold appearance-none cursor-pointer text-sm font-bold" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}>
-                                    <option value="">-- Изберете желана дата --</option>
-                                    {tourDates.slice().sort().map((d, i) => <option key={i} value={d}>{d.split('-').reverse().join('.')}</option>)}
-                                </select>
-                            </div>
-                        )}
-
+                        {/* Падащото меню се показва винаги */}
+                        <div className="relative">
+                            <CalendarDays className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <select className="w-full p-4 pl-12 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-brand-gold appearance-none cursor-pointer text-sm font-bold" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}>
+                                <option value="">-- Изберете желана дата --</option>
+                                <option value="Без точна дата">Без точна дата / Още не съм решил(а)</option>
+                                
+                                {/* Ако има дати, ги показваме след "Без точна дата" */}
+                                {tourDates && tourDates.length > 0 && tourDates.slice().sort().map((d, i) => (
+                                    <option key={i} value={d}>{d.split('-').reverse().join('.')}</option>
+                                ))}
+                            </select>
+                        </div>
+                            
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <input placeholder="Име *" className={`w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-brand-gold ${errors.name ? 'border-red-500' : 'border-gray-100'}`} value={formData.user_name} onChange={e => setFormData({...formData, user_name: e.target.value})} />
                             <input placeholder="Телефон *" className={`w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-brand-gold ${errors.phone ? 'border-red-500' : 'border-gray-100'}`} value={formData.user_phone} onChange={e => setFormData({...formData, user_phone: e.target.value})} />

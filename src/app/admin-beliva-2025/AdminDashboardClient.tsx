@@ -22,6 +22,12 @@ import BlogForm from '@/components/admin/BlogForm';
 import { performAutoMaintenance, slugify } from '@/lib/admin-helpers';
 import { IClient } from '@/types';
 
+import ClientsTab from '@/components/admin/ClientsTab';
+import ReservationsTab from '@/components/admin/ReservationsTab';
+import GroupsTab from '@/components/admin/GroupsTab';
+import ClientDetailModal from '@/components/admin/ClientDetailModal';
+import SettingsTab from '@/components/admin/SettingsTab';
+
 // Редизайн на Търсачката
 const SearchBar = ({ value, onChange, placeholder }: any) => (
   <div className="relative mb-8 group">
@@ -45,6 +51,8 @@ export default function AdminDashboardClient() {
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]); 
+
+  const [globalSelectedClient, setGlobalSelectedClient] = useState<any>(null);
 
   const [archivedSubTab, setArchivedSubTab] = useState('drafts'); // 'drafts' или 'archived'
   const [reviewsSubTab, setReviewsSubTab] = useState('auto'); // 'auto' или 'manual'
@@ -170,16 +178,38 @@ export default function AdminDashboardClient() {
 
   const handleStatusUpdate = async (inq: any, newStatus: string) => {
     try {
+        // 1. Обновяваме статуса на запитването
         await updateDoc(doc(db, "inquiries", inq.id), { status: newStatus });
         
+        // 2. Логика при статус 'paid'
         if (newStatus === 'paid') {
             const customersRef = collection(db, "customers");
-            let q = query(customersRef, where("phone", "==", inq.clientPhone));
-            let snap = await getDocs(q);
+            let existingCustomer: any = null;
+            let existingCustomerId = null;
 
+            // А) Търсим първо по ИМЕЙЛ (по-точен идентификатор)
+            if (inq.clientEmail) {
+                const qEmail = query(customersRef, where("email", "==", inq.clientEmail));
+                const snapEmail = await getDocs(qEmail);
+                if (!snapEmail.empty) {
+                    existingCustomerId = snapEmail.docs[0].id;
+                    existingCustomer = snapEmail.docs[0].data();
+                }
+            }
+
+            // Б) Ако не намерим по имейл, търсим по ТЕЛЕФОН
+            if (!existingCustomer && inq.clientPhone) {
+                const qPhone = query(customersRef, where("phone", "==", inq.clientPhone));
+                const snapPhone = await getDocs(qPhone);
+                if (!snapPhone.empty) {
+                    existingCustomerId = snapPhone.docs[0].id;
+                    existingCustomer = snapPhone.docs[0].data();
+                }
+            }
+
+            // Подготвяме данните за пътуването (твоята логика)
             const originalTour = allTours.find(t => t.id === inq.tourId);
             const tourOperator = originalTour?.operator || "Неизвестен";
-
             const tripData = {
                 tourTitle: inq.tourTitle || "Екскурзия",
                 date: inq.tourDate || "Не е избрана",
@@ -188,25 +218,57 @@ export default function AdminDashboardClient() {
                 feedbackStatus: 'pending'
             };
 
-            if (snap.empty) {
-                await addDoc(customersRef, {
-                    name: inq.clientName,
-                    email: inq.clientEmail || "",
-                    phone: inq.clientPhone,
-                    totalTrips: 1,
-                    tripHistory: [tripData],
-                    vipDiscount: 0,
-                    createdAt: serverTimestamp()
-                });
-            } else {
-                const custDoc = snap.docs[0];
-                await updateDoc(doc(db, "customers", custDoc.id), {
-                    tripHistory: [...(custDoc.data().tripHistory || []), tripData],
-                    totalTrips: (custDoc.data().totalTrips ?? 0) + 1
-                });
+            // В) АКО ИМА ТАКЪВ КЛИЕНТ -> ПИТАМЕ АДМИНА
+            if (existingCustomer) {
+                const confirmMatch = window.confirm(
+                    `ВНИМАНИЕ: Открихме съществуващ клиент!\n\n` +
+                    `Име: ${existingCustomer.name || existingCustomer.firstName + ' ' + existingCustomer.lastName}\n` +
+                    `Имейл: ${existingCustomer.email}\n` +
+                    `Телефон: ${existingCustomer.phone}\n\n` +
+                    `Това същият човек ли е? Да добавя ли пътуването към неговия профил?\n` +
+                    `(Ако избереш "Отказ", ще бъде създаден нов клиентски профил)`
+                );
+
+                if (confirmMatch) {
+                    // Админът потвърди -> Обновяваме стария клиент
+                    await updateDoc(doc(db, "customers", existingCustomerId as string), {
+                        tripHistory: [...(existingCustomer.tripHistory || []), tripData],
+                        totalTrips: (existingCustomer.totalTrips ?? 0) + 1,
+                        updatedAt: serverTimestamp()
+                    });
+                    alert(`Пътуването беше добавено към профила на ${existingCustomer.name || 'клиента'}!`);
+                    return; // ПРЕКРАТЯВАМЕ, за да не създаваме нов
+                }
             }
+
+            // Г) АКО НЯМА ТАКЪВ КЛИЕНТ (или Админът цъкна "Отказ") -> СЪЗДАВАМЕ НОВ
+            
+            // Разделяне на името на firstName и lastName за новия картон
+            const nameParts = inq.clientName ? inq.clientName.split(' ') : [];
+            const firstName = nameParts[0] || 'Неизвестно';
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            await addDoc(customersRef, {
+                // Запазваме и старите полета за съвместимост с твоя код, и новите за CRM картона
+                name: inq.clientName || '',
+                firstName: firstName,
+                lastName: lastName,
+                email: inq.clientEmail || "",
+                phone: inq.clientPhone || "",
+                totalTrips: 1, // старото поле
+                tripsCount: 1, // новото поле
+                tripHistory: [tripData],
+                vipDiscount: 0,
+                discountFlag: false,
+                createdAt: serverTimestamp()
+            });
+            
+            alert('Успешно създаден нов клиентски профил за тази резервация!');
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error("Грешка при промяна на статус:", e); 
+        alert("Възникна грешка при обновяване на статуса.");
+    }
   };
 
   const handleUpdateInquiry = async (e: React.FormEvent) => { e.preventDefault(); await updateDoc(doc(db, "inquiries", editingInquiry.id), editingInquiry); setIsEditInquiryModalOpen(false); };
@@ -299,15 +361,17 @@ export default function AdminDashboardClient() {
                 {[
                     { id: 'dashboard', label: 'Табло', icon: LayoutDashboard },
                     { id: 'bookings', label: 'Резервации', icon: Inbox },
-                    { id: 'customers', label: 'Клиенти (CRM)', icon: UserCheck },
+                    { id: 'customers', label: 'Клиенти', icon: UserCheck },
                     { id: 'tours', label: 'Оферти', icon: Map },
-                    { id: 'groups', label: 'Минали Групи', icon: Users },
+                    { id: 'groups', label: 'Групи', icon: Users },
                     { id: 'archived', label: 'Архив', icon: Archive },
                     { id: 'media', label: 'Галерия', icon: ImageIcon },
-                    { id: 'promotions', label: 'Промо Кампании', icon: BadgePercent },
+                    { id: 'promotions', label: 'Промоции', icon: BadgePercent },
                     { id: 'blog', label: 'Блог', icon: BookOpen },
                     { id: 'reviews', label: 'Ревюта', icon: Star },
                     { id: 'subscribers', label: 'Абонати', icon: Users },
+                    { id: 'settings', label: 'Настройки', icon: Settings}
+                    
                 ].map(item => (
                     <button key={item.id} onClick={() => {setActiveTab(item.id); setIsSidebarOpen(false)}} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-brand-gold text-brand-dark font-bold shadow-lg shadow-brand-gold/10' : 'text-gray-400 hover:text-white'}`}>
                         <item.icon size={20}/> {item.label}
@@ -317,7 +381,7 @@ export default function AdminDashboardClient() {
           </div>
           <button onClick={handleLogout} className="flex items-center gap-4 px-6 py-4 text-red-400 hover:text-red-300 mt-10 font-bold uppercase text-[10px] tracking-widest"><LogOut size={18} /> Изход</button>
       </aside>
-
+      
       <main className="flex-grow p-4 md:p-8 lg:p-12 w-full overflow-hidden">
         <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-10 gap-4">
             <div className="flex items-center gap-4">
@@ -390,107 +454,11 @@ export default function AdminDashboardClient() {
         {activeTab === 'dashboard' && <div className="space-y-8 animate-in fade-in duration-500"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><StatCard icon={Inbox} color="emerald" count={stats.newInquiries} label="Нови Запитвания" highlight /><StatCard icon={UserCheck} color="blue" count={stats.totalCustomers} label="Клиенти (CRM)" /><StatCard icon={Map} color="orange" count={stats.activeTours} label="Активни Оферти" /><StatCard icon={Users} color="purple" count={stats.totalSubscribers} label="Абонати" /></div><DashboardCharts inquiries={inquiries} tours={allTours} /></div>}
 
         {activeTab === 'customers' && (
-            <>
-                <SearchBar value={searchCustomer} onChange={setSearchCustomer} placeholder="Търси в клиентската база..." />
-                <div className="grid grid-cols-1 gap-4">
-                    {filteredCustomers.map(c => (
-                        <div key={c.id} className="bg-white p-8 rounded-[3rem] shadow-sm border border-brand-gold/5 flex flex-col md:flex-row justify-between items-center gap-6 hover:shadow-xl hover:-translate-y-1 transition-all">
-                            <div className="flex-grow">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <h3 className="text-2xl font-bold text-brand-dark">{c.name}</h3>
-                                    <button onClick={() => { setEditingCustomer(c); setIsEditCustomerModalOpen(true); }} className="p-2 bg-blue-50 text-blue-500 rounded-full hover:bg-blue-500 hover:text-white transition-all"><Edit2 size={14}/></button>
-                                </div>
-                                <div className="flex flex-wrap gap-4 text-sm text-gray-400 font-medium mb-4">
-                                    <span className="flex items-center gap-1.5"><Phone size={14} className="text-brand-gold"/> {c.phone}</span>
-                                    <span className="flex items-center gap-1.5"><Mail size={14} className="text-brand-gold"/> {c.email || 'Няма имейл'}</span>
-                                    {c.vipDiscount > 0 && <span className="bg-brand-gold/10 text-brand-gold px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-brand-gold/20">VIP -{c.vipDiscount}%</span>}
-                                </div>
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {c.tripHistory?.map((t: any, i: number) => (
-                                        <span key={i} className="bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-xl text-[9px] font-bold text-gray-400 uppercase flex items-center gap-2">
-                                            <span className="text-brand-gold">{t.tourOperator}</span> 
-                                            <span className="text-gray-200">|</span> 
-                                            {t.tourTitle} ({t.date})
-                                        </span>
-                                    ))}
-                                    <button onClick={() => { setSelectedCustomerForTrip(c); setIsAddTripModalOpen(true); }} className="px-4 py-2 rounded-2xl text-[10px] font-black uppercase bg-brand-gold text-white shadow-lg shadow-brand-gold/20 hover:bg-brand-dark transition-all flex items-center gap-2">+ Добави пътуване</button>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-8 pl-8 border-l border-gray-100">
-                                <div className="text-center min-w-[80px]">
-                                    <p className="text-4xl font-black text-brand-dark leading-none">{c.totalTrips ?? 0}</p>
-                                    <p className="text-[10px] font-black uppercase text-gray-400 mt-2 tracking-widest">пътувания</p>
-                                </div>
-                                <button onClick={async () => { if(confirm('Изтриване?')) await deleteDoc(doc(db, "customers", c.id)) }} className="p-4 text-red-400 bg-red-50 rounded-[1.5rem] hover:bg-red-500 hover:text-white transition-all"><Trash2 size={24}/></button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </>
+            <ClientsTab onAddClient={() => setIsAddCustomerModalOpen(true)} />
         )}
 
         {activeTab === 'bookings' && (
-            <>
-                <SearchBar value={searchInquiry} onChange={setSearchInquiry} placeholder="Търси в резервации..." />
-                <div className="space-y-6">
-                    {filteredInquiries.map(inq => (
-                        <div key={inq.id} className={`bg-white p-8 rounded-[3.5rem] border-0 shadow-[0_15px_40px_rgba(0,0,0,0.03)] transition-all relative overflow-hidden ${inq.status === 'paid' ? 'ring-2 ring-emerald-500/20' : inq.status === 'contacted' ? 'ring-2 ring-blue-500/20' : ''}`}>
-                            {inq.status === 'paid' && <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none"><CheckCircle2 size={120} className="text-emerald-500"/></div>}
-                            
-                            <div className="flex flex-col md:flex-row justify-between gap-10">
-                                <div className="flex-grow">
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div className="p-4 bg-brand-dark text-brand-gold rounded-[1.5rem] shadow-xl"><User size={24}/></div>
-                                        <div>
-                                            <div className="flex items-center gap-3">
-                                                <h3 className="text-2xl font-bold text-brand-dark">{inq.clientName}</h3>
-                                                <button onClick={() => { setEditingInquiry(inq); setIsEditInquiryModalOpen(true); }} className="p-2 bg-gray-50 text-gray-400 rounded-full hover:bg-brand-gold hover:text-white transition-all"><Edit2 size={14}/></button>
-                                            </div>
-                                            <p className="text-sm text-gray-400 font-medium uppercase tracking-widest mt-1">{inq.clientPhone} • {inq.clientEmail}</p>
-                                        </div>
-                                    </div>
-                                    <div className="inline-flex flex-col p-6 bg-[#faf9f6] rounded-[2rem] border border-gray-100 min-w-[300px]">
-                                        <div className="flex items-center gap-2 mb-2 text-brand-gold">
-                                            <Globe size={16}/>
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Избрана Екскурзия</span>
-                                        </div>
-                                        <p className="text-xl font-bold text-brand-dark">{inq.tourTitle || "Общо запитване"}</p>
-                                        <div className="flex items-center gap-2 mt-3 text-gray-400">
-                                            <Calendar size={14}/>
-                                            <p className="text-sm font-bold uppercase tracking-widest">{inq.tourDate || "Дата не е избрана"}</p>
-                                        </div>
-                                    </div>
-                                    {inq.message && <p className="mt-6 text-gray-500 italic text-sm border-l-4 border-brand-gold/20 pl-6 py-2">"{inq.message}"</p>}
-                                </div>
-
-                                <div className="flex flex-col items-end gap-4 min-w-[240px] pt-4">
-                                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mr-4">Статус на обработка</label>
-                                    <select 
-                                        value={inq.status || 'new'} 
-                                        onChange={(e) => handleStatusUpdate(inq, e.target.value)}
-                                        className={`w-full p-5 rounded-[2rem] text-xs font-black uppercase tracking-[0.15em] border-0 outline-none cursor-pointer shadow-lg transition-all
-                                            ${inq.status === 'paid' ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 
-                                            inq.status === 'deposit' ? 'bg-amber-500 text-white shadow-amber-500/20' : 
-                                            inq.status === 'contacted' ? 'bg-blue-500 text-white shadow-blue-500/20' : 
-                                            inq.status === 'cancelled' ? 'bg-red-500 text-white shadow-red-500/20' :
-                                            'bg-white text-brand-dark'}`}
-                                    >
-                                        <option value="new">🆕 Ново запитване</option>
-                                        <option value="contacted">📞 Свързах се</option>
-                                        <option value="deposit">💰 Платено Капаро</option>
-                                        <option value="paid">✅ ПЛАТЕНО (Към CRM)</option>
-                                        <option value="cancelled">❌ Анулирано</option>
-                                    </select>
-                                    <div className="flex gap-2 w-full mt-4">
-                                        <button className="flex-grow flex items-center justify-center gap-2 p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-gray-100 transition-all font-bold text-[10px] uppercase tracking-widest"><FileText size={16}/> Договор</button>
-                                        <button onClick={async () => { if(confirm('Изтриване?')) await deleteDoc(doc(db, "inquiries", inq.id)) }} className="p-4 text-red-400 bg-red-50 rounded-2xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={20}/></button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </>
+            <ReservationsTab allTours={allTours} allCampaigns={campaigns} />
         )}
 
         {/* Останалите табове */}
@@ -517,6 +485,8 @@ export default function AdminDashboardClient() {
                 </div>
             </div>
         )}
+
+        {activeTab === 'settings' && <SettingsTab />}
 
         {/* ТАБ: АРХИВ И ЧЕРНОВИ (С ПОД-ТАБОВЕ) */}
         {activeTab === 'archived' && (
@@ -553,84 +523,11 @@ export default function AdminDashboardClient() {
         {activeTab === 'media' && <div className="h-[80vh] rounded-[3rem] overflow-hidden border shadow-sm"><MediaLibrary /></div>}
         {activeTab === 'blog' && <><SearchBar value={searchBlog} onChange={setSearchBlog} placeholder="Търси статия..." /><div className="space-y-4 animate-in fade-in">{posts.filter(p => p.title?.toLowerCase().includes(searchBlog.toLowerCase())).map(post => (<div key={post.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-brand-gold/5 flex items-center gap-6 hover:shadow-md transition-shadow"><img src={post.coverImg || post.img} className="w-20 h-20 rounded-2xl object-cover" alt="" /><div className="flex-grow"><h3 className="font-bold text-brand-dark">{post.title}</h3></div><div className="flex gap-2"><ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(post)} /><ActionBtn icon={Trash2} color="text-red-500 bg-red-50" onClick={async () => { if(confirm('Изтриване?')) await deleteDoc(doc(db, "posts", post.id)) }} /></div></div>))}</div></>}
         {activeTab === 'subscribers' && <div className="bg-white rounded-[3rem] shadow-xl overflow-hidden border-0"><div className="p-10 bg-gray-50 flex justify-between items-center border-b"><h3 className="text-2xl font-serif italic text-brand-dark">Абонати на бюлетина</h3><button onClick={() => { const csv = subscribers.map(s => s.email).join('\n'); navigator.clipboard.writeText(csv); alert('Копирано!'); }} className="bg-brand-gold text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-dark transition-all shadow-lg shadow-brand-gold/20">Експортирай списъка</button></div><table className="w-full text-left text-sm"><thead className="bg-white text-[10px] uppercase font-black text-gray-400 border-b tracking-widest"><tr><th className="p-10">Имейл Адрес</th><th className="p-10">Дата на записване</th><th className="p-10 text-right">Действие</th></tr></thead><tbody className="divide-y divide-gray-50">{subscribers.map((sub: any) => (<tr key={sub.id} className="hover:bg-gray-50/50 transition-colors"><td className="p-10 font-bold text-brand-dark">{sub.email}</td><td className="p-10 text-gray-400">{sub.createdAt?.seconds ? new Date(sub.createdAt.seconds * 1000).toLocaleDateString('bg-BG') : 'Сега'}</td><td className="p-10 text-right"><button onClick={async () => await deleteDoc(doc(db, "subscribers", sub.id))} className="text-red-400 p-3 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>}
-        {/* ТАБ: МИНАЛИ ГРУПИ */}
         {activeTab === 'groups' && (
-            <div className="space-y-8 animate-in fade-in">
-                <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-brand-gold/10">
-                    <h2 className="text-2xl font-serif italic text-brand-dark mb-6">Справка: Пътували клиенти</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className={labelClass}>Избери Екскурзия</label>
-                            <select className={inputClass} value={groupTourId} onChange={e => {setGroupTourId(e.target.value); setGroupDate('');}}>
-                                <option value="">-- Всички екскурзии --</option>
-                                {allTours.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                            </select>
-                        </div>
-                        {groupTourId && (
-                            <div>
-                                <label className={labelClass}>Конкретна дата</label>
-                                <select className={inputClass} value={groupDate} onChange={e => setGroupDate(e.target.value)}>
-                                    <option value="">-- Избери дата (Задължително) --</option>
-                                    {allTours.find(t => t.id === groupTourId)?.historicalDates?.map((d: string) => <option key={d} value={d}>{d}</option>)}
-                                </select>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {groupTourId && groupDate && (
-                    <div className="bg-white p-8 rounded-[3rem] shadow-sm">
-                        <h3 className="font-bold text-xl text-brand-dark mb-6">Списък с клиенти:</h3>
-                        <div className="space-y-3">
-                            {customers.filter(c => c.tripHistory?.some((t:any) => t.tourId === groupTourId && t.date === groupDate)).length === 0 && <p className="text-gray-400">Няма намерени клиенти за тази дата.</p>}
-                            {groupTourId && groupDate && (
-                    <div className="bg-white p-8 rounded-[3rem] shadow-sm">
-                        <h3 className="font-bold text-xl text-brand-dark mb-6">Списък с клиенти:</h3>
-                        <div className="space-y-4">
-                            {customers.filter(c => c.tripHistory?.some((t:any) => t.tourId === groupTourId && t.date === groupDate)).length === 0 && <p className="text-gray-400">Няма намерени клиенти за тази дата.</p>}
-                            {customers.filter(c => c.tripHistory?.some((t:any) => t.tourId === groupTourId && t.date === groupDate)).map(c => {
-                                // Намираме конкретното пътуване, за да му вземем уникалното ID
-                                const specificTrip = c.tripHistory.find((t:any) => t.tourId === groupTourId && t.date === groupDate);
-                                const feedbackLink = `https://belivavip.bg/feedback/${specificTrip.tripId}`;
-                                
-                                // Генерираме текста за имейла
-                                const subject = encodeURIComponent(`Очакваме вашия отзив за ${specificTrip.tourTitle}`);
-                                const body = encodeURIComponent(`Здравейте ${c.name},\n\nНадяваме се, че сте си прекарали страхотно на екскурзията до ${specificTrip.tourTitle}!\n\nЩе се радваме да отделите минутка и да споделите вашите впечатления тук:\n${feedbackLink}\n\nПоздрави,\nЕкипът на Beliva VIP Tour`);
-                                
-                                // Специален линк за директно отваряне на GMAIL в браузъра
-                                const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}&su=${subject}&body=${body}`;
-
-                                return (
-                                <div key={c.id} className="p-5 bg-gray-50 rounded-[2rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-gray-100 hover:shadow-md transition-all">
-                                    <div>
-                                        <p className="font-bold text-brand-dark flex items-center gap-2 text-lg">
-                                            {c.name}
-                                            {specificTrip.feedbackStatus === 'completed' && <span className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-[9px] uppercase tracking-widest font-black">Оставил отзив</span>}
-                                        </p>
-                                        <p className="text-xs text-gray-500 font-medium mt-1">{c.phone} • {c.email || 'Няма имейл'}</p>
-                                    </div>
-                                    <div className="flex gap-3 items-center w-full md:w-auto">
-                                        {/* Ако клиентът все още не е оставил отзив, показваме бутона за имейл */}
-                                        {specificTrip.feedbackStatus !== 'completed' && (
-                                            c.email ? (
-                                                <a href={gmailLink} target="_blank" rel="noopener noreferrer" className="flex-grow md:flex-grow-0 text-center bg-brand-dark text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-gold transition-all shadow-lg">
-                                                    📩 Прати през Gmail
-                                                </a>
-                                            ) : (
-                                                <span className="text-[10px] text-red-400 font-bold uppercase tracking-widest bg-red-50 px-4 py-3 rounded-xl">Няма Имейл</span>
-                                            )
-                                        )}
-                                        <button onClick={() => { setEditingCustomer(c); setIsEditCustomerModalOpen(true); }} className="text-brand-gold text-xs font-bold uppercase hover:underline p-2">Профил</button>
-                                    </div>
-                                </div>
-                            )})}
-                        </div>
-                    </div>
-                )}
-                        </div>
-                    </div>
-                )}
-            </div>
+          <GroupsTab onOpenClient={(clientId: string) => { // <--- Добавяме : string
+              const client = customers.find(c => c.id === clientId);
+              if(client) setGlobalSelectedClient(client);
+          }} />
         )}
 
         {/* ТАБ: РЕВЮТА (РАЗДЕЛЕНИ И С ПРАВА ЗА ПУБЛИКУВАНЕ) */}
@@ -985,6 +882,16 @@ export default function AdminDashboardClient() {
            </div>
         </div>
       )}
+      {globalSelectedClient && (
+        <ClientDetailModal 
+            client={globalSelectedClient} 
+            onClose={() => setGlobalSelectedClient(null)} 
+            onUpdate={(updated) => {
+                setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c));
+                setGlobalSelectedClient(updated);
+            }}
+        />
+        )}
     </div>
   );
 }

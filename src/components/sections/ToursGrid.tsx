@@ -8,6 +8,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import FiltersBar from '@/components/FiltersBar';
 import TourCard from '@/components/tours/TourCard';
 import { ITour } from '@/types';
+import { slugify } from '@/lib/admin-helpers';
+import { WORLD_COUNTRIES } from '@/lib/constants';
 
 const getNormalizedDate = (dateStr: string) => {
   if (!dateStr) return "9999-99-99"; 
@@ -92,13 +94,21 @@ export default function ToursGrid() {
         if (!titleMatch && !countryMatch) return false;
       }
 
-      // 2. Филтър Континент (използваме continentSlug)
-      if (filterContinent && tour.continentSlug !== filterContinent) return false;
-
-      // 3. Филтър Държава (използваме масива countrySlugs)
+      // 3. Филтър Държава (Разделяме при запетая и проверяваме всяка)
       if (filterCountry) {
-        // Проверяваме дали латинският slug от URL съществува в масива countrySlugs
-        if (!tour.countrySlugs?.includes(filterCountry)) return false;
+        const tourCountries = typeof tour.country === 'string' 
+          ? tour.country.split(',').map(c => c.trim()) 
+          : (Array.isArray(tour.country) ? tour.country : []);
+
+        // Проверяваме дали избраният slug съвпада с някоя от държавите в тура
+        const hasMatch = tourCountries.some(c => slugify(c) === filterCountry);
+        if (!hasMatch) return false;
+      }
+
+      // 4. Филтър Континент
+      if (filterContinent) {
+        const tourContinentSlug = slugify(tour.continent);
+        if (tourContinentSlug !== filterContinent) return false;
       }
 
       // 4. Филтър Категория (използваме масива categorySlugs)
@@ -139,19 +149,23 @@ export default function ToursGrid() {
     Array.from(new Set(allTours.map(t => t.continent).filter(Boolean))).sort(), 
   [allTours]);
 
- const uniqueCountries = useMemo(() => {
-    const allCountriesFound = allTours
-        .filter(t => filterContinent ? t.continent === filterContinent : true)
-        .flatMap(t => {
-            // Ако е новият формат (масив)
-            if (Array.isArray(t.country)) return t.country;
-            // Ако е старият формат (стринг със запетаи), разделяме го
-            if (typeof t.country === 'string') return t.country.split(',').map(c => c.trim());
-            return [];
-        })
-        .filter(Boolean);
-    
-    return Array.from(new Set(allCountriesFound)).sort();
+  const uniqueCountries = useMemo(() => {
+    let list = allTours;
+    if (filterContinent) {
+        // Сравняваме slugify-натата версия на континента с филтъра
+        list = allTours.filter(t => slugify(t.continent) === filterContinent);
+    }
+    const countries = new Set<string>();
+    list.forEach(t => {
+        if (t.country) {
+            // Разделяме държавите, ако са "Намибия, Ботсвана"
+            const names = typeof t.country === 'string' 
+                ? t.country.split(',').map(c => c.trim()) 
+                : (Array.isArray(t.country) ? t.country : []);
+            names.forEach(n => countries.add(n));
+        }
+    });
+    return Array.from(countries).sort();
   }, [allTours, filterContinent]);
 
   useEffect(() => {
@@ -213,6 +227,14 @@ export default function ToursGrid() {
 
   let lastYear = "";
 
+  const displayCountryName = filterCountry 
+    ? (WORLD_COUNTRIES.find(c => slugify(c) === filterCountry) || filterCountry)
+    : '';
+
+const displayContinentName = filterContinent 
+    ? (['Азия', 'Европа', 'Африка', 'Северна Америка', 'Южна Америка', 'Австралия'].find(c => slugify(c) === filterContinent) || filterContinent)
+    : '';
+
   return (
     <section id="tours-grid" className="container mx-auto px-6 py-16 scroll-mt-20 relative overflow-hidden">
       
@@ -228,7 +250,13 @@ export default function ToursGrid() {
                   <span className="text-brand-gold text-xs font-black uppercase tracking-[0.2em]">Пътешествия</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-serif text-brand-dark leading-tight">
-                  Всички <span className="italic text-brand-gold">Предложения</span>
+                {filterCountry ? (
+                  <>Екскурзии в <span className="italic text-brand-gold">{displayCountryName}</span></>
+                ) : filterContinent ? (
+                  <>Оферти за <span className="italic text-brand-gold">{displayContinentName}</span></>
+                ) : (
+                  <>Всички <span className="italic text-brand-gold">Предложения</span></>
+                )}
               </h2>
               {(filterCountry || filterContinent || filterCategory) && (
                 <div className="mt-2 flex items-center justify-center md:justify-start gap-2 animate-in fade-in slide-in-from-left-4 duration-500">

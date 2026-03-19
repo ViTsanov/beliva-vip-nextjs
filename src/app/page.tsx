@@ -1,10 +1,12 @@
 import { Suspense } from 'react';
 import Hero from '@/components/sections/Hero';
-import ToursGrid from '@/components/sections/ToursGrid'; // или components/sections/ToursGrid
+import ToursGrid from '@/components/sections/ToursGrid';
 import Testimonials from '@/components/Testimonials';
 import TopDestinations from '@/components/TopDestinations';
 import Advantages from '@/components/Advantages';
 import { Metadata } from 'next';
+import { WORLD_COUNTRIES } from '@/lib/constants'; // 1. Импортирай списъка
+import { slugify } from '@/lib/admin-helpers';     // 2. Импортирай slugify
 
 type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -12,14 +14,19 @@ type Props = {
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const resolvedParams = await searchParams;
-  const country = resolvedParams?.country;
+  const countrySlug = resolvedParams?.country; // Това ще е "tailand"
 
-  if (country && typeof country === 'string') {
+  if (countrySlug && typeof countrySlug === 'string') {
+    // 3. Търсим българското име чрез сравнение на slugs
+    const countryName = WORLD_COUNTRIES.find(c => slugify(c) === countrySlug) || countrySlug;
+
+    // 4. Сега името ще е "Тайланд"
     return {
-      title: `Посетете ${country} с нас | Beliva VIP Tour`,
-      description: `Разгледайте нашите ексклузивни оферти и екскурзии до ${country}. Резервирайте вашето мечтано пътешествие с Beliva VIP Tour.`,
+      title: `Посетете ${countryName} с нас | Beliva VIP Tour`,
+      description: `Разгледайте нашите ексклузивни оферти и екскурзии до ${countryName}. Резервирайте вашето мечтано пътешествие с Beliva VIP Tour.`,
       alternates: {
-        canonical: `https://belivavip.bg/?country=${encodeURIComponent(country)}`
+        // Canonical линкът остава със slug-а, защото това е официалният URL
+        canonical: `https://belivavip.bg/?country=${countrySlug}`
       }
     };
   }

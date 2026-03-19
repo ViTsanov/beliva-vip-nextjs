@@ -6,6 +6,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Home, FileText, Map, Compass, Globe, Info, MessageCircle, Heart, Phone, ShieldCheck, Loader2, MapPin, ArrowRight } from 'lucide-react';
+import { slugify } from '@/lib/admin-helpers';
 
 // 🗺️ КАРТА НА СНИМКИТЕ ЗА КОНТИНЕНТИТЕ
 const continentImageMap: Record<string, string> = {
@@ -43,22 +44,28 @@ export default function SitemapPage() {
     fetchData();
   }, []);
 
-  // 🔄 ГРУПИРАНЕ: Континент -> Държава -> Списък с турове
+  // 🔄 ГРУПИРАНЕ: Разделяме държавите, за да излизат поотделно
   const groupedTours = tours.reduce((acc: any, tour) => {
     const cont = tour.continent ? tour.continent.trim() : 'Други';
     
-    // ПРОМЯНА: Проверяваме дали е масив, преди да го форматираме
-    let country = 'Разни';
-    if (Array.isArray(tour.country) && tour.country.length > 0) {
-      country = tour.country.join(', ').trim();
-    } else if (typeof tour.country === 'string' && tour.country) {
-      country = tour.country.trim();
+    // Разделяме държавите, ако са изписани със запетая
+    let countries: string[] = [];
+    if (Array.isArray(tour.country)) {
+      countries = tour.country;
+    } else if (typeof tour.country === 'string') {
+      countries = tour.country.split(',').map((c : any) => c.trim());
+    } else {
+      countries = ['Разни'];
     }
 
     if (!acc[cont]) acc[cont] = {}; 
-    if (!acc[cont][country]) acc[cont][country] = []; 
 
-    acc[cont][country].push(tour);
+    // Добавяме тура към всяка държава, която съдържа
+    countries.forEach(country => {
+      if (!acc[cont][country]) acc[cont][country] = []; 
+      acc[cont][country].push(tour);
+    });
+
     return acc;
   }, {});
 
@@ -210,9 +217,12 @@ export default function SitemapPage() {
                                 
                                 {/* Header на Континента */}
                                 <div className="p-6 pb-0 flex items-center justify-between relative">
-                                    <h3 className={`text-2xl font-black uppercase tracking-wide ${style.theme.text}`}>
-                                        {continent}
-                                    </h3>
+                                    {/* СЛЕД (Добавяме Link със slugify): */}
+                                    <Link href={`/?continent=${slugify(continent)}#tours-grid`} className="group/cont">
+                                      <h3 className={`text-2xl font-black uppercase tracking-wide transition-colors group-hover/cont:text-brand-gold ${style.theme.text}`}>
+                                          {continent}
+                                      </h3>
+                                    </Link>
                                     <div className="w-20 h-20 relative -mr-4 -mt-2 opacity-80 group-hover:scale-110 transition-transform duration-500">
                                         <Image 
                                             src={style.imgPath} 
@@ -230,7 +240,7 @@ export default function SitemapPage() {
                                             
                                             {/* 👇 ИНТЕРАКТИВНА ДЪРЖАВА: Клик води към филтъра */}
                                             <Link 
-                                                href={`/?country=${encodeURIComponent(country)}`}
+                                                href={`/?country=${slugify(country)}`}
                                                 className="flex items-center gap-2 mb-3 group/country cursor-pointer w-fit"
                                                 title={`Виж всички оферти за ${country}`}
                                             >
@@ -249,7 +259,7 @@ export default function SitemapPage() {
                                             <ul className="space-y-2 pl-2 border-l-2 border-gray-100 ml-3">
                                                 {countries[country].map((tour: any) => (
                                                     <li key={tour.id}>
-                                                        <Link href={`/tour/${tour.tourId || tour.id}`} className="block text-sm text-gray-600 hover:text-brand-dark hover:translate-x-1 transition-all py-0.5">
+                                                        <Link href={`/tour/${tour.slug || tour.id}`} className="block text-sm text-gray-600 hover:text-brand-dark hover:translate-x-1 transition-all py-0.5">
                                                             {tour.title}
                                                         </Link>
                                                     </li>

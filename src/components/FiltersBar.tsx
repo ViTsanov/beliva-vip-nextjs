@@ -86,8 +86,9 @@ export default function FiltersBar({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                              {[
-                                { label: 'Континент', val: filterContinent, set: (v:string) => updateParam('continent', v === ""?"" : slugify(v)), opts: uniqueContinents, icon: MapPin },
-                                { label: 'Държава', val: filterCountry, set: (v:string) => updateParam('country', v === "" ? "" : slugify(v)), opts: uniqueCountries, icon: MapPin, dis: !uniqueCountries.length },
+                                // Около ред 84:
+                                { label: 'Континент', val: filterContinent, set: (v:string) => updateParam('continent', v), opts: uniqueContinents, icon: MapPin },
+                                { label: 'Държава', val: filterCountry, set: (v:string) => updateParam('country', v), opts: uniqueCountries, icon: MapPin, dis: !uniqueCountries.length },
                                 { label: 'Месец', val: filterMonth, set: (v:string) => updateParam('month', v), opts: ALL_MONTHS, icon: Calendar, isMonth: true },
                                 { label: 'Сортирай', val: sortBy, set: (v:string) => updateParam('sort', v), opts: [{label:'Най-скорошни', value:'date'}, {label:'Цена (↑)', value:'price_asc'}, {label:'Цена (↓)', value:'price_desc'}], icon: ArrowUpDown, isSort: true }
                             ].map((field, idx) => (
@@ -102,7 +103,7 @@ export default function FiltersBar({
                                         >
                                             <option value="">{field.isSort ? 'Избери...' : 'Всички'}</option> 
                                             {field.opts.map((o: any) => (
-                                                <option key={o.value || o} value={o.value || o}>{o.label || o}</option>
+                                                <option key={o.value || o} value={o.value || slugify(o)}>{o.label || o}</option>
                                             ))}
                                         </select>
                                         <field.icon className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-brand-gold transition-colors" size={16}/>

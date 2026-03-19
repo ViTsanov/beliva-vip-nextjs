@@ -1,16 +1,18 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Facebook, Instagram, Phone, Mail, MapPin, Send, CheckCircle2, Sparkles, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { COMPANY_INFO } from '@/lib/companyInfo';
 
 export default function Footer() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+
+  const [footerLinks, setFooterLinks] = useState<any[]>([]);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +47,16 @@ export default function Footer() {
       setMessage('Възникна грешка. Опитайте пак.');
     }
   };
+
+  useEffect(() => {
+    const fetchFooter = async () => {
+      const docSnap = await getDoc(doc(db, "settings", "homepage"));
+      if (docSnap.exists()) {
+        setFooterLinks(docSnap.data().footerLinks || []);
+      }
+    };
+  fetchFooter();
+  }, []);
 
   return (
     <footer className="bg-brand-dark text-white pt-20 pb-10 rounded-t-[3rem] mt-auto">
@@ -94,24 +106,13 @@ export default function Footer() {
               <div>
                 <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Топ Дестинации</h4>
                 <ul className="space-y-4 text-sm text-gray-400">
-                    <li>
-                        <Link href="/?country=Тайланд#tours-grid" className="hover:text-white transition-colors">Екзотика Тайланд</Link>
-                    </li>
-                    <li>
-                        <Link href="/?country=Дубай#tours-grid" className="hover:text-white transition-colors">Екскурзии Дубай</Link>
-                    </li>
-                    <li>
-                        <Link href="/?country=Япония#tours-grid" className="hover:text-white transition-colors">Екскурзии Япония</Link>
-                    </li>
-                    <li>
-                        <Link href="/?country=Бали#tours-grid" className="hover:text-white transition-colors">Екзотика Бали</Link>
-                    </li>
-                    <li>
-                        <Link href="/?country=Перу#tours-grid" className="hover:text-white transition-colors">Екскурзии Перу</Link>
-                    </li>
-                    <li>
-                        <Link href="/?continent=Азия#tours-grid" className="hover:text-white transition-colors text-brand-gold/70">Всички в Азия</Link>
-                    </li>
+                    {footerLinks.map((link, idx) => (
+                      <li key={idx}>
+                        <Link href={link.href} className="hover:text-white transition-colors">
+                          {link.label}
+                        </Link>
+                      </li>
+                    ))}
                 </ul>
               </div>
           </div>

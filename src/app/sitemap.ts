@@ -55,7 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (data.country) uniqueCountries.add(data.country);
 
       return {
-        url: `${BASE_URL}/tour/${data.tourId || doc.id}`, // Ползваме tourId ако има
+        url: `${BASE_URL}/tour/${data.slug || data.tourId || doc.id}`, // Ползваме tourId ако има
         lastModified: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
         changeFrequency: 'weekly',
         priority: 0.9,
