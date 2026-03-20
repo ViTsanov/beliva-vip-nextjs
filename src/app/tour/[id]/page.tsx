@@ -99,9 +99,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
 
-  // 🚀 ГЕНЕРИРАМЕ ЛИНКА КЪМ FIREBASE ФУНКЦИЯТА
-  // Това пренасочва заявките на Facebook директно към твоя Firebase сървър (proxyOgImage)
   const proxyImageUrl = `https://us-central1-${FIREBASE_PROJECT_ID}.cloudfunctions.net/proxyOgImage?id=${tour.tourId}`;
+
+  // 👇 ДОБАВЯМЕ ТАЗИ ПРОМЕНЛИВА: Кой е официалният линк?
+  const canonicalUrl = `${SITE_URL}/tour/${tour.slug || tour.tourId || tour.id}`;
 
   return {
     title: `${tour.title} | Екскурзия до ${tour.country}`,
@@ -109,17 +110,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 150) + "..." 
         : `Резервирайте незабравимо пътуване до ${tour.country}.`,
     alternates: {
-      canonical: `${SITE_URL}/tour/${tour.tourId}`,
+      // ПРОМЯНА ТУК: Вече ползваме новия canonicalUrl
+      canonical: canonicalUrl,
     },
     openGraph: {
       title: `${tour.title} | Екскурзия до ${tour.country}`,
       description: `Цена от ${tour.price}. Разгледайте програмата.`,
-      url: `${SITE_URL}/tour/${tour.tourId}`,
+      // ПРОМЯНА И ТУК
+      url: canonicalUrl,
       siteName: 'Beliva VIP Tour',
       locale: 'bg_BG',
       type: 'website',
       images: [{
-          url: proxyImageUrl, // 👈 Подаваме функцията на Facebook!
+          url: proxyImageUrl,
           width: 1200,
           height: 630,
           alt: tour.title,

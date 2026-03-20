@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { slugify } from '@/lib/admin-helpers';
 
 const BASE_URL = 'https://belivavip.bg';
 
@@ -39,34 +40,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // 2. Динамични Екскурзии (Tour Pages)
   let tourRoutes: MetadataRoute.Sitemap = [];
-  let countryRoutes: MetadataRoute.Sitemap = []; // 👈 Тук ще пазим филтрите
+  let countryRoutes: MetadataRoute.Sitemap = []; // Тук пазим филтрите
   
   try {
     const qTours = query(collection(db, "tours"), where("status", "==", "public"));
     const tourSnapshot = await getDocs(qTours);
     
-    // Събираме и уникалните държави докато обхождаме туровете
     const uniqueCountries = new Set<string>();
 
     tourRoutes = tourSnapshot.docs.map((doc) => {
       const data = doc.data();
       
-      // Добавяме държавата в списъка за уникални
-      if (data.country) uniqueCountries.add(data.country);
+      // Разделяме държавите, ако са "Намибия, Ботсвана" и ги добавяме поотделно
+      if (data.country) {
+        const countriesArray = Array.isArray(data.country) 
+          ? data.country 
+          : typeof data.country === 'string' ? data.country.split(',').map((c: string) => c.trim()) : [];
+        
+        countriesArray.forEach((c: string) => {
+           if (c) uniqueCountries.add(c);
+        });
+      }
 
+      // Използваме slug с приоритет
       return {
-        url: `${BASE_URL}/tour/${data.slug || data.tourId || doc.id}`, // Ползваме tourId ако има
+        url: `${BASE_URL}/tour/${data.slug || data.tourId || doc.id}`, 
         lastModified: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
         changeFrequency: 'weekly',
         priority: 0.9,
       };
     });
 
-    // 3. 🚀 ГЕНЕРИРАНЕ НА ЛИНКОВЕ ЗА ФИЛТРИ (ДЪРЖАВИ)
-    // Google игнорира хашове (#tours-grid), затова ги махаме от sitemap-а,
-    // но параметрите (?country=...) са валидни.
+    // 🚀 ГЕНЕРИРАНЕ НА ЛИНКОВЕ ЗА ФИЛТРИ (Държави - вече на чиста латиница чрез slugify)
     countryRoutes = Array.from(uniqueCountries).map((country) => ({
-      url: `${BASE_URL}/?country=${encodeURIComponent(country)}`, 
+      url: `${BASE_URL}/?country=${slugify(country)}`, 
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.8, 
@@ -76,7 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error("Sitemap tours error:", error);
   }
 
-  // 4. Динамични Блог статии
+  // 3. Динамични Блог статии
   let blogRoutes: MetadataRoute.Sitemap = [];
   try {
     const blogSnapshot = await getDocs(collection(db, "posts"));
@@ -93,10 +100,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error("Sitemap blog error:", error);
   }
 
-  // 5. Обединяване на всичко
+  // 4. Обединяване на всички генерирани линкове
   return [
     ...staticRoutes,
-    ...countryRoutes, // 👈 Добавяме държавите тук
+    ...countryRoutes, 
     ...tourRoutes,
     ...blogRoutes,
   ];
