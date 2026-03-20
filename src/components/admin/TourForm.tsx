@@ -409,7 +409,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
             <div className="pt-6 border-t border-gray-50 mt-2 md:col-span-2">
                 <label className={labelStyle}>Вид екскурзия / Категории *</label>
                 <div className="flex flex-wrap gap-2 mt-3">
-                    {['Водена от ПОЛИ', 'Почивка', 'Екскурзия', 'Екзотика', 'Приключение', 'Круиз', 'Last Minute', 'City Break'].map(cat => (
+                    {['Водена от ПОЛИ', 'Почивка в Турция', 'Екскурзия', 'Почивка', 'Екзотика', 'Приключение', 'Круиз', 'Last Minute', 'City Break'].map(cat => (
                         <button
                             type="button"
                             key={cat}

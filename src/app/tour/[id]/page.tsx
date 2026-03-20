@@ -5,6 +5,7 @@ import { cache } from 'react';
 import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
 
+
 const SITE_URL = "https://belivavip.bg";
 // ⚠️ ВАЖНО: Увери се, че това е точното Project ID от твоя .firebaserc файл!
 const FIREBASE_PROJECT_ID = "belivavip"; 

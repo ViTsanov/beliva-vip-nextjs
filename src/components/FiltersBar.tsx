@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Calendar, ArrowUpDown, Search, X, Trash2, Star, Check } from 'lucide-react';
+import { MapPin, Calendar, ArrowUpDown, Search, X, Trash2, Palmtree, Star, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ALL_MONTHS = [
@@ -24,7 +24,7 @@ const slugify = (text: string) => {
     .replace(/-+$/, '');
 };
 
-const CATEGORY_OPTIONS = ['Водена от ПОЛИ', 'Почивка', 'Екскурзия', 'Екзотика', 'Приключение', 'Круиз', 'Last Minute', 'City Break'];
+const CATEGORY_OPTIONS = ['Водена от ПОЛИ', 'Почивка в Турция', 'Екскурзия', 'Екзотика', 'Почивка', 'Приключение', 'Круиз', 'Last Minute', 'City Break'];
 
 interface FiltersBarProps {
     isOpen: boolean;
@@ -117,24 +117,43 @@ export default function FiltersBar({
                                 <label className="text-[10px] font-black uppercase text-gray-400 mb-3 block">Тип преживяване</label>
                                 <div className="flex flex-wrap gap-2">
                                     {CATEGORY_OPTIONS.map(cat => {
-                                        const isSpecial = cat === 'Водена от ПОЛИ';
+                                        const isPoli = cat === 'Водена от ПОЛИ';
+                                        const isTurkey = cat === 'Почивка в Турция';
                                         const isSelected = filterCategory === slugify(cat); 
+                                        
+                                        // Базов стил за обикновените бутони
+                                        let btnClass = 'bg-white text-gray-500 border-gray-100 hover:border-brand-gold/50 hover:text-brand-gold hover:bg-brand-gold/5';
+                                        
+                                        if (isSelected) {
+                                            if (isTurkey) {
+                                                btnClass = 'bg-gradient-to-r from-rose-500 to-rose-600 text-white border-rose-500 shadow-lg shadow-rose-500/30 transform scale-105';
+                                            } else {
+                                                btnClass = 'bg-gradient-to-r from-brand-gold to-[#d4af37] text-white border-brand-gold shadow-lg shadow-brand-gold/20 transform scale-105';
+                                            }
+                                        } else if (isPoli) {
+                                            // Стил за Поли (когато НЕ е избран)
+                                            btnClass = 'bg-gradient-to-r from-brand-gold/10 to-transparent text-brand-gold border-brand-gold/50 shadow-sm hover:bg-brand-gold hover:text-white';
+                                        } else if (isTurkey) {
+                                            // Стил за Турция (когато НЕ е избран)
+                                            btnClass = 'bg-gradient-to-r from-rose-50 to-transparent text-rose-600 border-rose-200 shadow-sm hover:bg-rose-500 hover:text-white';
+                                        }
+
                                         return (
                                             <button 
                                                 key={cat} 
                                                 onClick={() => updateParam('cat', isSelected ? '' : slugify(cat))} 
-                                                className={`
-                                                    relative px-4 py-2 rounded-xl text-xs font-black uppercase transition-all duration-300 border
-                                                    ${isSelected 
-                                                        ? 'bg-gradient-to-r from-brand-gold to-[#d4af37] text-white border-brand-gold shadow-lg shadow-brand-gold/20 transform scale-105' 
-                                                        : isSpecial 
-                                                            ? 'bg-gradient-to-r from-brand-gold/10 to-transparent text-brand-gold border-brand-gold/50 shadow-sm hover:bg-brand-gold hover:text-white' 
-                                                            : 'bg-white text-gray-500 border-gray-100 hover:border-brand-gold/50 hover:text-brand-gold hover:bg-brand-gold/5'
-                                                    }
-                                                `}
+                                                className={`relative px-4 py-2 rounded-xl text-xs font-black uppercase transition-all duration-300 border ${btnClass}`}
                                             >
-                                                {isSpecial && <div className="absolute -top-1.5 -left-1.5 text-brand-gold bg-white rounded-full p-0.5 border border-brand-gold shadow-sm z-10"><Star size={10} fill="currentColor" /></div>}
-                                                {isSelected && <span className="mr-1">✓</span>} {cat}
+                                                {/* Иконка Звезда за Поли */}
+                                                {isPoli && <div className="absolute -top-1.5 -left-1.5 text-brand-gold bg-white rounded-full p-0.5 border border-brand-gold shadow-sm z-10"><Star size={10} fill="currentColor" /></div>}
+                                                
+                                                {/* Иконка Палма за Турция */}
+                                                {isTurkey && <div className="absolute -top-1.5 -left-1.5 text-rose-600 bg-white rounded-full p-0.5 border border-rose-200 shadow-sm z-10"><Palmtree size={10} /></div>}
+                                                
+                                                <div className="flex items-center gap-1.5">
+                                                    {isSelected && <span>✓</span>}
+                                                    {cat}
+                                                </div>
                                             </button>
                                         );
                                     })}

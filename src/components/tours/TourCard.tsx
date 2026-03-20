@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ITour } from '@/types';
-import { Heart, CheckCircle2, Clock, X, MapPin, Calendar, ArrowRight, Star, Flame } from 'lucide-react';
+import { Heart, CheckCircle2, Clock, X, MapPin, Calendar, ArrowRight, Star, Flame, Palmtree } from 'lucide-react';
 
 interface TourCardProps {
   tour: ITour;
@@ -38,6 +38,8 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
       const now = new Date().toISOString();
       isPromoActive = now >= tour.promoStart && now <= tour.promoEnd;
   }
+
+  const isTurkeyVacation = tour.categories?.includes('Почивка в Турция');
   
   return (
     <Link 
@@ -88,19 +90,33 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
                 {tour.groupStatus === 'active' && <span className={`${badgeStyle} bg-brand-gold/90 text-brand-dark`}>● Оформяща група</span>}
             </div>
 
-            {/* ДОЛУ ВДЯСНО: ВОДЕНА ОТ ПОЛИ */}
-            {isLedByPoli && (
-                <div className="absolute bottom-4 right-4 z-10">
+            {/* ДОЛУ ВДЯСНО: СПЕЦИАЛНИ БАДЖОВЕ */}
+            <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-2 items-end">
+                {isTurkeyVacation && (
+                    <span className="bg-rose-600 text-white px-3 py-1.5 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-[0_4px_15px_rgba(225,29,72,0.4)] flex items-center gap-1.5 backdrop-blur-md">
+                        <Palmtree size={12} /> Турция
+                    </span>
+                )}
+                
+                {isLedByPoli && (
                     <span className="bg-brand-gold text-brand-dark px-3 py-1.5 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-[0_4px_15px_rgba(212,175,55,0.4)] flex items-center gap-1.5">
                         <Star size={12} fill="currentColor" /> С Поли
                     </span>
-                </div>
-            )}
+                )}
+            </div>
             
             {/* КАТЕГОРИИ */}
             <div className="absolute top-16 right-6 flex flex-col items-end gap-1 z-10">
-                {tour.categories?.filter(c => c !== 'Водена от ПОЛИ').slice(0, 2).map(cat => ( <span key={cat} className="bg-white/90 backdrop-blur-sm text-[9px] font-bold uppercase px-2 py-1 rounded-lg text-brand-dark shadow-sm">{cat}</span>))}
-                {(tour.categories?.filter(c => c !== 'Водена от ПОЛИ').length || 0) > 2 && (<span className="bg-white/90 backdrop-blur-sm text-[9px] font-bold uppercase px-2 py-1 rounded-lg text-brand-dark shadow-sm">+{((tour.categories?.filter(c => c !== 'Водена от ПОЛИ').length || 0) - 2)}</span>)}
+                {/* Филтрираме и 'Водена от ПОЛИ', и 'Почивка в Турция' */}
+                {tour.categories?.filter(c => c !== 'Водена от ПОЛИ' && c !== 'Почивка в Турция').slice(0, 2).map(cat => ( 
+                    <span key={cat} className="bg-white/90 backdrop-blur-sm text-[9px] font-bold uppercase px-2 py-1 rounded-lg text-brand-dark shadow-sm">{cat}</span>
+                ))}
+                
+                {(tour.categories?.filter(c => c !== 'Водена от ПОЛИ' && c !== 'Почивка в Турция').length || 0) > 2 && (
+                    <span className="bg-white/90 backdrop-blur-sm text-[9px] font-bold uppercase px-2 py-1 rounded-lg text-brand-dark shadow-sm">
+                        +{((tour.categories?.filter(c => c !== 'Водена от ПОЛИ' && c !== 'Почивка в Турция').length || 0) - 2)}
+                    </span>
+                )}
             </div>
 
             <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end">

@@ -159,10 +159,14 @@ export default function SettingsTab() {
 
       {/* ГАЛЕРИЯ МОДАЛ */}
       {isMediaOpen && (
-        <MediaLibrary 
-          onSelect={handleImageSelect} 
-          onClose={() => setIsMediaOpen(false)} 
-        />
+        <div className="fixed inset-0 z-[200] bg-brand-dark/60 backdrop-blur-sm flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
+          <div className="w-full max-w-6xl h-[90vh] bg-white rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <MediaLibrary 
+              onSelect={handleImageSelect} 
+              onClose={() => setIsMediaOpen(false)} 
+            />
+          </div>
+        </div>
       )}
 
       <div className="fixed bottom-8 right-10 z-[100]">

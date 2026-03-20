@@ -83,26 +83,35 @@ export default function TourSidebar({ tour, relatedPosts, onOpenInquiry, onOpenI
 
       {/* 🔄 АВТОМАТИЧЕН СЛАЙДЕР ЗА БЛОГОВЕ */}
       {relatedPosts && relatedPosts.length > 0 && (
-          <div className="relative bg-white p-1 rounded-[2rem] shadow-lg border border-gray-100 group overflow-hidden">
+          <div className="relative bg-white p-1.5 rounded-[2rem] shadow-xl border border-gray-100 group overflow-hidden">
               
-              {/* Контейнерът, който се плъзга */}
               <div 
                   className="flex transition-transform duration-700 ease-in-out"
                   style={{ transform: `translateX(-${currentPostIndex * 100}%)` }}
               >
                   {relatedPosts.map(post => (
-                      <div key={post.id} className="min-w-full shrink-0">
+                      <div key={post.id} className="w-full flex-none">
                           <Link href={`/blog/${post.slug || post.id}`} className="block w-full">
-                              {/* Върнахме голямата снимка (h-40) */}
-                              <div className="relative h-40 overflow-hidden rounded-[1.5rem]">
-                                  <img src={post.coverImg || post.img || '/placeholder.jpg'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="" />
-                                  <div className="absolute top-3 left-3 bg-black/40 backdrop-blur-md text-white px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm border border-white/20">
+                              
+                              <div className="relative h-44 overflow-hidden rounded-[1.5rem] bg-gray-50">
+                                  <img 
+                                      src={post.coverImg || post.img || '/placeholder.jpg'} 
+                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                                      alt={post.title} 
+                                  />
+                                  <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm border border-white/20">
                                       Пътеводител
                                   </div>
                               </div>
+
                               <div className="p-4 text-center">
-                                  <h4 className="font-serif font-bold text-brand-dark text-[15px] group-hover:text-brand-gold transition-colors line-clamp-1">За {post.relatedCountry}</h4>
-                                  <span className="text-[10px] text-gray-400 uppercase mt-1 block font-bold tracking-wider group-hover:text-brand-gold transition-colors">Прочети статията &rarr;</span>
+                                  {/* Тук вече се показва истинското ИМЕ на статията, а не държавата */}
+                                  <h4 className="font-serif font-bold text-brand-dark text-base group-hover:text-brand-gold transition-colors line-clamp-2">
+                                      {post.title}
+                                  </h4>
+                                  <span className="text-[10px] text-gray-400 uppercase mt-2 block font-bold tracking-wider group-hover:text-brand-gold transition-colors">
+                                      Прочети статията &rarr;
+                                  </span>
                               </div>
                           </Link>
                       </div>
@@ -112,27 +121,27 @@ export default function TourSidebar({ tour, relatedPosts, onOpenInquiry, onOpenI
               {/* Навигация (Показва се само ако има повече от 1 статия) */}
               {relatedPosts.length > 1 && (
                   <>
-                      {/* Стрелки */}
+                      {/* Стрелки - ВЕЧЕ СА ВИДИМИ НА МОБИЛЕН ТЕЛЕФОН! (opacity-100 md:opacity-0) */}
                       <button 
                           onClick={(e) => { e.preventDefault(); prevPost(); }} 
-                          className="absolute left-2 top-20 -translate-y-1/2 w-8 h-8 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-brand-dark shadow-md hover:bg-brand-gold hover:text-white transition-all z-10 opacity-0 group-hover:opacity-100"
+                          className="absolute left-3 top-24 -translate-y-1/2 w-9 h-9 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-brand-dark shadow-lg hover:bg-brand-gold hover:text-white transition-all z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100"
                       >
-                          <ChevronLeft size={18} />
+                          <ChevronLeft size={20} />
                       </button>
                       <button 
                           onClick={(e) => { e.preventDefault(); nextPost(); }} 
-                          className="absolute right-2 top-20 -translate-y-1/2 w-8 h-8 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-brand-dark shadow-md hover:bg-brand-gold hover:text-white transition-all z-10 opacity-0 group-hover:opacity-100"
+                          className="absolute right-3 top-24 -translate-y-1/2 w-9 h-9 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-brand-dark shadow-lg hover:bg-brand-gold hover:text-white transition-all z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100"
                       >
-                          <ChevronRight size={18} />
+                          <ChevronRight size={20} />
                       </button>
 
-                      {/* Индикатори (Точици) под снимката */}
-                      <div className="absolute bottom-[4.5rem] left-1/2 -translate-x-1/2 flex gap-1.5 z-10 drop-shadow-md">
+                      {/* Индикатори (Точици) вградени вътре в самата снимка */}
+                      <div className="absolute top-[10.5rem] left-1/2 -translate-x-1/2 flex gap-1.5 z-10 drop-shadow-md">
                           {relatedPosts.map((_, i) => (
                               <button 
                                   key={i} 
                                   onClick={(e) => { e.preventDefault(); setCurrentPostIndex(i); }}
-                                  className={`h-1.5 rounded-full transition-all shadow-sm ${i === currentPostIndex ? 'w-4 bg-brand-gold' : 'w-1.5 bg-white/70 hover:bg-white'}`}
+                                  className={`h-1.5 rounded-full transition-all shadow-md ${i === currentPostIndex ? 'w-5 bg-brand-gold' : 'w-1.5 bg-white/70 hover:bg-white'}`}
                                   aria-label={`Виж статия ${i + 1}`}
                               />
                           ))}

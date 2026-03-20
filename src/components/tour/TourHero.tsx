@@ -3,6 +3,7 @@
 import { ITour } from "@/types";
 import { ArrowLeft, MapPin, Heart, Flame } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface TourHeroProps {
   tour: ITour;
@@ -17,10 +18,13 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
   return (
     <div className="relative h-[80vh] w-full bg-brand-dark overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent z-10 opacity-90"></div>
-      <img 
+      <Image 
         src={tour.img} 
-        className="w-full h-full object-cover" 
-        alt={tour.title} 
+        alt={tour.title}
+        fill
+        priority 
+        sizes="100vw"
+        className="object-cover" 
       />
       
       <button 

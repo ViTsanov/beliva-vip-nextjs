@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { slugify } from '@/lib/admin-helpers';
+import Image from 'next/image';
 
 export default function TopDestinations() {
   const router = useRouter();
@@ -136,11 +137,15 @@ export default function TopDestinations() {
                         onClick={() => handleSelect(dest.name)}
                         className="min-w-[280px] md:min-w-[300px] h-[400px] relative group rounded-[2rem] overflow-hidden cursor-pointer snap-center md:snap-start border border-gray-100"
                     >
-                        <img 
-                            src={dest.image} 
-                            alt={dest.name} 
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        />
+                        <div className="absolute inset-0">
+                            <Image 
+                                src={dest.image} 
+                                alt={`Екскурзия и почивка в ${dest.name} - топ оферти от Beliva VIP Tour`} 
+                                fill
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                className="object-cover transition-transform duration-700 group-hover:scale-110"
+                            />
+                        </div>
                         
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
