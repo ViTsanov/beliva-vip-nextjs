@@ -41,7 +41,7 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
   
   return (
     <Link 
-      href={`/tour/${tour.tourId || tour.id}`} 
+      href={`/tour/${tour.slug || tour.tourId || tour.id}`}
       className={`group bg-white rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border flex flex-col h-full relative hover:-translate-y-2 transform-gpu 
       ${isLedByPoli ? 'border-2 border-brand-gold shadow-[0_0_15px_rgba(197,163,93,0.3)]' : 'border-brand-gold/5'}
       ${isPromoActive ? 'border-red-500/30 shadow-[0_4px_20px_rgba(220,38,38,0.1)]' : ''}`}
