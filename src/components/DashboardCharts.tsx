@@ -63,11 +63,14 @@ export default function DashboardCharts({ inquiries, tours }: DashboardChartsPro
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
       
-      {/* ГРАФИКА 1 */}
-      <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-brand-gold/5 h-96">
-        <h3 className="font-bold text-gray-500 text-xs uppercase tracking-widest mb-6">Тенденция на запитванията</h3>
-        <div className="h-full w-full -ml-4">
-            <ResponsiveContainer width="100%" height="90%">
+      {/* ГРАФИКА 1: Тенденция на запитванията */}
+      <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-brand-gold/5 h-96 flex flex-col">
+        <h3 className="font-bold text-gray-500 text-xs uppercase tracking-widest mb-6 shrink-0">
+            Тенденция на запитванията
+        </h3>
+        {/* Добавяме flex-1 и min-h-0, за да заеме точно останалото място без грешки */}
+        <div className="flex-1 w-full -ml-4 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={inquiriesData}>
                     <defs>
                         <linearGradient id="colorInq" x1="0" y1="0" x2="0" y2="1">
@@ -85,10 +88,13 @@ export default function DashboardCharts({ inquiries, tours }: DashboardChartsPro
         </div>
       </div>
 
-      {/* ГРАФИКА 2 */}
+      {/* ГРАФИКА 2: Топ Категории */}
       <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-brand-gold/5 h-96 flex flex-col">
-        <h3 className="font-bold text-gray-500 text-xs uppercase tracking-widest mb-2">Топ Категории Екскурзии</h3>
-        <div className="flex-grow flex items-center justify-center relative">
+        <h3 className="font-bold text-gray-500 text-xs uppercase tracking-widest mb-2 shrink-0">
+            Топ Категории Екскурзии
+        </h3>
+        {/* Отново flex-1 и min-h-0 */}
+        <div className="flex-1 w-full relative min-h-0">
             <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                     <Pie
@@ -106,7 +112,8 @@ export default function DashboardCharts({ inquiries, tours }: DashboardChartsPro
                     <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
                 </PieChart>
             </ResponsiveContainer>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pr-24">
+            {/* Центрираната бройка турове (преместена малко наляво, за да не се блъска в легендата) */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pr-[120px]">
                 <span className="text-2xl font-black text-brand-dark">{tours.length}</span>
             </div>
         </div>

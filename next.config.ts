@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
       },
 
     ],
-    formats: ['image/avif', 'image/webp'] // Това е супер! AVIF е най-лекият формат в момента.
+    formats: ['image/avif', 'image/webp'], // Това е супер! AVIF е най-лекият формат в момента.
+    qualities: [25, 50, 75, 85, 90, 100],
   },
 };
 
