@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const adminSession = request.cookies.get('admin_session')
   const isLoginPage = request.nextUrl.pathname === '/login-vip'
   const isAdminPage = request.nextUrl.pathname.startsWith('/admin-beliva-2025')
