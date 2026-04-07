@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ITour } from '@/types';
 import { Heart, CheckCircle2, Clock, X, MapPin, Calendar, ArrowRight, Star, Flame, Palmtree } from 'lucide-react';
+import Badge from '@/components/ui/Badge';
 
 interface TourCardProps {
   tour: ITour;
@@ -69,22 +70,16 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
             {/* ГОРЕ ВЛЯВО: ПРОМОЦИИ И СТАТУСИ */}
             <div className="absolute top-6 left-6 flex flex-col gap-2 items-start z-10">
                 {isPromoActive && (
-                    <span 
-                        className={`
-                            ${badgeStyle} border-none font-black shadow-[0_4px_15px_rgba(0,0,0,0.3)]
-                            effect-${tour.promoEffect}
-                        `}
-                        style={{ 
-                            backgroundColor: tour.promoBgColor || '#dc2626', 
-                            color: tour.promoTextColor || '#ffffff' 
-                        }}
-                        >
-                        <Flame size={12} className="relative z-10" style={{ color: tour.promoTextColor || '#ffffff', opacity: 0.8 }} /> 
-                        <span className="relative z-10">{tour.promoLabel || 'ПРОМОЦИЯ'}</span>
-                    </span>
+                  <Badge 
+                    variant="promo" 
+                    text={tour.promoLabel}
+                    customBgColor={tour.promoBgColor}
+                    customTextColor={tour.promoTextColor}
+                    customEffect={tour.promoEffect}
+                  />
                 )}
 
-                {tour.groupStatus === 'confirmed' && <span className={`${badgeStyle} bg-emerald-800/90 text-white`}><CheckCircle2 size={12} /> Потвърдена</span>}
+                {tour.groupStatus === 'confirmed' && <Badge variant="groupStatus" />}
                 {tour.groupStatus === 'last-places' && <span className={`${badgeStyle} bg-amber-700/90 text-white`}><Clock size={12} /> Последни места</span>}
                 {tour.groupStatus === 'sold-out' && <span className={`${badgeStyle} bg-rose-800/90 text-white`}><X size={12} /> Изчерпана</span>}
                 {tour.groupStatus === 'active' && <span className={`${badgeStyle} bg-brand-gold/90 text-brand-dark`}>● Оформяща група</span>}
@@ -92,17 +87,8 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
 
             {/* ДОЛУ ВДЯСНО: СПЕЦИАЛНИ БАДЖОВЕ */}
             <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-2 items-end">
-                {isTurkeyVacation && (
-                    <span className="bg-rose-600 text-white px-3 py-1.5 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-[0_4px_15px_rgba(225,29,72,0.4)] flex items-center gap-1.5 backdrop-blur-md">
-                        <Palmtree size={12} /> Турция
-                    </span>
-                )}
-                
-                {isLedByPoli && (
-                    <span className="bg-brand-gold text-brand-dark px-3 py-1.5 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-[0_4px_15px_rgba(212,175,55,0.4)] flex items-center gap-1.5">
-                        <Star size={12} fill="currentColor" /> С Поли
-                    </span>
-                )}
+                {isTurkeyVacation && <Badge variant="turkey" />}
+                {isLedByPoli && <Badge variant="poli" />}
             </div>
             
             {/* КАТЕГОРИИ */}

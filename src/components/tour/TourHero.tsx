@@ -4,6 +4,7 @@ import { ITour } from "@/types";
 import { ArrowLeft, MapPin, Heart, Flame } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Badge from '@/components/ui/Badge';
 
 interface TourHeroProps {
   tour: ITour;
@@ -48,33 +49,30 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
       <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center p-6">
         
         <div className="mb-6 flex flex-wrap items-center justify-center gap-3 animate-in slide-in-from-bottom duration-700 fade-in">
+          
           {/* СТАТУС НА ГРУПАТА */}
-          <span className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] shadow-2xl backdrop-blur-md border border-white/20 ${
-            tour.groupStatus === 'confirmed' ? 'bg-emerald-600 text-white' : 
-            tour.groupStatus === 'last-places' ? 'bg-amber-600 text-white' : 
-            tour.groupStatus === 'sold-out' ? 'bg-rose-600 text-white' : 'bg-brand-gold text-brand-dark'
-          }`}>
-            {tour.groupStatus === 'confirmed' ? '● Потвърдена група' : 
-             tour.groupStatus === 'last-places' ? '● Последни места' : 
-             tour.groupStatus === 'sold-out' ? '● Изчерпана' : '● Оформяща се група'}
-          </span>
+          {tour.groupStatus === 'confirmed' && <Badge variant="groupStatus" iconSize={14} className="px-4 py-2 text-[10px]" />}
+          {tour.groupStatus === 'last-places' && <span className="px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] shadow-2xl backdrop-blur-md border border-white/20 bg-amber-600 text-white">● Последни места</span>}
+          {tour.groupStatus === 'sold-out' && <span className="px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] shadow-2xl backdrop-blur-md border border-white/20 bg-rose-600 text-white">● Изчерпана</span>}
+          {tour.groupStatus === 'active' && <span className="px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] shadow-2xl backdrop-blur-md border border-white/20 bg-brand-gold text-brand-dark">● Оформяща се група</span>}
 
           {/* ПРОМО ЕТИКЕТ */}
           {isPromoActive && (
-             <span 
-               className={`
-                   px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.25em] shadow-2xl backdrop-blur-md border border-white/20 flex items-center gap-1.5
-                   effect-${tour.promoEffect}
-               `}
-               style={{ 
-                   backgroundColor: tour.promoBgColor || '#dc2626', 
-                   color: tour.promoTextColor || '#ffffff' 
-               }}
-             >
-               <Flame size={14} className="relative z-10" style={{ color: tour.promoTextColor || '#ffffff' }} /> 
-               <span className="relative z-10">{tour.promoLabel || 'ПРОМОЦИЯ'}</span>
-             </span>
+            <Badge 
+              variant="promo" 
+              iconSize={14} 
+              className="px-4 py-2 text-[10px]"
+              text={tour.promoLabel}
+              customBgColor={tour.promoBgColor}
+              customTextColor={tour.promoTextColor}
+              customEffect={tour.promoEffect}
+            />
           )}
+
+          {/* СПЕЦИАЛНИ КАТЕГОРИИ (Добавяме ги и тук, за да се виждат вътре в самата екскурзия) */}
+          {tour.categories?.includes('Почивка в Турция') && <Badge variant="turkey" iconSize={14} className="px-4 py-2 text-[10px]" />}
+          {tour.categories?.includes('Водена от ПОЛИ') && <Badge variant="poli" iconSize={14} className="px-4 py-2 text-[10px]" />}
+          
         </div>
         
         <h1 className="text-4xl md:text-7xl lg:text-8xl font-serif italic text-white drop-shadow-2xl mb-8 max-w-5xl leading-tight animate-in slide-in-from-bottom duration-1000 delay-100 fade-in">

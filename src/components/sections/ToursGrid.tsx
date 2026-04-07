@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Filter, Globe2, X, SlidersHorizontal } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import FiltersBar from '@/components/FiltersBar';
@@ -10,6 +8,11 @@ import TourCard from '@/components/tours/TourCard';
 import { ITour } from '@/types';
 import { slugify } from '@/lib/admin-helpers';
 import { WORLD_COUNTRIES } from '@/lib/constants';
+
+interface ToursGridProps {
+  initialTours?: ITour[];
+  hideFilters?: boolean;
+}
 
 const getNormalizedDate = (dateStr: string) => {
   if (!dateStr) return "9999-99-99"; 
@@ -32,7 +35,7 @@ const getEarliestDate = (tour: ITour) => {
   return allDates.length > 0 ? allDates[0] : "9999-99-99";
 };
 
-export default function ToursGrid() {
+export default function ToursGrid({ initialTours = [], hideFilters = false }: ToursGridProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -44,9 +47,10 @@ export default function ToursGrid() {
   const filterCategory = searchParams.get('cat') || '';
   const sortBy = searchParams.get('sort') || 'date';
 
-  const [allTours, setAllTours] = useState<ITour[]>([]);
+  // 1. ВЕЧЕ ИЗПОЛЗВАМЕ initialTours ВМЕСТО ДА ТЕГЛИМ ОТ FIREBASE
+  const [allTours] = useState<ITour[]>(initialTours);
+  
   const [favorites, setFavorites] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   const hasActiveFilters = !!(searchQuery || filterContinent || filterCountry || filterMonth || filterCategory);
@@ -63,27 +67,11 @@ export default function ToursGrid() {
     return () => window.removeEventListener('storage', loadFavorites);
   }, []);
 
-  useEffect(() => {
-    const fetchAllTours = async () => {
-      setLoading(true);
-      try {
-        const toursRef = collection(db, "tours");
-        const q = query(toursRef, where("status", "==", "public"));
-        const snapshot = await getDocs(q);
-        const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ITour[];
-        setAllTours(fetched);
-      } catch (error) {
-        console.error("Error fetching tours:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAllTours();
-  }, []);
+  // 2. ИЗТРИВАМЕ useEffect-а, който извикваше getDocs от Firebase, защото вече нямаме нужда от него!
 
   const filteredTours = useMemo(() => {
     let result = allTours.filter(tour => {
-      // 1. Търсене по ключова дума (Търсим в кирилицата)
+      // 1. Търсене по ключова дума
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const titleMatch = tour.title?.toLowerCase().includes(q);
@@ -94,26 +82,28 @@ export default function ToursGrid() {
         if (!titleMatch && !countryMatch) return false;
       }
 
-      // 3. Филтър Държава (Разделяме при запетая и проверяваме всяка)
+      // 2. Филтър Държава
       if (filterCountry) {
         const tourCountries = typeof tour.country === 'string' 
           ? tour.country.split(',').map(c => c.trim()) 
           : (Array.isArray(tour.country) ? tour.country : []);
 
-        // Проверяваме дали избраният slug съвпада с някоя от държавите в тура
         const hasMatch = tourCountries.some(c => slugify(c) === filterCountry);
         if (!hasMatch) return false;
       }
 
-      // 4. Филтър Континент
+      // 3. Филтър Континент
       if (filterContinent) {
-        const tourContinentSlug = slugify(tour.continent);
+        const tourContinentSlug = slugify(tour.continent || "");
         if (tourContinentSlug !== filterContinent) return false;
       }
 
-      // 4. Филтър Категория (използваме масива categorySlugs)
+      // 4. Филтър Категория
       if (filterCategory) {
-        if (!tour.categorySlugs?.includes(filterCategory)) return false;
+        // Уверяваме се, че имаме categories или categorySlugs
+        const cats = tour.categories || [];
+        const hasMatch = cats.some(c => slugify(c) === filterCategory);
+        if (!hasMatch) return false;
       }
       
       // 5. Филтър Месец
@@ -125,7 +115,7 @@ export default function ToursGrid() {
       return true;
     });
 
-    // ... (сортирането остава същото)
+    // Сортиране
     result.sort((a, b) => {
       if (sortBy === 'price_asc') {
         const pA = parseFloat(a.price?.toString().replace(/[^0-9.]/g, '')) || 0;
@@ -152,13 +142,11 @@ export default function ToursGrid() {
   const uniqueCountries = useMemo(() => {
     let list = allTours;
     if (filterContinent) {
-        // Сравняваме slugify-натата версия на континента с филтъра
-        list = allTours.filter(t => slugify(t.continent) === filterContinent);
+        list = allTours.filter(t => slugify(t.continent || "") === filterContinent);
     }
     const countries = new Set<string>();
     list.forEach(t => {
         if (t.country) {
-            // Разделяме държавите, ако са "Намибия, Ботсвана"
             const names = typeof t.country === 'string' 
                 ? t.country.split(',').map(c => c.trim()) 
                 : (Array.isArray(t.country) ? t.country : []);
@@ -175,7 +163,7 @@ export default function ToursGrid() {
         searchParams.get('cat') ||
         (typeof window !== 'undefined' && window.location.hash === '#tours-grid');
     
-    if (hasActiveDeepLink && !loading) {
+    if (hasActiveDeepLink) {
       const element = document.getElementById('tours-grid');
       if (element) {
         const yOffset = -100;
@@ -183,7 +171,7 @@ export default function ToursGrid() {
         window.scrollTo({ top: y, behavior: 'smooth' });
       }
     }
-  }, [loading, searchParams]);
+  }, [searchParams]);
 
   const updateParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -217,83 +205,75 @@ export default function ToursGrid() {
     window.dispatchEvent(new Event("storage"));
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-10 h-10 border-4 border-brand-gold border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
   let lastYear = "";
 
   const displayCountryName = filterCountry 
     ? (WORLD_COUNTRIES.find(c => slugify(c) === filterCountry) || filterCountry)
     : '';
 
-const displayContinentName = filterContinent 
+  const displayContinentName = filterContinent 
     ? (['Азия', 'Европа', 'Африка', 'Северна Америка', 'Южна Америка', 'Австралия'].find(c => slugify(c) === filterContinent) || filterContinent)
     : '';
 
   return (
+    
     <section id="tours-grid" className="container mx-auto px-6 py-16 scroll-mt-20 relative overflow-hidden">
       
       <div className="absolute top-20 left-0 w-96 h-96 bg-brand-gold/5 rounded-full blur-[120px] pointer-events-none -translate-x-1/2" />
       <div className="absolute bottom-40 right-0 w-80 h-80 bg-blue-900/5 rounded-full blur-[100px] pointer-events-none translate-x-1/2" />
 
       {/* HEADER */}
-      {/* 👇 ПРОМЯНА: mb-6 за мобилни (вместо mb-12), за да няма дупка, когато филтърът е затворен 👇 */}
-      <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-6 mb-6 md:mb-12 relative z-20 border-b border-brand-gold/10 pb-6">
-          <div className="text-center md:text-left w-full md:w-auto">
-              <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                  <Globe2 size={18} className="text-brand-gold"/>
-                  <span className="text-brand-gold text-xs font-black uppercase tracking-[0.2em]">Пътешествия</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-serif text-brand-dark leading-tight">
-                {filterCountry ? (
-                  <>Екскурзии в <span className="italic text-brand-gold">{displayCountryName}</span></>
-                ) : filterContinent ? (
-                  <>Оферти за <span className="italic text-brand-gold">{displayContinentName}</span></>
-                ) : (
-                  <>Всички <span className="italic text-brand-gold">Предложения</span></>
-                )}
-              </h2>
-              {(filterCountry || filterContinent || filterCategory) && (
-                <div className="mt-2 flex items-center justify-center md:justify-start gap-2 animate-in fade-in slide-in-from-left-4 duration-500">
-                    <div className="h-[1px] w-6 bg-brand-gold"></div>
-                    <span className="text-xl md:text-2xl font-serif italic text-brand-dark/70">
-                        {filterCountry || filterContinent || (filterCategory === 'Водена от ПОЛИ' ? 'Групи с Поли' : filterCategory)}
-                    </span>
+      {!hideFilters &&
+        <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-6 mb-6 md:mb-12 relative z-20 border-b border-brand-gold/10 pb-6">
+            <div className="text-center md:text-left w-full md:w-auto">
+                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                    <Globe2 size={18} className="text-brand-gold"/>
+                    <span className="text-brand-gold text-xs font-black uppercase tracking-[0.2em]">Пътешествия</span>
                 </div>
-              )}
-          </div>
-
-          {/* 👇 ПРОМЯНА: justify-center за центриране на мобилни 👇 */}
-          <div className="flex items-center justify-center md:justify-end gap-4 w-full md:w-auto mt-4 md:mt-0">
-              <div className="text-right hidden md:block">
-                  <p className="text-3xl font-bold text-brand-dark leading-none">{filteredTours.length}</p>
-                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Намерени</p>
-              </div>
-
-              <button 
-                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                className={`flex items-center justify-center w-full md:w-auto gap-3 px-8 md:px-6 py-4 md:py-3 rounded-full font-bold uppercase tracking-widest text-xs transition-all duration-300 border
-                    ${isFiltersOpen ? 'bg-brand-dark text-white border-brand-dark shadow-lg scale-105' : 'bg-white text-brand-dark border-brand-gold/30 hover:border-brand-gold hover:shadow-md'}
-                `}
-              >
-                {isFiltersOpen ? <X size={16}/> : <SlidersHorizontal size={16} className="text-brand-gold"/>}
-                {isFiltersOpen ? 'Скрий' : 'Филтрирай'}
-                
-                {hasActiveFilters && !isFiltersOpen && (
-                    <span className="flex h-2 w-2 relative ml-1">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                    </span>
+                <h2 className="text-4xl md:text-5xl font-serif text-brand-dark leading-tight">
+                  {filterCountry ? (
+                    <>Екскурзии в <span className="italic text-brand-gold">{displayCountryName}</span></>
+                  ) : filterContinent ? (
+                    <>Оферти за <span className="italic text-brand-gold">{displayContinentName}</span></>
+                  ) : (
+                    <>Всички <span className="italic text-brand-gold">Предложения</span></>
+                  )}
+                </h2>
+                {(filterCountry || filterContinent || filterCategory) && (
+                  <div className="mt-2 flex items-center justify-center md:justify-start gap-2 animate-in fade-in slide-in-from-left-4 duration-500">
+                      <div className="h-[1px] w-6 bg-brand-gold"></div>
+                      <span className="text-xl md:text-2xl font-serif italic text-brand-dark/70">
+                          {filterCountry || filterContinent || (filterCategory === 'Водена от ПОЛИ' ? 'Групи с Поли' : filterCategory)}
+                      </span>
+                  </div>
                 )}
-            </button>
-          </div>
-      </div>
+            </div>
 
+            <div className="flex items-center justify-center md:justify-end gap-4 w-full md:w-auto mt-4 md:mt-0">
+                <div className="text-right hidden md:block">
+                    <p className="text-3xl font-bold text-brand-dark leading-none">{filteredTours.length}</p>
+                    <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Намерени</p>
+                </div>
+
+                <button 
+                  onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                  className={`flex items-center justify-center w-full md:w-auto gap-3 px-8 md:px-6 py-4 md:py-3 rounded-full font-bold uppercase tracking-widest text-xs transition-all duration-300 border
+                      ${isFiltersOpen ? 'bg-brand-dark text-white border-brand-dark shadow-lg scale-105' : 'bg-white text-brand-dark border-brand-gold/30 hover:border-brand-gold hover:shadow-md'}
+                  `}
+                >
+                  {isFiltersOpen ? <X size={16}/> : <SlidersHorizontal size={16} className="text-brand-gold"/>}
+                  {isFiltersOpen ? 'Скрий' : 'Филтрирай'}
+                  
+                  {hasActiveFilters && !isFiltersOpen && (
+                      <span className="flex h-2 w-2 relative ml-1">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </span>
+                  )}
+              </button>
+            </div>
+        </div>
+      }
       {/* ФИЛТЪР ПАНЕЛ */}
       <div className={`${isFiltersOpen ? 'block' : 'hidden'} animate-in slide-in-from-top-4 fade-in duration-300`}>
          <FiltersBar 

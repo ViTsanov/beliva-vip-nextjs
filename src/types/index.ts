@@ -54,6 +54,7 @@ export interface ITour {
   notes?: string;
   categories?: string[];
   slug?: string;
+  updatedAt?: string | null;
 }
 
 export interface IPost {

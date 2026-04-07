@@ -76,6 +76,10 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
 
   if (similarTours.length === 0) return null;
 
+  const uniqueSimilarTours = similarTours.filter((tour, index, self) =>
+    index === self.findIndex((t) => t.id === tour.id)
+  );
+
   return (
     <section className="mt-24 pt-16 border-t border-brand-gold/20 container mx-auto px-6 mb-20">
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-4">
@@ -103,7 +107,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
             ref={scrollContainerRef}
             className="flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide pb-4"
         >
-          {similarTours.map((tour) => (
+          {uniqueSimilarTours.map((tour) => (
               <Link 
               key={tour.id} 
               href={`/tour/${tour.tourId || tour.id}`}
