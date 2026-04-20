@@ -69,7 +69,7 @@ export default function DashboardCharts({ inquiries, tours }: DashboardChartsPro
             Тенденция на запитванията
         </h3>
         {/* Добавяме flex-1 и min-h-0, за да заеме точно останалото място без грешки */}
-        <div className="flex-1 w-full -ml-4 min-h-0">
+        <div className="h-[300px] w-full ">
             <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={inquiriesData}>
                     <defs>

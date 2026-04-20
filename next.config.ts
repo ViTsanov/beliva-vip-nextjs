@@ -3,14 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**", // Специфично за Firebase
-      },
-
+      { protocol: 'https', hostname: 'drive.google.com' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'docs.google.com' },
+      { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
     ],
-    formats: ['image/avif', 'image/webp'], // Това е супер! AVIF е най-лекият формат в момента.
-    qualities: [25, 50, 75, 85, 90, 100],
+    formats: ['image/avif', 'image/webp'],
   },
 };
 
