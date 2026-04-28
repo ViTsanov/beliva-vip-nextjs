@@ -17,6 +17,7 @@ export default function AIChatWidget() {
   const [currentTour, setCurrentTour] = useState<any>(null);
   
   const pathname = usePathname();
+  const isTourPage = pathname.startsWith('/tour/');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Снифване на URL за контекст на екскурзия
@@ -87,7 +88,9 @@ export default function AIChatWidget() {
   return (
     <>
       {/* БУТОН ЗА ОТВАРЯНЕ */}
-      <div className={`fixed bottom-6 right-6 z-[100] font-sans transition-transform duration-300 ${isOpen ? 'scale-0 md:scale-100' : 'scale-100'}`}>
+      <div className={`fixed z-[100] font-sans transition-transform duration-300
+        ${isTourPage ? 'bottom-24 right-6 lg:bottom-6' : 'bottom-6 right-6'}
+        ${isOpen ? 'scale-0 md:scale-100' : 'scale-100'}`}>
         <button 
           onClick={() => setIsOpen(!isOpen)} 
           className="bg-brand-gold text-brand-dark p-4 rounded-full shadow-2xl hover:scale-110 transition-all group relative border-2 border-white"

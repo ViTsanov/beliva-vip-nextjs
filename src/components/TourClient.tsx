@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowUp, Compass, Clock as ClockIcon, X, CheckCircle2, XCircle, Star } from 'lucide-react';
+import { Compass, Clock as ClockIcon, X, CheckCircle2, XCircle, Star, Send, Euro, Flame } from 'lucide-react';
 
 import { ITour, IPost } from "@/types";
 import TopDestinations from "@/components/TopDestinations";
@@ -27,6 +27,14 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [showInclusions, setShowInclusions] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
+  const [showMobileBar, setShowMobileBar] = useState(false);
+
+  // Show sticky bar after user scrolls past hero (~300px)
+  useEffect(() => {
+    const onScroll = () => setShowMobileBar(window.scrollY > 300);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // Parse images properly
   const galleryImages = Array.isArray(tourData.images) 
@@ -98,7 +106,7 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-20 text-left selection:bg-brand-gold selection:text-white relative">
+    <div className="bg-gray-50 min-h-screen pb-28 lg:pb-0 text-left selection:bg-brand-gold selection:text-white relative">
       
       <TourHero tour={tourData} isFavorite={isFavorite} toggleFavorite={toggleFavorite} />
 
@@ -208,6 +216,74 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
       )}
         
       <style jsx global>{`.inquiry-input { width: 100%; padding: 1rem 1.2rem; background: #f3f4f6; border: 2px solid transparent; border-radius: 1rem; outline: none; font-size: 0.95rem; transition: 0.3s; font-weight: 500; color: #1f2937; } .inquiry-input:focus { border-color: #c5a35d; background: #fff; box-shadow: 0 4px 20px rgba(197, 163, 93, 0.1); } .inquiry-input::placeholder { color: #9ca3af; }`}</style>
+
+      {/* ── STICKY MOBILE CTA BAR ── hidden on lg+ (sidebar handles desktop) */}
+      <div
+        className={`lg:hidden fixed bottom-0 left-0 right-0 z-[90] transition-all duration-500 ${
+          showMobileBar && !showInquiryModal && !showInclusions && !showDocuments
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-full opacity-0 pointer-events-none'
+        }`}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {/* Soft shadow fade above the bar */}
+        <div className="h-8 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+
+        <div className="bg-white border-t border-gray-100 shadow-[0_-8px_30px_rgba(0,0,0,0.10)] px-4 py-3 flex items-center gap-3">
+
+          {/* Price block */}
+          <div className="flex flex-col min-w-0 flex-shrink-0">
+            {tourData.isPromo && tourData.discountPrice ? (
+              <>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none mb-0.5">Промо цена</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xs text-gray-400 line-through leading-none">{tourData.price}</span>
+                  <span className="text-xl font-black text-red-500 leading-none">{tourData.discountPrice}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none mb-0.5">Цена от</span>
+                <span className="text-xl font-black text-brand-dark leading-none">{tourData.price}</span>
+              </>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-10 bg-gray-100 flex-shrink-0" />
+
+          {/* Group status pill */}
+          {tourData.groupStatus === 'last-places' && (
+            <span className="hidden xs:flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-full border border-amber-200 shrink-0">
+              <Flame size={10} /> Последни места
+            </span>
+          )}
+          {tourData.groupStatus === 'confirmed' && (
+            <span className="hidden xs:flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-full border border-emerald-200 shrink-0">
+              <CheckCircle2 size={10} /> Потвърдена
+            </span>
+          )}
+
+          {/* CTA button — fills remaining space */}
+          {tourData.groupStatus === 'sold-out' ? (
+            <button
+              disabled
+              className="flex-1 flex items-center justify-center gap-2 bg-gray-200 text-gray-400 py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest cursor-not-allowed"
+            >
+              Изчерпана
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowInquiryModal(true)}
+              className="flex-1 flex items-center justify-center gap-2 bg-brand-dark text-white py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-gold hover:text-brand-dark active:scale-95 transition-all shadow-lg shadow-brand-dark/20"
+            >
+              <Send size={15} />
+              Запитване
+            </button>
+          )}
+        </div>
+      </div>
+      {/* ── END STICKY BAR ── */}
     </div>
   );
 }

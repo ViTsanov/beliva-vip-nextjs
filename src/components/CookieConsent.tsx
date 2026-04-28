@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Cookie, FileText, ShieldCheck } from 'lucide-react';
-import Link from 'next/link'; // 👈 Използваме Next.js Link
+import Link from 'next/link';
 
 export default function CookieConsent() {
   const [showBanner, setShowBanner] = useState(false);
   const [showMiniBadge, setShowMiniBadge] = useState(false);
+  const pathname = usePathname();
+  const isTourPage = pathname.startsWith('/tour/');
 
   useEffect(() => {
     // Проверяваме дали имаме записан избор
@@ -112,7 +115,8 @@ export default function CookieConsent() {
       {showMiniBadge && !showBanner && (
         <button 
             onClick={openSettings}
-            className="fixed bottom-4 left-4 z-[999] bg-white p-3 rounded-full shadow-lg border border-gray-100 text-brand-dark hover:text-brand-gold hover:scale-110 transition-all group"
+            className={`fixed z-[999] bg-white p-3 rounded-full shadow-lg border border-gray-100 text-brand-dark hover:text-brand-gold hover:scale-110 transition-all group
+              ${isTourPage ? 'bottom-24 left-4 lg:bottom-4' : 'bottom-4 left-4'}`}
             title="Настройки за бисквитки"
         >
             <Cookie size={24} />

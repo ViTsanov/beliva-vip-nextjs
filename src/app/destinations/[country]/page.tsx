@@ -13,12 +13,48 @@ export const revalidate = 3600;
 
 type Props = { params: Promise<{ country: string }> };
 
+const SITE_URL = 'https://belivavip.bg';
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
-  const countryName = WORLD_COUNTRIES.find(c => slugify(c) === resolvedParams.country) || resolvedParams.country;
+  const countrySlug = resolvedParams.country;
+  const countryName = WORLD_COUNTRIES.find(c => slugify(c) === countrySlug) || countrySlug;
+  const canonicalUrl = `${SITE_URL}/destinations/${countrySlug}`;
+
+  // Fetch tours to get count + hero image for OG
+  const allTours = await getActiveTours();
+  const destinationTours = allTours.filter(tour => {
+    const tourCountries = typeof tour.country === 'string'
+      ? tour.country.split(',').map(c => c.trim())
+      : (Array.isArray(tour.country) ? tour.country : []);
+    return tourCountries.some(c => slugify(c) === countrySlug);
+  });
+
+  const rawHero = destinationTours[0]?.img || '/hero/australia.webp';
+  const ogImage = rawHero.startsWith('http') ? rawHero : `${SITE_URL}${rawHero}`;
+  const count = destinationTours.length;
+  const year = new Date().getFullYear();
+
+  const title = `Екскурзии до ${countryName} ${year}/${year + 1} | Beliva VIP Tour`;
+  const description = `${count > 0 ? `${count} оферти` : 'Оферти'} за ${countryName} с водач. Групови пакети с полети, хотели и гид. Внимателно подбран маршрут, отлично съотношение качество-цена.`;
+
   return {
-    title: `Екскурзии до ${countryName} 2025/2026 | Beliva VIP`,
-    description: `Открийте най-добрите оферти за ${countryName}. Всички групи са с водач и внимателно подбран маршрут.`,
+    title: { absolute: title },
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      type: 'website',
+      url: canonicalUrl,
+      title,
+      description,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `Екскурзии до ${countryName} - Beliva VIP Tour` }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImage],
+    },
   };
 }
 
@@ -38,6 +74,21 @@ export default async function DestinationPage({ params }: Props) {
 
   const countryName = WORLD_COUNTRIES.find(c => slugify(c) === countrySlug) || countrySlug;
   const heroImg = destinationTours[0]?.img || '/hero/hero-bg.webp';
+
+  // JSON-LD: ItemList of tours for this destination
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": `Екскурзии до ${countryName}`,
+    "url": `${SITE_URL}/destinations/${countrySlug}`,
+    "numberOfItems": destinationTours.length,
+    "itemListElement": destinationTours.slice(0, 10).map((tour, i) => ({
+      "@type": "ListItem",
+      "position": i + 1,
+      "name": tour.title,
+      "url": `${SITE_URL}/tour/${tour.slug || tour.tourId || tour.id}`,
+    }))
+  };
 
   const tempDescription = `Изживейте магията на ${countryName} с Beliva VIP. От екзотични пейзажи и скрити съкровища до богата история и кулинарни приключения – всяко наше пътуване е внимателно планирано, за да ви предложи автентичност и комфорт. Нашите групи са малки, а водачите ни познават дестинацията в детайли.`;
 

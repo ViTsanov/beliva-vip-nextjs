@@ -240,7 +240,7 @@ export default function SitemapPage() {
                                             
                                             {/* 👇 ИНТЕРАКТИВНА ДЪРЖАВА: Клик води към филтъра */}
                                             <Link 
-                                                href={`/?country=${slugify(country)}`}
+                                                href={`/destinations/${slugify(country)}`}
                                                 className="flex items-center gap-2 mb-3 group/country cursor-pointer w-fit"
                                                 title={`Виж всички оферти за ${country}`}
                                             >
@@ -259,7 +259,7 @@ export default function SitemapPage() {
                                             <ul className="space-y-2 pl-2 border-l-2 border-gray-100 ml-3">
                                                 {countries[country].map((tour: any) => (
                                                     <li key={tour.id}>
-                                                        <Link href={`/tour/${tour.slug || tour.id}`} className="block text-sm text-gray-600 hover:text-brand-dark hover:translate-x-1 transition-all py-0.5">
+                                                        <Link href={`/tour/${tour.slug || tour.tourId || tour.id}`} className="block text-sm text-gray-600 hover:text-brand-dark hover:translate-x-1 transition-all py-0.5">
                                                             {tour.title}
                                                         </Link>
                                                     </li>

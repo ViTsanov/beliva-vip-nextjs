@@ -4,25 +4,46 @@ import TopDestinations from "@/components/TopDestinations";
 import Advantages from "@/components/Advantages";
 import Testimonials from "@/components/Testimonials";
 import { Suspense } from "react";
-import { getActiveTours } from "@/services/tourService"; // 👈 Импортираме нашия чист сервиз
+import { getActiveTours, getTopDestinationsConfig } from "@/services/tourService";
+import type { Metadata } from "next";
 
-// 🚀 КЕШИРАНЕ: Началната страница се прегенерира на всеки 60 минути
-export const revalidate = 3600; 
+export const revalidate = 3600;
+
+// Canonical on homepage prevents /?country=X and /?continent=Y
+// from being indexed as separate pages by Google
+export const metadata: Metadata = {
+  alternates: {
+    canonical: 'https://belivavip.bg',
+  },
+}; 
 
 export default async function HomePage() {
-  // Извикваме всички публични екскурзии чрез адаптера.
-  // Вече нямаме нужда от db, collection, getDocs и serializeData тук!
-  const tours = await getActiveTours();
+  // Fetch both in parallel to avoid waterfall
+  const [tours, topDestinations] = await Promise.all([
+    getActiveTours(),
+    getTopDestinationsConfig(),
+  ]);
+
+  // Pre-compute destination counts server-side so TopDestinations renders immediately
+  const destinationCounts: Record<string, number> = {};
+  tours.forEach(tour => {
+    const countries = Array.isArray(tour.country)
+      ? tour.country
+      : (typeof tour.country === 'string' ? tour.country.split(',').map((c: string) => c.trim()) : []);
+    countries.forEach((c: string) => {
+      if (c) destinationCounts[c] = (destinationCounts[c] || 0) + 1;
+    });
+  });
 
   return (
-    <main className="min-h-screen bg-brand-light pb-20">
+    <main className="min-h-screen bg-brand-light">
       <Hero />
       
       {/* Advantages - предимствата на агенцията */}
       <Advantages />
 
-      {/* Топ Дестинации */}
-      <TopDestinations />
+      {/* Топ Дестинации - данните са предварително изтеглени от сървъра */}
+      <TopDestinations initialDestinations={topDestinations} counts={destinationCounts} />
 
       {/* Слагаме ToursGrid в Suspense. 
         Така, ако има някакво леко забавяне при филтрирането, 

@@ -8,6 +8,7 @@ export default function ScrollToTop() {
   const [isVisible, setIsVisible] = useState(false);
   const [isAboveGrid, setIsAboveGrid] = useState(false);
   const pathname = usePathname();
+  const isTourPage = pathname.startsWith('/tour/');
   
   // Този ref ни помага да разберем дали скролът е от бутона (програмен) или от потребителя
   const isProgrammaticScroll = useRef(false);
@@ -102,9 +103,11 @@ export default function ScrollToTop() {
       onClick={handleClick}
       aria-label="Scroll control"
       className={`
-        fixed z-[90] 
-        right-6 bottom-24 md:right-10 md:bottom-28 
-        p-3 md:p-4 rounded-full 
+        fixed z-[90]
+        ${isTourPage
+          ? 'right-6 bottom-40 md:right-10 md:bottom-28'
+          : 'right-6 bottom-24 md:right-10 md:bottom-28'}
+        p-3 md:p-4 rounded-full
         transition-all duration-500 ease-in-out hover:scale-110
         flex items-center justify-center
         ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"}

@@ -41,9 +41,14 @@ export default function BlogClient({ post }: { post: any }) {
        if (post.relatedCountry) {
          const fetchRelatedTours = async () => {
              try {
+                 // country is stored as an array in Firestore, so use array-contains
+                 const countryToSearch = Array.isArray(post.relatedCountry)
+                   ? post.relatedCountry[0]
+                   : post.relatedCountry;
+
                  const qTours = query(
-                   collection(db, "tours"), 
-                   where("country", "==", post.relatedCountry),
+                   collection(db, "tours"),
+                   where("country", "array-contains", countryToSearch),
                    where("status", "==", "public"),
                    limit(4)
                  );

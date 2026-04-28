@@ -147,13 +147,11 @@ export default function Navbar() {
              </Link>
 
              {/* HAMBURGER MENU BUTTON */}
-             <button className="p-2" onClick={() => setIsOpen(!isOpen)}>
-               {isOpen ? (
-                  <span className="opacity-0"><X size={28}/></span>
-               ) : (
+             {!isOpen && (
+               <button className="p-2" onClick={() => setIsOpen(true)} aria-label="Отвори меню">
                  <Menu size={28} className={scrolled || !isHome ? 'text-brand-dark' : 'text-white'} />
-               )}
-             </button>
+               </button>
+             )}
           </div>
 
         </div>

@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { ITour } from "@/types";
 
 /**
@@ -69,5 +69,19 @@ export async function getTourBySlug(slug: string): Promise<ITour | null> {
   } catch (error) {
     console.error("Грешка при изтегляне на конкретен тур:", error);
     return null;
+  }
+}
+
+// Взима конфигурацията за Топ Дестинации (слайдер на началната страница)
+export async function getTopDestinationsConfig(): Promise<{ name: string; image: string }[]> {
+  try {
+    const docSnap = await getDoc(doc(db, "settings", "homepage"));
+    if (docSnap.exists()) {
+      return docSnap.data().topDestinations || [];
+    }
+    return [];
+  } catch (error) {
+    console.error("Грешка при изтегляне на топ дестинации:", error);
+    return [];
   }
 }
