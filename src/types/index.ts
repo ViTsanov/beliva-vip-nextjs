@@ -21,8 +21,10 @@ export interface ITour {
   historicalDates?: string[];
   // 👆 --------- 👆
   img: string;
-  images?: string[] | string; 
+  images?: string[] | string;
   gallery?: string[];
+  // New typed gallery with captions (replaces plain images string)
+  galleryWithCaptions?: { url: string; caption: string }[];
   country: string | string[];
 
   continentSlug?: string;      // Въпросителната значи, че е незадължително
@@ -33,6 +35,8 @@ export interface ITour {
   continent: string;
   status: string;
   groupStatus: 'active' | 'confirmed' | 'last-places' | 'sold-out';
+  spotsLeft?: number;      // Конкретен брой оставащи места (напр. 3)
+  roomCombo?: string;      // Комбинация стаи (напр. "Мъж/Жена", "2+2", "Само жени")
   date: string;
   dates?: string[];
   duration?: string;

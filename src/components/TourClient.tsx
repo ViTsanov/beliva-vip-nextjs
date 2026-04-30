@@ -36,10 +36,20 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Parse images properly
-  const galleryImages = Array.isArray(tourData.images) 
-    ? tourData.images 
-    : (typeof tourData.images === 'string' ? (tourData.images as string).split(',').map((s: string) => s.trim()) : []);
+  // Normalise gallery — supports both old (string/string[]) and new ({url,caption}[]) formats
+  const gallery: { url: string; caption: string }[] = (() => {
+    if (tourData.galleryWithCaptions && tourData.galleryWithCaptions.length > 0) {
+      return tourData.galleryWithCaptions;
+    }
+    if (Array.isArray(tourData.images)) {
+      return tourData.images.map((url: string) => ({ url, caption: '' }));
+    }
+    if (typeof tourData.images === 'string' && tourData.images) {
+      return tourData.images.split(',').map((s: string) => ({ url: s.trim(), caption: '' })).filter(g => g.url);
+    }
+    return [];
+  })();
+  const galleryImages = gallery.map(g => g.url);
 
   // Проверка дали екскурзията е водена от Поли (Beliva VIP)
   const isLedByPoli = tourData.operator === 'Beliva VIP' || tourData.categories?.includes('Водена от ПОЛИ');
@@ -156,7 +166,7 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
       <SimilarTours currentTour={tourData} />
       <TopDestinations />
       
-      <ImageModal isOpen={selectedImageIndex !== null} image={selectedImageIndex !== null ? galleryImages[selectedImageIndex] : ''} onClose={() => setSelectedImageIndex(null)} onNext={() => selectedImageIndex !== null && setSelectedImageIndex((selectedImageIndex + 1) % galleryImages.length)} onPrev={() => selectedImageIndex !== null && setSelectedImageIndex((selectedImageIndex - 1 + galleryImages.length) % galleryImages.length)} hasNext={galleryImages.length > 1} hasPrev={galleryImages.length > 1} />
+      <ImageModal isOpen={selectedImageIndex !== null} image={selectedImageIndex !== null ? galleryImages[selectedImageIndex] : ''} caption={selectedImageIndex !== null ? (gallery[selectedImageIndex]?.caption || '') : ''} currentIndex={selectedImageIndex ?? 0} totalCount={galleryImages.length} onClose={() => setSelectedImageIndex(null)} onNext={() => setSelectedImageIndex(prev => prev !== null && prev < galleryImages.length - 1 ? prev + 1 : prev)} onPrev={() => setSelectedImageIndex(prev => prev !== null && prev > 0 ? prev - 1 : prev)} hasNext={selectedImageIndex !== null && selectedImageIndex < galleryImages.length - 1} hasPrev={selectedImageIndex !== null && selectedImageIndex > 0} />
       <InquiryModal isOpen={showInquiryModal} onClose={() => setShowInquiryModal(false)} tourId={tourData.id} tourTitle={tourData.title} tourPrice={tourData.price} tourDates={tourData.dates} />
 
       {/* 2. Inclusion Modal */}

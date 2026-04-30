@@ -141,6 +141,15 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
   const [showMedia, setShowMedia] = useState(false);
   const [mediaField, setMediaField] = useState<'img' | 'images'>('img');
 
+  // Gallery with captions — normalise from any legacy format on load
+  const [galleryWithCaptions, setGalleryWithCaptions] = useState<{url: string; caption: string}[]>(() => {
+    if (initialData?.galleryWithCaptions?.length) return initialData.galleryWithCaptions;
+    const raw = initialData?.images || '';
+    if (Array.isArray(raw)) return raw.map((url: string) => ({ url, caption: '' }));
+    if (typeof raw === 'string' && raw) return raw.split(',').map((s: string) => ({ url: s.trim(), caption: '' })).filter((g: any) => g.url);
+    return [];
+  });
+
   // АВТОМАТИЧНО ПРЕСМЯТАНЕ НА ОТСТЪПКАТА
   useEffect(() => {
     if (form.isPromo && form.price && form.discountAmount) {
@@ -205,15 +214,18 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
         const data = { 
             ...form, 
             country: finalCountries,
-            countrySlugs,      // Добавяме SEO масива
-            continentSlug,    // Добавяме SEO стринг
-            categorySlugs,    // Добавяме SEO масива за категории
+            countrySlugs,
+            continentSlug,
+            categorySlugs,
             durationDays: Number(form.durationDays) || 0,
             nights: Number(String(form.nights).replace(/[^\d]/g, '')) || 0,
             visitedPlaces: form.visitedPlaces || [],
             date: mainDateFormatted, 
             dates: sortedDates, 
-            itinerary, 
+            itinerary,
+            galleryWithCaptions,
+            // Keep legacy images field for backward compat with any other consumers
+            images: galleryWithCaptions.map(g => g.url).join(', '),
             updatedAt: serverTimestamp() 
         };
 
@@ -234,15 +246,16 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
 
   const handleMediaSelect = (url: string) => {
       if (mediaField === 'img') setForm({...form, img: url});
-      else setForm({...form, images: form.images ? form.images + ', ' + url : url});
+      else setGalleryWithCaptions(prev => [...prev, { url, caption: '' }]);
       setShowMedia(false);
   };
 
   const removeMainImage = () => setForm({...form, img: ''});
-  const galleryImages = form.images ? form.images.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
   const removeGalleryImage = (indexToRemove: number) => {
-      const newImages = galleryImages.filter((_: string, idx: number) => idx !== indexToRemove).join(', ');
-      setForm({...form, images: newImages});
+      setGalleryWithCaptions(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+  const updateCaption = (index: number, caption: string) => {
+      setGalleryWithCaptions(prev => prev.map((g, i) => i === index ? { ...g, caption } : g));
   };
 
   const inputStyle = "w-full p-3.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand-gold focus:ring-4 focus:ring-brand-gold/5 outline-none transition-all text-brand-dark font-medium";
@@ -447,7 +460,42 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                 <div className="space-y-6">
                     <div><label className={labelStyle}>Редовна Цена *</label><input className={`${inputStyle} text-xl font-black text-brand-gold`} value={form.price} onChange={e => setForm({...form, price: e.target.value})} required /></div>
                     <div><label className={labelStyle}>Група</label><select className={inputStyle} value={form.groupStatus} onChange={e => setForm({...form, groupStatus: e.target.value})}><option value="active">🟢 Оформяща се</option><option value="confirmed">🔵 Потвърдена</option><option value="last-places">🟠 Последни места</option><option value="sold-out">🔴 Изчерпана</option></select></div>
+
+                    {/* Брой оставащи места — вижда само при Статус "Последни места" */}
+                    {form.groupStatus === 'last-places' && (
+                      <div>
+                        <label className={labelStyle}>🔴 Актуален брой оставащи места</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          className={inputStyle}
+                          value={form.spotsLeft || ''}
+                          onChange={e => setForm({...form, spotsLeft: e.target.value ? parseInt(e.target.value) : undefined})}
+                          placeholder="напр. 3 (Остават само 3 мяста)"
+                        />
+                        <p className="text-[10px] text-rose-500 mt-1 ml-2 font-medium">Показва се като пулсиращ badge върху картата на екскурзията</p>
+                      </div>
+                    )}
                     <div><label className={labelStyle}>Видимост</label><select className={inputStyle} value={form.status} onChange={e => setForm({...form, status: e.target.value})}><option value="public">👁️ Публична</option><option value="draft">🚫 Скрита</option><option value="archived">📦 В Архив</option></select></div>
+
+                    {/* Комбинация стаи */}
+                    <div>
+                      <label className={labelStyle}>🛏️ Комбинация стаи (незадължително)</label>
+                      <select
+                        className={inputStyle}
+                        value={form.roomCombo || ''}
+                        onChange={e => setForm({...form, roomCombo: e.target.value || undefined})}
+                      >
+                        <option value="">— Без етикет</option>
+                        <option value="Мъж/Жена">Мъж/Жена</option>
+                        <option value="Само жени">Само жени</option>
+                        <option value="Само мъже">Само мъже</option>
+                        <option value="2+2 (семейства)">2+2 (семейства)</option>
+                        <option value="Двойна стая">Двойна стая</option>
+                        <option value="Едноместна стая">Едноместна стая</option>
+                      </select>
+                    </div>
                 </div>
             </div>
 
@@ -533,11 +581,38 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                  </div>
                  <div className="space-y-4">
                     <label className={labelStyle}>Галерия на екскурзията</label>
-                    <div className="grid grid-cols-4 gap-2 mb-4">
-                        {galleryImages.map((url: string, idx: number) => (
-                            <div key={idx} className="relative group"><img src={url} className="h-20 w-full object-cover rounded-xl border shadow-sm" /><button type="button" onClick={() => removeGalleryImage(idx)} className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full p-1 shadow-md border"><X size={10}/></button></div>
+                    
+                    {/* Gallery grid with inline caption inputs */}
+                    {galleryWithCaptions.length > 0 && (
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        {galleryWithCaptions.map((item, idx) => (
+                          <div key={idx} className="relative group rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
+                            {/* Image preview */}
+                            <div className="relative">
+                              <img src={item.url} className="h-28 w-full object-cover" alt="" />
+                              <button
+                                type="button"
+                                onClick={() => removeGalleryImage(idx)}
+                                className="absolute top-2 right-2 bg-white text-red-500 rounded-full p-1 shadow-md border opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X size={12}/>
+                              </button>
+                            </div>
+                            {/* Caption input */}
+                            <div className="px-2 py-2">
+                              <input
+                                type="text"
+                                value={item.caption}
+                                onChange={e => updateCaption(idx, e.target.value)}
+                                placeholder={'Надпис (пр. "Токио")'}
+                                className="w-full text-[11px] font-medium bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-gold transition-colors placeholder:text-gray-300 text-brand-dark"
+                              />
+                            </div>
+                          </div>
                         ))}
-                    </div>
+                      </div>
+                    )}
+
                     <button type="button" onClick={() => {setMediaField('images'); setShowMedia(true)}} className="w-full py-4 border-2 border-gray-200 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-gray-50">+ Добави към галерия</button>
                  </div>
             </div>

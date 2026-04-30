@@ -80,8 +80,9 @@ export async function getTopDestinationsConfig(): Promise<{ name: string; image:
       return docSnap.data().topDestinations || [];
     }
     return [];
-  } catch (error) {
-    console.error("Грешка при изтегляне на топ дестинации:", error);
+  } catch {
+    // Silently returns [] — component handles this with client-side fallback.
+    // If you see this failing, check Firestore rules: settings collection needs public read.
     return [];
   }
 }

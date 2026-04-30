@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ITour } from '@/types';
-import { Heart, CheckCircle2, Clock, X, MapPin, Calendar, ArrowRight, Star, Flame, Palmtree } from 'lucide-react';
+import { Heart, CheckCircle2, Users, X, MapPin, Calendar, ArrowRight, Star, Flame, Palmtree, AlertTriangle } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 
 interface TourCardProps {
@@ -80,9 +80,25 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
                 )}
 
                 {tour.groupStatus === 'confirmed' && <Badge variant="groupStatus" />}
-                {tour.groupStatus === 'last-places' && <span className={`${badgeStyle} bg-amber-700/90 text-white`}><Clock size={12} /> Последни места</span>}
+
+                {/* Последни места — пулсиращ и забележим badge */}
+                {tour.groupStatus === 'last-places' && (
+                  <span className={`${badgeStyle} bg-rose-600 text-white border-rose-500/30 shadow-[0_0_12px_rgba(225,29,72,0.5)] animate-pulse`}>
+                    <AlertTriangle size={11} className="shrink-0" />
+                    {tour.spotsLeft ? `Остават само ${tour.spotsLeft} мяста` : 'Последни места'}
+                  </span>
+                )}
+
                 {tour.groupStatus === 'sold-out' && <span className={`${badgeStyle} bg-rose-800/90 text-white`}><X size={12} /> Изчерпана</span>}
                 {tour.groupStatus === 'active' && <span className={`${badgeStyle} bg-brand-gold/90 text-brand-dark`}>● Оформяща група</span>}
+
+                {/* Комбинация стаи */}
+                {tour.roomCombo && (
+                  <span className={`${badgeStyle} bg-indigo-700/85 text-white border-indigo-400/20`}>
+                    <Users size={11} className="shrink-0" />
+                    {tour.roomCombo}
+                  </span>
+                )}
             </div>
 
             {/* ДОЛУ ВДЯСНО: СПЕЦИАЛНИ БАДЖОВЕ */}
