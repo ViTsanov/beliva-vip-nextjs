@@ -83,18 +83,20 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
 
                 {/* Последни места — пулсиращ и забележим badge */}
                 {tour.groupStatus === 'last-places' && (
-                  <span className={`${badgeStyle} bg-rose-600 text-white border-rose-500/30 shadow-[0_0_12px_rgba(225,29,72,0.5)] animate-pulse`}>
-                    <AlertTriangle size={11} className="shrink-0" />
-                    {tour.spotsLeft ? `Остават само ${tour.spotsLeft} мяста` : 'Последни места'}
+                  <span className={`${badgeStyle} bg-gradient-to-r from-rose-600 to-red-700 text-white border-rose-500/30 shadow-[0_0_16px_rgba(225,29,72,0.45)]`}>
+                    <AlertTriangle size={11} className="shrink-0 animate-bounce" />
+                    {tour.spotsLeft
+                      ? `Остават само ${tour.spotsLeft} ${tour.spotsLeft === 1 ? 'място' : 'места'}`
+                      : 'Последни места'}
                   </span>
                 )}
 
                 {tour.groupStatus === 'sold-out' && <span className={`${badgeStyle} bg-rose-800/90 text-white`}><X size={12} /> Изчерпана</span>}
                 {tour.groupStatus === 'active' && <span className={`${badgeStyle} bg-brand-gold/90 text-brand-dark`}>● Оформяща група</span>}
 
-                {/* Комбинация стаи */}
+                {/* Комбинация стаи — по-четлив, с иконка за хора */}
                 {tour.roomCombo && (
-                  <span className={`${badgeStyle} bg-indigo-700/85 text-white border-indigo-400/20`}>
+                  <span className={`${badgeStyle} bg-brand-dark/90 text-brand-gold border-brand-gold/25 shadow-md`}>
                     <Users size={11} className="shrink-0" />
                     {tour.roomCombo}
                   </span>

@@ -1,157 +1,342 @@
-"use client";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import Image from 'next/image';
+import { ArrowRight, MapPin, Shield, Star, Users, Heart, Quote } from 'lucide-react';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Quote, MapPin } from 'lucide-react'; 
-// import SEO from '@/components/SEO'; // Ако ползваш твоя компонент, разкоментирай го
-// В Next.js обикновено Metadata се слага в Server Components, но тук ще сложим заглавието ръчно
+export const metadata: Metadata = {
+  title: { absolute: 'За Нас — Поли и Ива | Beliva VIP Tour' },
+  description: 'Запознайте се с Поли и Ива — хората зад Beliva VIP Tour. Над 15 години опит, над 60 дестинации и над 150 лично водени групи.',
+  alternates: { canonical: 'https://belivavip.bg/about-us' },
+};
+
+const schemaData = {
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  mainEntity: {
+    "@type": "TravelAgency",
+    name: "Beliva VIP Tour",
+    foundingDate: "2010",
+    founder: { "@type": "Person", name: "Паулина Алексиева" },
+    description: "Лицензирана туристическа агенция с лично отношение и над 15 години опит.",
+    url: "https://belivavip.bg",
+  },
+};
+
+const VALUES = [
+  {
+    icon: Heart,
+    title: 'Лично отношение',
+    desc: 'Не сте номер в каталог. Поли и Ива познават своите клиенти лично и помнят предпочитанията им.',
+  },
+  {
+    icon: Shield,
+    title: 'Надеждност',
+    desc: 'Работим с лицензирани туроператори. Всяка оферта е проверена лично от нас преди да бъде предложена.',
+  },
+  {
+    icon: Star,
+    title: 'Качество, не количество',
+    desc: 'Предпочитаме малки групи и внимателно подбрани маршрути пред масов туризъм.',
+  },
+  {
+    icon: Users,
+    title: 'Общност',
+    desc: 'Клиентите ни се връщат — не само заради дестинациите, а заради хората, с които пътуват.',
+  },
+];
+
+const STATS = [
+  { value: '15+', label: 'Години опит' },
+  { value: '60+', label: 'Дестинации' },
+  { value: '150+', label: 'Водени групи' },
+  { value: '★ 4.9', label: 'Средна оценка' },
+];
 
 export default function AboutPage() {
-  const [isHeroLoaded, setIsHeroLoaded] = useState(false);
-
-  // Данни за Google (Schema)
-  const schemaData = {
-    "@context": "https://schema.org",
-    "@type": "AboutPage",
-    "mainEntity": {
-      "@type": "TravelAgency",
-      "name": "Beliva VIP Tour",
-      "foundingDate": "2019",
-      "founder": {
-        "@type": "Person",
-        "name": "Паулина Алексиева"
-      },
-      "description": "Лицензиран туроператор с лично отношение."
-    }
-  };
-
   return (
     <main className="bg-white min-h-screen">
-      
-      {/* 1. SEO & SCHEMA (Ръчно добавяне за Client Component) */}
-      <title>За Нас и Екипът | Beliva VIP Tour</title>
-      <meta name="description" content="Информация за Beliva VIP Tour. Запознайте се с екипа зад вашите мечтани пътувания. Над 15 години опит и лично отношение." />
-      
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
       />
-      
-      {/* HERO SECTION */}
-      <section className="relative h-[60vh] flex items-center justify-center bg-brand-dark overflow-hidden">
-        <div className="absolute inset-0 bg-black/40 z-10" /> {/* Потъмняване */}
-        <img 
-          src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80" 
-          className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ${
-            isHeroLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-110'
-          }`} 
-          onLoad={() => setIsHeroLoaded(true)}
-          alt="Mountain Background" 
+
+      {/* ── HERO ── */}
+      <section className="relative h-[65vh] min-h-[480px] flex items-center justify-center bg-brand-dark overflow-hidden">
+        <Image
+          src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80"
+          alt="Beliva VIP Tour — За нас"
+          fill
+          className="object-cover opacity-40"
+          priority
         />
-        <div className="relative z-20 text-center text-white px-4">
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            className="text-5xl md:text-6xl lg:text-8xl font-bold mb-4 font-serif"
-          >
-            Нашият <span className="text-brand-gold italic">Екип</span>
-          </motion.h1>
-          <p className="text-sm md:text-xl text-brand-gold uppercase tracking-[0.4em] font-light">Beliva VIP Tour</p>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-brand-dark/80" />
+
+        <div className="relative z-10 text-center px-6">
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="h-px w-12 bg-brand-gold" />
+            <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.35em]">Beliva VIP Tour</span>
+            <div className="h-px w-12 bg-brand-gold" />
+          </div>
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif italic text-white mb-4 leading-tight">
+            За <span className="text-brand-gold">Нас</span>
+          </h1>
+          <p className="text-white/60 text-base md:text-lg max-w-lg mx-auto font-light">
+            Хората зад пътуванията — Поли и Ива
+          </p>
         </div>
       </section>
 
-      {/* MAIN CONTENT SECTION */}
-      <section className="py-20 container mx-auto px-6">
-        
-        {/* ЗАГЛАВИЕ */}
-        <div className="text-center max-w-3xl mx-auto mb-20 space-y-6">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-brand-dark leading-tight">
-              Повече от 15 години <br /> 
-              <span className="text-brand-gold italic">споделяме света с Вас</span>
+      {/* ── STATS ── */}
+      <section className="bg-brand-dark border-b border-brand-gold/20">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-brand-gold/10">
+            {STATS.map((s) => (
+              <div key={s.label} className="flex flex-col items-center py-8 px-4">
+                <span className="text-4xl md:text-5xl font-serif font-bold text-brand-gold leading-none mb-2">
+                  {s.value}
+                </span>
+                <span className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em] text-center">
+                  {s.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── ПОЛИ ── */}
+      <section className="py-24 bg-[#faf7f0]">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+
+            {/* Photo — 5 cols */}
+            <div className="lg:col-span-5 relative">
+              <div className="relative aspect-[3/4] rounded-[3rem] overflow-hidden shadow-2xl bg-brand-dark">
+                <Image
+                  src="/guides/poly.jpg"
+                  alt="Паулина (Поли) — основател на Beliva VIP Tour"
+                  fill
+                  className="object-cover object-top"
+                  sizes="(max-width: 1024px) 100vw, 42vw"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-brand-dark">
+                  <span className="text-9xl font-serif italic text-brand-gold/20 select-none">П</span>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-8">
+                  <span className="text-brand-gold text-[9px] font-black uppercase tracking-widest block mb-1">
+                    ★ Водена от ПОЛИ
+                  </span>
+                  <span className="text-white text-xl font-serif italic">Основател & Водач</span>
+                </div>
+              </div>
+              {/* Floating accent */}
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 rounded-full bg-brand-gold/10 blur-2xl pointer-events-none" />
+            </div>
+
+            {/* Text — 7 cols */}
+            <div className="lg:col-span-7">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="h-px w-8 bg-brand-gold" />
+                <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.3em]">
+                  Запознайте се с Поли
+                </span>
+              </div>
+
+              <h2 className="text-4xl md:text-5xl font-serif italic text-brand-dark leading-tight mb-8">
+                Паулина Алексиева,<br />
+                <span className="text-brand-gold">позната като Поли</span>
+              </h2>
+
+              <div className="space-y-5 text-gray-600 leading-relaxed text-[17px] font-light border-l-2 border-brand-gold/25 pl-6">
+                <p>
+                  Поли е сърцето на Beliva VIP Tour. С над 15 години в туризма и над 150 лично водени групи, тя не познава дестинациите от каталог — а от преживяване. Всяка страна, която предлага, е страна, която е посетила лично, проверила е хотелите и е избрала маршрута внимателно.
+                </p>
+                <p>
+                  Работи като туристически агент към <strong className="text-brand-dark font-semibold">2МКО</strong> — един от водещите туроператори в България. Чрез Beliva VIP Tour тя предлага същите турове, но с нещо, което никой каталог не може да даде: <em>лично присъствие, грижа и познаване на клиентите си по име</em>.
+                </p>
+                <p>
+                  Нейните пътуващи не са клиенти — те са приятели. Затова много от тях се връщат на пето, шесто, седмо пътуване с Поли.
+                </p>
+              </div>
+
+              <div className="mt-10 flex flex-wrap gap-2">
+                {['Япония', 'Австралия', 'Перу', 'Китай', 'Южна Африка', 'Индия', 'ОАЕ'].map(dest => (
+                  <span
+                    key={dest}
+                    className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-brand-gold/20 text-brand-dark"
+                  >
+                    <MapPin size={9} className="text-brand-gold" />
+                    {dest}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-10">
+                <Link
+                  href="/?cat=vodena-ot-poli#tours-grid"
+                  className="inline-flex items-center gap-2 bg-brand-dark text-white px-7 py-3.5 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-brand-gold hover:text-brand-dark transition-all group"
+                >
+                  Турове с Поли
+                  <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── ИВА ── */}
+      <section className="py-24 bg-white">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+
+            {/* Text — 7 cols (first on desktop) */}
+            <div className="lg:col-span-7 order-2 lg:order-1">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="h-px w-8 bg-teal-600" />
+                <span className="text-teal-600 text-[10px] font-black uppercase tracking-[0.3em]">
+                  Запознайте се с Ива
+                </span>
+              </div>
+
+              <h2 className="text-4xl md:text-5xl font-serif italic text-brand-dark leading-tight mb-8">
+                Ива —<br />
+                <span className="text-teal-600">Специалистът за Турция</span>
+              </h2>
+
+              <div className="space-y-5 text-gray-600 leading-relaxed text-[17px] font-light border-l-2 border-teal-600/25 pl-6">
+                <p>
+                  Ива е нашият специалист по почивки в Турция. Познава страната в детайли — от популярните курорти по Анталийското крайбрежие до по-скрити и автентични места, недостъпни за масовия турист.
+                </p>
+                <p>
+                  Ако мечтаете за перфектна почивка на Турското крайбрежие, Ива ще ви намери предложение, съобразено точно с вашите предпочитания — хотел, дати, бюджет и компания.
+                </p>
+              </div>
+
+              <div className="mt-10 flex flex-wrap gap-2">
+                {['Анталия', 'Бодрум', 'Мармарис', 'Алания', 'Сиде', 'Белек', 'Кемер'].map(dest => (
+                  <span
+                    key={dest}
+                    className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-teal-600/20 text-brand-dark"
+                  >
+                    <MapPin size={9} className="text-teal-600" />
+                    {dest}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-10">
+                <Link
+                  href="/?cat=pochivka-v-turtsiya#tours-grid"
+                  className="inline-flex items-center gap-2 bg-teal-700 text-white px-7 py-3.5 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-teal-600 transition-all group"
+                >
+                  Почивки с Ива
+                  <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Photo — 5 cols */}
+            <div className="lg:col-span-5 relative order-1 lg:order-2">
+              <div className="relative aspect-[3/4] rounded-[3rem] overflow-hidden shadow-2xl bg-teal-900">
+                <Image
+                  src="/guides/iva.jpg"
+                  alt="Ива — специалист Турция, Beliva VIP Tour"
+                  fill
+                  className="object-cover object-top"
+                  sizes="(max-width: 1024px) 100vw, 42vw"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-teal-900">
+                  <span className="text-9xl font-serif italic text-teal-400/20 select-none">И</span>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-8">
+                  <span className="text-teal-300 text-[9px] font-black uppercase tracking-widest block mb-1">
+                    🌴 Почивка в Турция
+                  </span>
+                  <span className="text-white text-xl font-serif italic">Специалист Турция</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── VALUES ── */}
+      <section className="py-24 bg-brand-dark">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="h-px w-10 bg-brand-gold/40" />
+              <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.3em]">Нашите ценности</span>
+              <div className="h-px w-10 bg-brand-gold/40" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-serif italic text-white">
+              Защо клиентите ни се <span className="text-brand-gold">връщат</span>
             </h2>
-            <p className="text-gray-600 text-lg leading-relaxed">
-                Зад всяко перфектно пътуване стои не само добра организация, но и сърце. Запознайте се с хората, които превръщат мечтите ви в реалност.
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {VALUES.map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                className="p-7 rounded-2xl border border-white/8 bg-white/4 hover:bg-white/8 hover:border-brand-gold/30 transition-all group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-brand-gold/10 flex items-center justify-center mb-5 group-hover:bg-brand-gold/20 transition-colors">
+                  <Icon size={20} className="text-brand-gold" />
+                </div>
+                <h3 className="text-white font-bold text-base mb-3">{title}</h3>
+                <p className="text-white/40 text-sm leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── QUOTE ── */}
+      <section className="py-24 bg-[#faf7f0]">
+        <div className="container mx-auto px-6">
+          <div className="relative max-w-3xl mx-auto text-center">
+            <Quote size={48} className="text-brand-gold/20 mx-auto mb-6 rotate-180" />
+            <blockquote className="text-3xl md:text-4xl font-serif italic text-brand-dark leading-relaxed mb-8">
+              "Пътуването е единственото нещо, за което даваш пари,<br className="hidden md:block" />
+              а ставаш по-богат."
+            </blockquote>
+            <p className="text-brand-gold text-[10px] font-black uppercase tracking-[0.3em]">
+              — Философия на Beliva VIP Tour
             </p>
+          </div>
         </div>
+      </section>
 
-        {/* 👥 ЕКИП */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center mb-24">
-            
-            {/* ЧОВЕК 1 (Полина) */}
-            <div className="flex flex-col gap-6 group">
-                <div className="relative overflow-hidden rounded-[3rem] shadow-2xl aspect-[3/4] border-[10px] border-white">
-                    <div className="absolute inset-0 bg-brand-gold/10 opacity-0 group-hover:opacity-100 transition-opacity z-10"></div>
-                    <img 
-                        src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=800" 
-                        alt="Паулина Алексиева" 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                </div>
-                <div className="text-center lg:text-left space-y-2">
-                    <h3 className="text-3xl font-serif font-bold text-brand-dark">Полина Белива</h3>
-                    <p className="text-brand-gold text-xs font-black uppercase tracking-widest mb-4">Основател & Управител</p>
-                    <p className="text-gray-600 leading-relaxed text-sm">
-                        С над 15 години опит в туризма, Полина създава Beliva VIP Tour с една цел - да предложи не просто екскурзии, а преживявания. Всяка фирма партньор и всеки хотел преминават през нейния строг личен подбор.
-                    </p>
-                </div>
+      {/* ── CTA ── */}
+      <section className="py-20 bg-[#f7f4ee] text-center">
+        <div className="container mx-auto px-6">
+          <div className="bg-brand-dark rounded-[3rem] px-8 py-16 md:px-16">
+            <h2 className="text-3xl md:text-4xl font-serif italic text-white mb-4">
+              Готови ли сте за следващото пътуване?
+            </h2>
+            <p className="text-white/50 mb-10 max-w-md mx-auto">
+              Свържете се с Поли или Ива — и заедно ще планираме вашето мечтано приключение.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                href="/#tours-grid"
+                className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark px-8 py-4 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-amber-400 transition-all group"
+              >
+                Разгледай оферти
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link
+                href="/contacts"
+                className="inline-flex items-center gap-2 border border-white/20 text-white px-8 py-4 rounded-full font-black uppercase text-[10px] tracking-widest hover:border-brand-gold hover:text-brand-gold transition-all"
+              >
+                Свържи се с нас
+              </Link>
             </div>
-
-            {/* ЧОВЕК 2 (Партньор/Колега) */}
-            <div className="flex flex-col gap-6 group lg:mt-20"> {/* lg:mt-20 за раздвижен ефект */}
-                <div className="relative overflow-hidden rounded-[3rem] shadow-2xl aspect-[3/4] border-[10px] border-white">
-                    <div className="absolute inset-0 bg-brand-gold/10 opacity-0 group-hover:opacity-100 transition-opacity z-10"></div>
-                    <img 
-                        src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=800" 
-                        alt="Травел Експерт" 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                </div>
-                <div className="text-center lg:text-left space-y-2">
-                    <h3 className="text-3xl font-serif font-bold text-brand-dark">Иван Петров</h3>
-                    <p className="text-brand-gold text-xs font-black uppercase tracking-widest mb-4">Травел Експерт</p>
-                    <p className="text-gray-600 leading-relaxed text-sm">
-                        Експерт по екзотични дестинации и логистика. Човекът, който се грижи всеки детайл от вашето пътуване да бъде изпипан до съвършенство, за да можете вие просто да се наслаждавате.
-                    </p>
-                </div>
-            </div>
-
+          </div>
         </div>
-
-        {/* 📜 ЦИТАТ */}
-        <div className="relative py-16 px-6 md:px-20 bg-[#fffcf5] rounded-[3rem] text-center border border-brand-gold/10 mb-20 shadow-sm">
-            <Quote className="absolute top-8 left-8 text-brand-gold/20 rotate-180" size={60} />
-            <Quote className="absolute bottom-8 right-8 text-brand-gold/20" size={60} />
-            
-            <figure className="relative z-10">
-                <blockquote className="text-2xl md:text-3xl lg:text-4xl font-serif italic text-brand-dark leading-relaxed">
-                    "Пътуването е единственото нещо, за което даваш пари, а ставаш по-богат."
-                </blockquote>
-                <figcaption className="mt-6 text-brand-gold text-xs font-bold uppercase tracking-widest">
-                    — Философия на Beliva VIP Tour
-                </figcaption>
-            </figure>
-        </div>
-
-        {/* STATS */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 border-t border-gray-100 pt-16">
-            <div className="text-center group">
-                <p className="text-4xl md:text-5xl font-bold text-brand-gold mb-2 font-serif group-hover:scale-110 transition-transform">15+</p>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Години опит</p>
-            </div>
-            <div className="text-center group">
-                <p className="text-4xl md:text-5xl font-bold text-brand-gold mb-2 font-serif group-hover:scale-110 transition-transform">100%</p>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Лично отношение</p>
-            </div>
-            <div className="text-center group">
-                <p className="text-4xl md:text-5xl font-bold text-brand-gold mb-2 font-serif group-hover:scale-110 transition-transform">50+</p>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Дестинации</p>
-            </div>
-            <div className="text-center group">
-                <p className="text-4xl md:text-5xl font-bold text-brand-gold mb-2 font-serif group-hover:scale-110 transition-transform">24/7</p>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Подкрепа</p>
-            </div>
-        </div>
-
       </section>
     </main>
   );

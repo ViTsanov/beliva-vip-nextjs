@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'; // Трябва ни за нави�
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { AnimatePresence, motion } from 'framer-motion';
+import { slugify } from '@/lib/admin-helpers'; // Провери дали точно така се казва експорта
 
 // --- КОНФИГУРАЦИЯ НА СТАТИЧНИТЕ СТРАНИЦИ ---
 const STATIC_PAGES = [
@@ -140,8 +141,9 @@ export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: Na
 
   // Функция за прилагане на филтър по държава
   const applyCountryFilter = (country: string) => {
+      const countrySlug = slugify(country);
       // Навигираме към Home с параметър country
-      router.push(`/?country=${encodeURIComponent(country)}`);
+      router.push(`/?country=${encodeURIComponent(countrySlug)}`);
       handleClose();
       
       // Допълнително скролване до грида
