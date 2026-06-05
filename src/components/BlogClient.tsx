@@ -399,6 +399,8 @@ export default function BlogClient({ post }: { post: any }) {
         onPrev={() => selectedImageIndex !== null && setSelectedImageIndex((selectedImageIndex - 1 + galleryImages.length) % galleryImages.length)}
         hasNext={galleryImages.length > 1}
         hasPrev={galleryImages.length > 1}
+        currentIndex={selectedImageIndex !== null ? selectedImageIndex : 0}
+        totalCount={galleryImages.length}
       />
 
     </main>

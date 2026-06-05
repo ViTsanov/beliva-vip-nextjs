@@ -5,8 +5,8 @@ interface ImageModalProps {
   isOpen: boolean;
   image: string;
   caption?: string;
-  currentIndex: number;
-  totalCount: number;
+  currentIndex?: number;   // optional — defaults to 0
+  totalCount?: number;     // optional — hides counter when omitted
   onClose: () => void;
   onNext: () => void;
   onPrev: () => void;
@@ -15,7 +15,7 @@ interface ImageModalProps {
 }
 
 export default function ImageModal({ 
-  isOpen, image, caption, currentIndex, totalCount,
+  isOpen, image, caption, currentIndex = 0, totalCount,
   onClose, onNext, onPrev, hasNext, hasPrev 
 }: ImageModalProps) {
   
@@ -40,11 +40,13 @@ export default function ImageModal({
   return (
     <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-200">
       
-      {/* Top bar: close + counter */}
+      {/* Top bar: close + counter (only shown when totalCount is provided) */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-5 z-50">
-        <span className="text-white/50 text-xs font-black uppercase tracking-widest">
+      {totalCount ? (
+      <span className="text-white/50 text-xs font-black uppercase tracking-widest">
           {currentIndex + 1} / {totalCount}
-        </span>
+            </span>
+          ) : <span />}
         <button 
           onClick={onClose} 
           className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"

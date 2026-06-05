@@ -120,7 +120,6 @@ export default function AboutPage() {
                   sizes="(max-width: 1024px) 100vw, 42vw"
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-brand-dark">
-                  <span className="text-9xl font-serif italic text-brand-gold/20 select-none">П</span>
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-8">
@@ -241,14 +240,13 @@ export default function AboutPage() {
             <div className="lg:col-span-5 relative order-1 lg:order-2">
               <div className="relative aspect-[3/4] rounded-[3rem] overflow-hidden shadow-2xl bg-teal-900">
                 <Image
-                  src="/guides/iva.jpg"
+                  src="/public/guides/iva.jpg"
                   alt="Ива — специалист Турция, Beliva VIP Tour"
                   fill
                   className="object-cover object-top"
                   sizes="(max-width: 1024px) 100vw, 42vw"
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-teal-900">
-                  <span className="text-9xl font-serif italic text-teal-400/20 select-none">И</span>
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-8">

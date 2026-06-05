@@ -107,9 +107,6 @@ export default function MeetGuides() {
                 />
                 {/* Initials fallback */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-3xl font-serif italic text-brand-gold/40 select-none">
-                    {guide.initial}
-                  </span>
                 </div>
               </div>
 
