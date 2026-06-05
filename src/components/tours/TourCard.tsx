@@ -16,13 +16,30 @@ interface TourCardProps {
 
 export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: TourCardProps) {
   const getAllDates = () => {
-    let dates = [...(tour.dates || [])];
-    if (tour.date) {
-      const parts = tour.date.split('-');
-      const mainIso = parts[0].length === 2 ? parts.reverse().join('-') : tour.date;
-      if (!dates.includes(mainIso)) dates.push(mainIso);
-    } 
-    return dates.sort();
+    // Normalize any date string to YYYY-MM-DD, stripping time part
+    const normalize = (d: string): string | null => {
+      if (!d) return null;
+      const clean = d.split('T')[0]; // strip ISO time part e.g. "2025-05-15T00:00:00Z" → "2025-05-15"
+      const parts = clean.split('-');
+      if (parts.length !== 3) return null;
+      // DD-MM-YYYY → YYYY-MM-DD
+      if (parts[0].length === 2) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      // Already YYYY-MM-DD
+      return clean;
+    };
+
+    const seen = new Set<string>();
+    const result: string[] = [];
+
+    for (const d of [...(tour.dates || []), ...(tour.date ? [tour.date] : [])]) {
+      const norm = normalize(String(d));
+      if (norm && !seen.has(norm)) {
+        seen.add(norm);
+        result.push(norm);
+      }
+    }
+
+    return result.sort();
   };
 
   const allDatesISO = getAllDates();

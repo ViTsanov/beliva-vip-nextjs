@@ -5,9 +5,8 @@ import { getTourBySlug } from "@/services/tourService";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, limit } from "firebase/firestore";
 
-// КЕШИРАНЕ НА СТРАНИЦАТА: Next.js ще я презарежда веднъж на 1 час (3600 секунди),
-// за да виждат клиентите винаги актуални цени, но сайтът да остане светкавичен!
-export const revalidate = 3600; 
+// Презарежда на 60 секунди — новите турове се появяват в продукция максимум след  1 минута
+export const revalidate = 60; 
 
 const SITE_URL = "https://belivavip.bg";
 const FIREBASE_PROJECT_ID = "belivavip"; 

@@ -56,16 +56,28 @@ export async function getActiveTours(): Promise<ITour[]> {
 }
 
 // Взима единична екскурзия по ID или Slug (Ползва се в индивидуалната страница)
+// Търси в ред поред по: tourId → slug → директен doc ID
 export async function getTourBySlug(slug: string): Promise<ITour | null> {
   if (!slug) return null;
   const decodedId = decodeURIComponent(slug);
   
   try {
-    const q = query(collection(db, "tours"), where("tourId", "==", decodedId));
-    const snapshot = await getDocs(q);
-    
-    if (snapshot.empty) return null;
-    return normalizeTour(snapshot.docs[0].data(), snapshot.docs[0].id);
+    // 1. Търси по tourId поле
+    const q1 = query(collection(db, "tours"), where("tourId", "==", decodedId));
+    const snap1 = await getDocs(q1);
+    if (!snap1.empty) return normalizeTour(snap1.docs[0].data(), snap1.docs[0].id);
+
+    // 2. Търси по slug поле
+    const q2 = query(collection(db, "tours"), where("slug", "==", decodedId));
+    const snap2 = await getDocs(q2);
+    if (!snap2.empty) return normalizeTour(snap2.docs[0].data(), snap2.docs[0].id);
+
+    // 3. Търси директно по Firestore doc ID
+    const docRef = doc(db, "tours", decodedId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) return normalizeTour(docSnap.data(), docSnap.id);
+
+    return null;
   } catch (error) {
     console.error("Грешка при изтегляне на конкретен тур:", error);
     return null;

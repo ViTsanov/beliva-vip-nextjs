@@ -70,7 +70,33 @@ export default function ToursGrid({ initialTours = [], hideFilters = false }: To
   // 2. ИЗТРИВАМЕ useEffect-а, който извикваше getDocs от Firebase, защото вече нямаме нужда от него!
 
   const filteredTours = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+
+    // Normalize a date string to YYYY-MM-DD regardless of input format
+    const normDate = (d: string): string => {
+      if (!d) return '';
+      const clean = d.split('T')[0];
+      const parts = clean.split('-');
+      if (parts.length !== 3) return '';
+      if (parts[0].length === 2) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      return clean;
+    };
+
     let result = allTours.filter(tour => {
+      // Филтрирай минали екскурзии — показвай само ако поне една бъдеща дата
+      const allDates = [
+        ...(tour.dates || []).map(d => normDate(String(d))),
+        ...(tour.date ? [normDate(tour.date)] : [])
+      ].filter(Boolean);
+
+      if (allDates.length > 0) {
+        const hasFutureDate = allDates.some(d => d >= todayStr);
+        if (!hasFutureDate) return false; // Всички дати са минали — скрий
+      } else {
+        // Няма дати изобщо — скрий тура (няма кога да замине)
+        // Изключение: само ако е драфт (не публичен еще)
+        return false;
+      }
       // 1. Търсене по ключова дума
       if (searchQuery) {
         const q = searchQuery.toLowerCase();

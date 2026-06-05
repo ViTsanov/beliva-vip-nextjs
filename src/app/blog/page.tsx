@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import BlogListClient from './BlogListClient';
+import { Suspense } from 'react';
 
 export const revalidate = 1800; // refresh every 30 min
 
@@ -80,7 +81,9 @@ export default async function BlogPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
       />
-      <BlogListClient posts={posts} />
+      <Suspense fallback={<div className="min-h-screen bg-[#f9f6f0]" />}>
+        <BlogListClient posts={posts} />
+      </Suspense>
     </>
   );
 }

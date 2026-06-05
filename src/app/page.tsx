@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { getActiveTours, getTopDestinationsConfig } from "@/services/tourService";
 import type { Metadata } from "next";
 
-export const revalidate = 3600;
+export const revalidate = 120; // 2 минути — новите турове се появяват бързо
 
 export const metadata: Metadata = {
   alternates: {

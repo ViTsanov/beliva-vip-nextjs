@@ -168,13 +168,33 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
  // ГЕНЕРИРАНЕ НА ID
   useEffect(() => {
     if (!initialData && form.country && form.dates.length > 0) {
-        const countrySlug = slugify(form.country);
-        const firstDate = [...form.dates].sort()[0];
-        // Разделяме датата независимо дали е с точки (07.04) или тирета (2026-04)
-        const parts = firstDate.includes('.') ? firstDate.split('.') : firstDate.split('-');
-        const month = parts.length === 3 ? parts[1] : undefined;
-        const year = parts.length === 3 ? parts[2] : undefined;
-        
+        // Форм.country може да е масив (от бот) или стринг (ръчно)
+        const countryRaw = Array.isArray(form.country) ? form.country[0] : form.country;
+        if (!countryRaw) return;
+        const countrySlug = slugify(countryRaw);
+
+        const firstDate = [...form.dates].sort()[0]; // Вземаме най-ранната дата
+
+        let month: string | undefined;
+        let year: string | undefined;
+
+        if (firstDate.includes('.')) {
+            // Формат DD.MM.YYYY (ръчно добавени дати)
+            const parts = firstDate.split('.');
+            if (parts.length === 3) { month = parts[1]; year = parts[2]; }
+        } else if (firstDate.includes('-')) {
+            const parts = firstDate.split('-');
+            if (parts.length === 3) {
+                if (parts[0].length === 4) {
+                    // YYYY-MM-DD (От бот скрейпър)
+                    year = parts[0]; month = parts[1];
+                } else {
+                    // DD-MM-YYYY
+                    year = parts[2]; month = parts[1];
+                }
+            }
+        }
+
         if (month && year) {
             const prefix = `${countrySlug}-${month}-${year}-`;
             const existing = allTours.filter((t: any) => t.tourId?.startsWith(prefix));
