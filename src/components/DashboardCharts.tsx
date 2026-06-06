@@ -93,8 +93,8 @@ export default function DashboardCharts({ inquiries, tours }: DashboardChartsPro
         <h3 className="font-bold text-gray-500 text-xs uppercase tracking-widest mb-2 shrink-0">
             Топ Категории Екскурзии
         </h3>
-        {/* Отново flex-1 и min-h-0 */}
-        <div className="flex-1 w-full relative min-h-0">
+        {/* Употреби експлицитна височина вместо flex-1 — решава width/height -1 грешката */}
+        <div className="w-full relative" style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                     <Pie

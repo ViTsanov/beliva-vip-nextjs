@@ -76,6 +76,7 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
         
         {/* ✨ ИЗОЛИРАН КОНТЕЙНЕР ЗА СНИМКА (РЕШАВА ПРОБЛЕМА С КВАДРАТНИТЕ ЪГЛИ) ✨ */}
         <div className="relative h-72 overflow-hidden bg-gray-200 isolate transform-gpu rounded-t-[2.5rem]">
+            {tour.img ? (
             <Image
                 src={tour.img}
                 alt={`Екскурзия до ${tour.country} - ${tour.title}`}
@@ -83,6 +84,13 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
                 className="object-cover transition-transform duration-700 group-hover:scale-110"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
+            ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand-dark/60 flex items-center justify-center">
+                <span className="text-6xl font-serif italic text-brand-gold/20 select-none">
+                {(Array.isArray(tour.country) ? tour.country[0] : tour.country || '?').charAt(0)}
+                </span>
+            </div>
+            )}
             
             {/* ГОРЕ ВЛЯВО: ПРОМОЦИИ И СТАТУСИ */}
             <div className="absolute top-6 left-6 flex flex-col gap-2 items-start z-10">

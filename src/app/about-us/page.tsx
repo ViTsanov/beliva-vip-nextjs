@@ -112,6 +112,10 @@ export default function AboutPage() {
             {/* Photo — 5 cols */}
             <div className="lg:col-span-5 relative">
               <div className="relative aspect-[3/4] rounded-[3rem] overflow-hidden shadow-2xl bg-brand-dark">
+                {/* Fallback — shows only if photo missing (behind the image) */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-9xl font-serif italic text-brand-gold/20 select-none">П</span>
+                </div>
                 <Image
                   src="/guides/poly.jpg"
                   alt="Паулина (Поли) — основател на Beliva VIP Tour"
@@ -119,8 +123,6 @@ export default function AboutPage() {
                   className="object-cover object-top"
                   sizes="(max-width: 1024px) 100vw, 42vw"
                 />
-                <div className="absolute inset-0 flex items-center justify-center bg-brand-dark">
-                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-8">
                   <span className="text-brand-gold text-[9px] font-black uppercase tracking-widest block mb-1">
@@ -239,15 +241,17 @@ export default function AboutPage() {
             {/* Photo — 5 cols */}
             <div className="lg:col-span-5 relative order-1 lg:order-2">
               <div className="relative aspect-[3/4] rounded-[3rem] overflow-hidden shadow-2xl bg-teal-900">
+                {/* Fallback — shows only if photo missing (behind the image) */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-9xl font-serif italic text-teal-400/20 select-none">И</span>
+                </div>
                 <Image
-                  src="/public/guides/iva.jpg"
+                  src="/guides/iva.jpg"
                   alt="Ива — специалист Турция, Beliva VIP Tour"
                   fill
                   className="object-cover object-top"
                   sizes="(max-width: 1024px) 100vw, 42vw"
                 />
-                <div className="absolute inset-0 flex items-center justify-center bg-teal-900">
-                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-8">
                   <span className="text-teal-300 text-[9px] font-black uppercase tracking-widest block mb-1">

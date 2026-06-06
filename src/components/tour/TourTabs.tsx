@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { ITour } from "@/types";
-import { Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronsUpDown } from 'lucide-react';
+import { Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TourTabsProps {
   tour: ITour;
@@ -14,30 +15,26 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [isGalleryExpanded, setIsGalleryExpanded] = useState(false);
   const [isInfoExpanded, setIsInfoExpanded] = useState(false);
-
-  // Accordion: set of open day indices. Day 0 open by default.
-  const [openDays, setOpenDays] = useState<number[]>([0]);
+  const [activeDay, setActiveDay] = useState(0);
+  const [direction, setDirection] = useState(1); // 1 = forward, -1 = backward
 
   const hasMultipleDates = tour.dates && tour.dates.length > 1;
   const formatDate = (dateStr: string) => dateStr.split('-').reverse().join('.');
   const programData = tour.itinerary || tour.program || [];
   const isPromoActive = tour.isPromo && tour.discountPrice;
 
-  const toggleDay = (index: number) => {
-    setOpenDays(prev =>
-      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
-    );
+  const goToDay = (index: number) => {
+    setDirection(index > activeDay ? 1 : -1);
+    setActiveDay(index);
   };
 
-  const allOpen = openDays.length === programData.length;
-  const toggleAll = () => {
-    setOpenDays(allOpen ? [] : programData.map((_, i) => i));
-  };
+  const goNext = () => { if (activeDay < programData.length - 1) goToDay(activeDay + 1); };
+  const goPrev = () => { if (activeDay > 0) goToDay(activeDay - 1); };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
 
-      {/* INFO GRID */}
+      {/* ─── INFO GRID ─── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {!hasMultipleDates && (
           <div className="bg-white p-5 rounded-3xl shadow-xl border-b-4 border-brand-dark group hover:-translate-y-1 transition-all">
@@ -46,7 +43,6 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             <p className="font-bold text-brand-dark text-sm md:text-lg">{tour.date}</p>
           </div>
         )}
-
         <div className={`bg-white p-5 rounded-3xl shadow-xl border-b-4 border-brand-dark group hover:-translate-y-1 transition-all ${hasMultipleDates ? 'md:col-span-2' : ''}`}>
           <div className="mb-2 text-gray-400 group-hover:text-brand-gold transition-colors"><Clock size={24}/></div>
           <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">Продължителност</p>
@@ -56,13 +52,11 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             {tour.nights ? `${tour.nights} нощувки` : tour.duration}
           </p>
         </div>
-
         <div className="bg-white p-5 rounded-3xl shadow-xl border-b-4 border-brand-dark group hover:-translate-y-1 transition-all">
           <div className="mb-2 text-gray-400 group-hover:text-brand-gold transition-colors"><Globe size={24}/></div>
           <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">Държава</p>
           <p className="font-bold text-brand-dark text-sm md:text-lg">{Array.isArray(tour.country) ? tour.country.join(', ') : tour.country}</p>
         </div>
-
         <div className="bg-brand-dark p-5 rounded-3xl shadow-xl border-b-4 border-brand-gold group hover:-translate-y-1 transition-all relative overflow-hidden flex flex-col justify-center">
           <div className="absolute top-0 right-0 p-4 opacity-10"><Euro size={64} className="text-white"/></div>
           <div className="mb-2 text-brand-gold relative z-10"><Euro size={24}/></div>
@@ -81,15 +75,15 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
         </div>
       </div>
 
-      {/* MULTIPLE DATES */}
+      {/* ─── MULTIPLE DATES ─── */}
       {hasMultipleDates && (
-        <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 text-center relative overflow-hidden">
+        <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-2 h-full bg-brand-gold"></div>
-          <div className="flex items-center justify-center gap-2 mb-6 text-brand-dark">
+          <div className="flex items-center gap-2 mb-6 text-brand-dark">
             <CalendarDays size={24} className="text-brand-gold"/>
             <span className="text-lg font-bold font-serif italic">Налични дати за пътуване</span>
           </div>
-          <div className="flex flex-wrap justify-center gap-3 relative z-10">
+          <div className="flex flex-wrap gap-3">
             {tour.dates?.sort().map((d: string, index: number) => (
               <span key={index} className="px-6 py-3 bg-gray-50 border border-gray-200 rounded-xl text-brand-dark font-bold text-sm shadow-sm hover:bg-brand-dark hover:text-brand-gold transition-all cursor-default">
                 {formatDate(d)}
@@ -99,9 +93,9 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
         </div>
       )}
 
-      {/* VISITED PLACES */}
+      {/* ─── VISITED PLACES ─── */}
       {tour.visitedPlaces && tour.visitedPlaces.length > 0 && (
-        <div className="bg-gradient-to-r from-[#fcf9f2] to-white p-6 sm:p-8 rounded-[2rem] border border-brand-gold/20 shadow-sm animate-in fade-in duration-700">
+        <div className="bg-gradient-to-r from-[#fcf9f2] to-white p-6 sm:p-8 rounded-[2rem] border border-brand-gold/20 shadow-sm">
           <p className="text-sm font-serif italic text-brand-dark mb-4 flex items-center gap-2">
             <span className="w-8 h-[1px] bg-brand-gold inline-block"></span>
             В тази екскурзия ще посетите:
@@ -117,7 +111,7 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
         </div>
       )}
 
-      {/* INTRO / ВПЕЧАТЛЕНИЯ */}
+      {/* ─── INTRO / ВПЕЧАТЛЕНИЯ ─── */}
       {tour.intro && (
         <div className="bg-[#fffdf5] p-8 md:p-12 rounded-[2.5rem] shadow-lg border border-brand-gold/10 relative">
           <div className="absolute top-6 left-8 text-6xl text-brand-gold/10 font-serif italic">"</div>
@@ -126,112 +120,130 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             <p className="leading-relaxed whitespace-pre-wrap text-[18px] text-gray-700 font-light relative z-10">{tour.intro}</p>
             {!isDescExpanded && <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#fffdf5] to-transparent z-20"></div>}
           </div>
-          <button
-            onClick={() => setIsDescExpanded(!isDescExpanded)}
-            className="mt-6 flex items-center gap-2 text-brand-dark hover:text-brand-gold font-bold text-xs uppercase tracking-widest transition-colors relative z-20"
-          >
+          <button onClick={() => setIsDescExpanded(!isDescExpanded)} className="mt-6 flex items-center gap-2 text-brand-dark hover:text-brand-gold font-bold text-xs uppercase tracking-widest transition-colors relative z-20">
             {isDescExpanded ? <>Скрий <ChevronUp size={14}/></> : <>Прочети цялото описание <ChevronDown size={14}/></>}
           </button>
         </div>
       )}
 
-      {/* ─── ПРОГРАМА — АКОРДЕОН ─── */}
+      {/* ─── ПРОГРАМА — НОВ ДИЗАЙН ─── */}
       {programData.length > 0 && (
-        <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
+        <div className="rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-xl bg-white">
 
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 md:px-10 py-7 border-b border-gray-100">
-            <div>
-              <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.3em] block mb-1">Ден по ден</span>
-              <h2 className="text-3xl md:text-4xl font-serif italic text-brand-dark leading-none">
-                Програма
-                <span className="text-gray-300 font-normal text-2xl ml-3">· {programData.length} {programData.length === 1 ? 'ден' : 'дни'}</span>
-              </h2>
-            </div>
-            {programData.length > 1 && (
-              <button
-                onClick={toggleAll}
-                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-brand-gold transition-colors shrink-0"
-              >
-                <ChevronsUpDown size={14}/>
-                {allOpen ? 'Скрий всички' : 'Разгъни всички'}
-              </button>
-            )}
+          {/* Section header */}
+          <div className="px-8 md:px-12 pt-9 pb-7 border-b border-gray-100 bg-gradient-to-r from-white to-[#fffdf8]">
+            <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.35em] block mb-1">Ден по ден</span>
+            <h2 className="text-3xl md:text-4xl font-serif italic text-brand-dark leading-none">
+              Програма
+              <span className="text-gray-300 font-normal text-2xl ml-3">· {programData.length} {programData.length === 1 ? 'ден' : 'дни'}</span>
+            </h2>
           </div>
 
-          {/* Accordion rows */}
-          <div className="divide-y divide-gray-50">
-            {programData.map((day: any, index: number) => {
-              const isOpen = openDays.includes(index);
-              const dayNum = day.day || index + 1;
-              const content = day.content || day.desc || '';
+          {/* Day pills selector */}
+          <div className="px-8 md:px-12 py-5 border-b border-gray-100 bg-gray-50/60 overflow-x-auto">
+            <div className="flex gap-2 min-w-max">
+              {programData.map((_: any, i: number) => (
+                <button
+                  key={i}
+                  onClick={() => goToDay(i)}
+                  className={`flex flex-col items-center gap-0.5 px-4 py-2.5 rounded-2xl font-black text-xs transition-all duration-200 border ${
+                    activeDay === i
+                      ? 'bg-brand-dark text-brand-gold border-brand-dark shadow-md scale-105'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-brand-gold/40 hover:text-brand-dark'
+                  }`}
+                >
+                  <span className={`text-[8px] uppercase tracking-widest font-bold ${activeDay === i ? 'text-brand-gold/60' : 'text-gray-300'}`}>
+                    Ден
+                  </span>
+                  <span className="text-base leading-none font-serif">{i + 1}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-              return (
-                <div key={index}>
-                  {/* Row header — always visible */}
-                  <button
-                    onClick={() => toggleDay(index)}
-                    className="w-full flex items-center gap-4 px-6 md:px-10 py-5 text-left hover:bg-[#fffdf8] transition-colors group"
-                  >
-                    {/* Day circle */}
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center font-serif font-bold text-base shrink-0 transition-all duration-300 border-2 ${
-                      isOpen
-                        ? 'bg-brand-gold text-brand-dark border-brand-gold shadow-md shadow-brand-gold/20'
-                        : 'bg-white text-brand-dark border-gray-200 group-hover:border-brand-gold group-hover:text-brand-gold'
-                    }`}>
-                      {dayNum}
-                    </div>
+          {/* Day content panel */}
+          <div className="relative overflow-hidden" style={{ minHeight: 260 }}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeDay}
+                initial={{ opacity: 0, x: direction * 40 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: direction * -40 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                className="px-8 md:px-12 py-9"
+              >
+                {(() => {
+                  const day = programData[activeDay];
+                  const dayNum = day.day || activeDay + 1;
+                  const content = day.content || day.desc || '';
+                  return (
+                    <div className="flex gap-7 md:gap-10">
+                      {/* Large day number */}
+                      <div className="flex flex-col items-center shrink-0 pt-1">
+                        <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-brand-gold flex items-center justify-center shadow-lg shadow-brand-gold/25">
+                          <span className="font-serif font-bold text-brand-dark text-2xl md:text-3xl leading-none">{dayNum}</span>
+                        </div>
+                        {/* Vertical connector */}
+                        <div className="w-px flex-1 bg-brand-gold/20 mt-3 hidden md:block" style={{ minHeight: 40 }} />
+                      </div>
 
-                    {/* Title */}
-                    <div className="flex-grow min-w-0">
-                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-0.5 transition-colors ${isOpen ? 'text-brand-gold' : 'text-gray-400'}`}>
-                        Ден {dayNum}
-                      </span>
-                      <span className={`font-bold text-base md:text-lg leading-snug transition-colors ${isOpen ? 'text-brand-gold' : 'text-brand-dark group-hover:text-brand-gold'}`}>
-                        {day.title}
-                      </span>
-                    </div>
-
-                    {/* Chevron */}
-                    <ChevronDown
-                      size={20}
-                      className={`shrink-0 transition-all duration-300 ${isOpen ? 'rotate-180 text-brand-gold' : 'text-gray-300 group-hover:text-brand-gold'}`}
-                    />
-                  </button>
-
-                  {/* Expandable content */}
-                  <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                    <div className="px-6 md:px-10 pb-7 pt-1">
-                      {/* Gold left bar + content */}
-                      <div className="ml-[3.75rem] pl-6 border-l-2 border-brand-gold/30">
-                        <p className="leading-8 text-[16px] text-gray-600 font-light whitespace-pre-line">
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-brand-gold text-[9px] font-black uppercase tracking-[0.3em] block mb-1">
+                          Ден {dayNum} от {programData.length}
+                        </span>
+                        <h3 className="text-2xl md:text-3xl font-serif italic text-brand-dark leading-tight mb-5">
+                          {day.title}
+                        </h3>
+                        <div className="h-px bg-brand-gold/20 mb-5" />
+                        <p className="text-gray-600 leading-8 text-[16px] font-light whitespace-pre-line">
                           {content}
                         </p>
                       </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })()}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
-          {/* Footer progress indicator */}
-          <div className="px-6 md:px-10 py-4 bg-gray-50 border-t border-gray-100 flex items-center gap-3">
-            <div className="flex-grow h-1 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-brand-gold rounded-full transition-all duration-500"
-                style={{ width: `${programData.length > 0 ? (openDays.length / programData.length) * 100 : 0}%` }}
-              />
+          {/* Footer: prev / progress / next */}
+          <div className="px-8 md:px-12 py-5 bg-gray-50/60 border-t border-gray-100 flex items-center gap-5">
+            <button
+              onClick={goPrev}
+              disabled={activeDay === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-brand-dark text-brand-dark font-black text-[11px] uppercase tracking-widest hover:bg-brand-dark hover:text-brand-gold transition-all disabled:opacity-25 disabled:cursor-not-allowed group shrink-0"
+            >
+              <ChevronLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+              Предишен
+            </button>
+
+            {/* Progress bar */}
+            <div className="flex-1 flex flex-col items-center gap-1">
+              <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-brand-gold rounded-full transition-all duration-400"
+                  style={{ width: `${((activeDay + 1) / programData.length) * 100}%` }}
+                />
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                {activeDay + 1} / {programData.length} {programData.length === 1 ? 'ден' : 'дни'}
+              </span>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 shrink-0">
-              {openDays.length} / {programData.length} дни
-            </span>
+
+            <button
+              onClick={goNext}
+              disabled={activeDay === programData.length - 1}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-brand-dark text-brand-gold font-black text-[11px] uppercase tracking-widest hover:bg-brand-gold hover:text-brand-dark transition-all disabled:opacity-25 disabled:cursor-not-allowed group shrink-0"
+            >
+              Следващ
+              <ChevronRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+            </button>
           </div>
         </div>
       )}
-      {/* ─── КРАЙ НА АКОРДЕОНА ─── */}
 
-      {/* ДОПЪЛНИТЕЛНА ИНФОРМАЦИЯ */}
+      {/* ─── ДОПЪЛНИТЕЛНА ИНФОРМАЦИЯ ─── */}
       {tour.generalInfo && (
         <div className="bg-white p-8 md:p-10 rounded-[3rem] shadow-xl border border-gray-100 relative">
           <h2 className="text-3xl md:text-4xl font-serif italic mb-6 text-brand-dark pl-4 border-l-4 border-brand-gold">Допълнителна информация</h2>
@@ -239,16 +251,13 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             <p className="leading-relaxed whitespace-pre-wrap text-[16px] text-gray-600 font-light">{tour.generalInfo}</p>
             {!isInfoExpanded && <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent z-20"></div>}
           </div>
-          <button
-            onClick={() => setIsInfoExpanded(!isInfoExpanded)}
-            className="mt-6 flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-widest hover:text-brand-dark transition-colors relative z-30"
-          >
+          <button onClick={() => setIsInfoExpanded(!isInfoExpanded)} className="mt-6 flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-widest hover:text-brand-dark transition-colors relative z-30">
             {isInfoExpanded ? <>Скрий информацията <ChevronUp size={14}/></> : <>Виж цялата информация <ChevronDown size={14}/></>}
           </button>
         </div>
       )}
 
-      {/* GALLERY */}
+      {/* ─── ГАЛЕРИЯ ─── */}
       {galleryImages.length > 0 && (
         <div className="space-y-6">
           <h2 className="text-3xl font-serif italic text-brand-dark pl-4 border-l-4 border-brand-gold">Галерия</h2>
@@ -269,16 +278,10 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
               );
             })}
           </div>
-
           {galleryImages.length > 2 && (
             <div className="md:hidden flex justify-center mt-4">
-              <button
-                onClick={() => setIsGalleryExpanded(!isGalleryExpanded)}
-                className="text-sm font-bold uppercase tracking-wider text-gray-500 hover:text-brand-gold flex items-center gap-1"
-              >
-                {isGalleryExpanded
-                  ? <>Скрий галерията <ChevronUp size={16}/></>
-                  : <>Виж още {galleryImages.length - 2} снимки <ChevronDown size={16}/></>}
+              <button onClick={() => setIsGalleryExpanded(!isGalleryExpanded)} className="text-sm font-bold uppercase tracking-wider text-gray-500 hover:text-brand-gold flex items-center gap-1">
+                {isGalleryExpanded ? <>Скрий галерията <ChevronUp size={16}/></> : <>Виж още {galleryImages.length - 2} снимки <ChevronDown size={16}/></>}
               </button>
             </div>
           )}

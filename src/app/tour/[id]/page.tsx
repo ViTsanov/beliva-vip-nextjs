@@ -76,10 +76,44 @@ async function getRelatedPosts(countryData: string | string[], continentData?: s
   }
 }
 
-const getRawImageUrl = (tour: any) => {
-    let rawImage = tour.img || (tour.gallery && tour.gallery[0]) || "";
-    if (rawImage && rawImage.startsWith('/')) return `${SITE_URL}${rawImage}`;
-    return rawImage || `${SITE_URL}/hero/australia.webp`;
+// Извлича най-добрия наличен URL за Facebook OG/Twitter preview
+const getRawImageUrl = (tour: any): string => {
+  // Проверява дали даденият URL е достъпен за външни ботове (FB, Twitter)
+  const isPublicUrl = (url: any): url is string => {
+    if (!url || typeof url !== 'string') return false;
+    if (!url.startsWith('http')) return false;
+    // Google Drive и lh3 изискват Google auth — не работят за OG
+    if (url.includes('drive.google.com')) return false;
+    if (url.includes('docs.google.com')) return false;
+    return true;
+  };
+
+  // 1. Основната снимка на тура
+  if (isPublicUrl(tour.img)) return tour.img;
+
+  // 2. Нов формат на галерията (galleryWithCaptions = [{url, caption}])
+  if (Array.isArray(tour.galleryWithCaptions)) {
+    for (const item of tour.galleryWithCaptions) {
+      const url = typeof item === 'string' ? item : item?.url;
+      if (isPublicUrl(url)) return url;
+    }
+  }
+
+  // 3. Стар формат (gallery = [url1, url2] — масив от стрингове)
+  if (Array.isArray(tour.gallery)) {
+    for (const item of tour.gallery) {
+      const url = typeof item === 'string' ? item : item?.url;
+      if (isPublicUrl(url)) return url;
+    }
+  }
+
+  // 4. Relative път (от /public)
+  if (tour.img && typeof tour.img === 'string' && tour.img.startsWith('/')) {
+    return `${SITE_URL}${tour.img}`;
+  }
+
+  // 5. Fallback — херо снимка от сайта (не логото!)
+  return `${SITE_URL}/hero/singapore.webp`;
 };
 
 // 1. ГЕНЕРИРАНЕ НА МЕТАДАННИ

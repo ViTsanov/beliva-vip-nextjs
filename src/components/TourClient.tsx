@@ -52,7 +52,7 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
   const galleryImages = gallery.map(g => g.url);
 
   // Проверка дали екскурзията е водена от Поли (Beliva VIP)
-  const isLedByPoli = tourData.operator === 'Beliva VIP' || tourData.categories?.includes('Водена от ПОЛИ');
+  const isLedByPoli = tourData.categories?.includes('Водена от ПОЛИ');
 
   // Favorites Logic
   useEffect(() => {

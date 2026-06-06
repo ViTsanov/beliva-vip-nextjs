@@ -469,7 +469,13 @@ export default function AdminDashboardClient() {
                 <div className="space-y-4">
                     {filteredTours.map((tour: any) => (
                         <div key={tour.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-brand-gold/5 flex flex-col md:flex-row items-center gap-6 hover:shadow-xl transition-all">
-                            <img src={tour.img} className="w-24 h-24 rounded-2xl object-cover shadow-sm" alt="" />
+                            {tour.img ? (
+                                <img src={tour.img} className="w-24 h-24 rounded-2xl object-cover shadow-sm shrink-0" alt="" />
+                            ) : (
+                                <div className="w-24 h-24 rounded-2xl bg-brand-dark/5 border border-brand-gold/15 shrink-0 flex items-center justify-center">
+                                    <span className="text-brand-gold/30 text-3xl font-serif italic">{(tour.title || '?').charAt(0)}</span>
+                                </div>
+                            )}
                             <div className="flex-grow">
                                 <h3 className="font-bold text-brand-dark leading-tight">{tour.title}</h3>
                                 <p className="text-xs text-gray-400 mt-1">{tour.country} • {tour.price}</p>
