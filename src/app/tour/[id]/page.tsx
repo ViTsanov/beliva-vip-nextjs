@@ -85,6 +85,11 @@ const getRawImageUrl = (tour: any): string => {
     // Google Drive и lh3 изискват Google auth — не работят за OG
     if (url.includes('drive.google.com')) return false;
     if (url.includes('docs.google.com')) return false;
+    // Сайтове на оператори — имат hotlink protection, блокират Facebook crawler
+    if (url.includes('webtours.bg')) return false;
+    if (url.includes('2mko.com')) return false;
+    if (url.includes('anekatravel.com')) return false;
+    if (url.includes('phoenixtours.bg')) return false;
     return true;
   };
 

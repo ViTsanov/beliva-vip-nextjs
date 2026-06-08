@@ -6,16 +6,20 @@ import { motion } from 'framer-motion';
 import { ArrowRight, MapPin } from 'lucide-react';
 
 // Страничните снимки — 8 тотал, по 2 в колона
-// Смени с реални снимки: /public/guides/poly-1.jpg ... poly-8.jpg
+// pos = CSS object-position: "X% Y%" (за X: 0%=ляво 50%=център 100%=дясно | за Y: 0%=горе 50%=среда 100%=долу)
 const SIDE_PHOTOS = [
-  { src: '/guides/poly-8.jpg', pos: 'center 10%' },
-  { src: '/guides/poly-1.jpg', pos: 'center 45%' },
-  { src: '/guides/poly-2.jpg', pos: 'center 70%' },
-  { src: '/guides/poly-3.jpg', pos: 'center 25%' },
-  { src: '/guides/poly-4.jpg', pos: 'center 55%' },
-  { src: '/guides/poly-5.jpg', pos: 'center 80%' },
-  { src: '/guides/poly-6.jpg', pos: 'center 30%' },
-  { src: '/guides/poly-7.jpg', pos: 'center 60%' },
+  // Колона 1 (най-вляво)
+  { src: '/guides/poly-8.jpg', pos: 'center 55%' },   // Великденски остров — Поли + моаита
+  { src: '/guides/poly-1.jpg', pos: 'center 48%' },   // Боливия — лице + залезът
+  // Колона 2
+  { src: '/guides/poly-2.jpg', pos: 'center 30%' },   // Дубай ATV — лице + пустиня
+  { src: '/guides/poly-3.jpg', pos: 'center 55%' },   // Сингапур орхидеи — Поли + цветя
+  // Колона 3
+  { src: '/guides/poly-4.jpg', pos: 'center 42%' },   // Австралия — лице + кенгуру
+  { src: '/guides/poly-5.jpg', pos: '65% 60%' },      // Индия, Тадж Махал — дясно на Поли + храм
+  // Колона 4 (най-вдясно)
+  { src: '/guides/poly-6.jpg', pos: '70% 50%' },      // Кариби — дясно на Поли + море
+  { src: '/guides/poly-7.jpg', pos: 'center 58%' },   // Китай стена — Поли + стена
 ];
 
 // translateY стагеринг на всяка от 4-те колони (2 снимки в колона)
