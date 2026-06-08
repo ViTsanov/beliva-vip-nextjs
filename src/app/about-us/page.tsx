@@ -4,8 +4,8 @@ import Image from 'next/image';
 import { ArrowRight, MapPin, Shield, Star, Users, Heart, Quote } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: { absolute: 'За Нас — Поли и Ива | Beliva VIP Tour' },
-  description: 'Запознайте се с Поли и Ива — хората зад Beliva VIP Tour. Над 15 години опит, над 60 дестинации и над 150 лично водени групи.',
+  title: { absolute: 'За Нас — Поли | Beliva VIP Tour' },
+  description: 'Запознайте се с Поли — човекът зад Beliva VIP Tour. Над 15 години опит, над 60 дестинации и над 150 лично водени групи.',
   alternates: { canonical: 'https://belivavip.bg/about-us' },
 };
 
@@ -26,7 +26,7 @@ const VALUES = [
   {
     icon: Heart,
     title: 'Лично отношение',
-    desc: 'Не сте номер в каталог. Поли и Ива познават своите клиенти лично и помнят предпочитанията им.',
+    desc: 'Не сте номер в каталог. Поли познава своите си клиенти лично и помни предпочитанията им.',
   },
   {
     icon: Shield,
@@ -81,7 +81,7 @@ export default function AboutPage() {
             За <span className="text-brand-gold">Нас</span>
           </h1>
           <p className="text-white/60 text-base md:text-lg max-w-lg mx-auto font-light">
-            Хората зад пътуванията — Поли и Ива
+            Пътуванията — Поли
           </p>
         </div>
       </section>
@@ -181,84 +181,6 @@ export default function AboutPage() {
                   Турове с Поли
                   <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── ИВА ── */}
-      <section className="py-24 bg-white">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
-
-            {/* Text — 7 cols (first on desktop) */}
-            <div className="lg:col-span-7 order-2 lg:order-1">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="h-px w-8 bg-teal-600" />
-                <span className="text-teal-600 text-[10px] font-black uppercase tracking-[0.3em]">
-                  Запознайте се с Ива
-                </span>
-              </div>
-
-              <h2 className="text-4xl md:text-5xl font-serif italic text-brand-dark leading-tight mb-8">
-                Ива —<br />
-                <span className="text-teal-600">Специалистът за Турция</span>
-              </h2>
-
-              <div className="space-y-5 text-gray-600 leading-relaxed text-[17px] font-light border-l-2 border-teal-600/25 pl-6">
-                <p>
-                  Ива е нашият специалист по почивки в Турция. Познава страната в детайли — от популярните курорти по Анталийското крайбрежие до по-скрити и автентични места, недостъпни за масовия турист.
-                </p>
-                <p>
-                  Ако мечтаете за перфектна почивка на Турското крайбрежие, Ива ще ви намери предложение, съобразено точно с вашите предпочитания — хотел, дати, бюджет и компания.
-                </p>
-              </div>
-
-              <div className="mt-10 flex flex-wrap gap-2">
-                {['Анталия', 'Бодрум', 'Мармарис', 'Алания', 'Сиде', 'Белек', 'Кемер'].map(dest => (
-                  <span
-                    key={dest}
-                    className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-teal-600/20 text-brand-dark"
-                  >
-                    <MapPin size={9} className="text-teal-600" />
-                    {dest}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-10">
-                <Link
-                  href="/?cat=pochivka-v-turtsiya#tours-grid"
-                  className="inline-flex items-center gap-2 bg-teal-700 text-white px-7 py-3.5 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-teal-600 transition-all group"
-                >
-                  Почивки с Ива
-                  <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </div>
-            </div>
-
-            {/* Photo — 5 cols */}
-            <div className="lg:col-span-5 relative order-1 lg:order-2">
-              <div className="relative aspect-[3/4] rounded-[3rem] overflow-hidden shadow-2xl bg-teal-900">
-                {/* Fallback — shows only if photo missing (behind the image) */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-9xl font-serif italic text-teal-400/20 select-none">И</span>
-                </div>
-                <Image
-                  src="/guides/iva.jpg"
-                  alt="Ива — специалист Турция, Beliva VIP Tour"
-                  fill
-                  className="object-cover object-top"
-                  sizes="(max-width: 1024px) 100vw, 42vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-8">
-                  <span className="text-teal-300 text-[9px] font-black uppercase tracking-widest block mb-1">
-                    🌴 Почивка в Турция
-                  </span>
-                  <span className="text-white text-xl font-serif italic">Специалист Турция</span>
-                </div>
               </div>
             </div>
           </div>

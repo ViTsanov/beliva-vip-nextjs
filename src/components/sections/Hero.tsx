@@ -43,16 +43,12 @@ const INTERVAL = 7000;
 
 export default function Hero() {
   const [current, setCurrent] = useState(0);
-  const [prev, setPrev] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setCurrent(c => {
-        setPrev(c);
-        return (c + 1) % SLIDES.length;
-      });
+      setCurrent(c => (c + 1) % SLIDES.length);
     }, INTERVAL);
   }, []);
 
@@ -63,7 +59,6 @@ export default function Hero() {
 
   const goTo = useCallback((i: number) => {
     if (i === current) return;
-    setPrev(current);
     setCurrent(i);
     startTimer();
   }, [current, startTimer]);
@@ -76,14 +71,16 @@ export default function Hero() {
       style={{ height: '100dvh', minHeight: 600 }}
     >
 
-      {/* ─── LAYER 0: images (cross-fade) ─── */}
+      {/* ─── LAYER 0: images — pure CSS transition, no framer-motion flash ─── */}
       <div className="absolute inset-0 z-0">
         {SLIDES.map((s, i) => (
-          <motion.div
+          <div
             key={s.img}
             className="absolute inset-0"
-            animate={{ opacity: i === current ? 1 : 0 }}
-            transition={{ duration: 1.4, ease: 'easeInOut' }}
+            style={{
+              opacity: i === current ? 1 : 0,
+              transition: 'opacity 1.4s ease-in-out',
+            }}
           >
             <Image
               src={s.img}
@@ -96,7 +93,7 @@ export default function Hero() {
               quality={90}
               fetchPriority={i === 0 ? 'high' : 'auto'}
             />
-          </motion.div>
+          </div>
         ))}
       </div>
 
