@@ -39,6 +39,7 @@ export interface ITour {
   roomCombo?: string;      // Комбинация стаи (напр. "Мъж/Жена", "2+2", "Само жени")
   date: string;
   dates?: string[];
+  datePrices?: Record<string, string>; // { "YYYY-MM-DD": "цена" } — цена по дата за екскурзии с различни цени
   duration?: string;
   nights?: string | number;
   route?: string; // 👈 Добавено

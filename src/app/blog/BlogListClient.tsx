@@ -67,7 +67,7 @@ function PostCard({ post, featured = false }: { post: BlogPost; featured?: boole
               )}
             </div>
           </div>
-          <div className="bg-brand-dark text-white p-10 lg:p-14 flex flex-col justify-center gap-4">
+          <div className="bg-brand-dark text-white p-6 sm:p-10 lg:p-14 flex flex-col justify-center gap-4">
             <div className="flex items-center gap-3 text-brand-gold/70 text-[10px] font-bold uppercase tracking-widest">
               <Calendar size={12} /><span>{date}</span>
               {post.readTime && <><span className="text-white/20">·</span><Clock size={12} /><span>{post.readTime} мин.</span></>}

@@ -101,6 +101,27 @@ export default function AdminDashboardClient() {
 
   const router = useRouter();
 
+  const [autoProcessStatus, setAutoProcessStatus] = useState('');
+  const [isAutoProcessing, setIsAutoProcessing] = useState(false);
+  const [automationCountries, setAutomationCountries] = useState<string[]>([]);
+  const [automationCountryInput, setAutomationCountryInput] = useState('');
+  const [automationLimit, setAutomationLimit] = useState<number | null>(3); // Ограничава броя турове на пускане; null = без лимит
+
+  // Зареждаме запазените държави от localStorage при отваряне
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('automationCountries');
+      if (saved) setAutomationCountries(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  // Запазваме при всяка промяна
+  useEffect(() => {
+    try {
+      localStorage.setItem('automationCountries', JSON.stringify(automationCountries));
+    } catch {}
+  }, [automationCountries]);
+
   useEffect(() => {
     const unsubAuth = auth.onAuthStateChanged((user) => {
         if (user) {
@@ -308,6 +329,7 @@ export default function AdminDashboardClient() {
         if (activeTab === 'archived') {
             if (archivedSubTab === 'drafts') return t.status === 'draft';
             if (archivedSubTab === 'archived') return t.status === 'archived';
+            if (archivedSubTab === 'pending') return t.status === 'pending';
         }
         return false;
     });
@@ -346,6 +368,255 @@ export default function AdminDashboardClient() {
 
   const inputClass = "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-brand-gold focus:ring-4 focus:ring-brand-gold/5 transition-all text-brand-dark font-medium placeholder:text-gray-300 shadow-sm";
   const labelClass = "text-[10px] font-black uppercase text-gray-400 tracking-[0.15em] ml-2 mb-2 block";
+
+// ==========================================
+  // АВТОМАТИЧНА МАШИНА ЗА ЕКСКУРЗИИ
+  // ==========================================
+  const runTourAutomation = async () => {
+    if (automationCountries.length === 0) {
+      alert('Първо добави поне една държава за сканиране.');
+      return;
+    }
+    if (!confirm(`Започваме сканиране на 2mko за: ${automationCountries.join(', ')}. Това може да отнеме няколко минути. Продължаваме ли?`)) return;
+    
+    setIsAutoProcessing(true);
+    setAutoProcessStatus('Разузнавачът търси нови линкове...');
+
+    try {
+      // 1. Скаутът търси нови екскурзии в ИЗБРАНИТЕ от теб държави
+      const scoutRes = await fetch('/api/scout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ countries: automationCountries })
+      });
+      const scoutData = await scoutRes.json();
+
+      if (!scoutData.newLinks || scoutData.newLinks.length === 0) {
+        setAutoProcessStatus('Няма нови екскурзии за тези държави.');
+        setTimeout(() => setAutoProcessStatus(''), 3000);
+        setIsAutoProcessing(false);
+        return;
+      }
+
+      // Ограничаваме броя турове, ако е зададен automationLimit (за безопасен тест)
+      const linksToProcess = automationLimit
+        ? scoutData.newLinks.slice(0, automationLimit)
+        : scoutData.newLinks;
+
+      // 2. Взимаме всички снимки от библиотеката веднъж, за да не правим заявки за всяка екскурзия
+      const mediaSnap = await getDocs(collection(db, "media"));
+      const allMedia = mediaSnap.docs.map(doc => doc.data());
+
+      // 3. Обработваме всяка нова екскурзия ЕДНА ПО ЕДНА (ограничена до linksToProcess)
+      let successCount = 0;
+      for (let i = 0; i < linksToProcess.length; i++) {
+        const linkObj = linksToProcess[i];
+        setAutoProcessStatus(`Обработка ${i + 1} от ${linksToProcess.length}: ${linkObj.title}...`);
+
+        try {
+          // А) Извличаме суровия текст
+          const scrapeRes = await fetch('/api/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: linkObj.url })
+          });
+          const scrapedData = await scrapeRes.json();
+
+          // Б) Пращаме на GPT-4o за пренаписване
+          setAutoProcessStatus(`GPT-4o пише текст за: ${linkObj.countryMatched}...`);
+          const aiRes = await fetch('/api/ai-format-tour', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scrapedData })
+          });
+          const aiData = await aiRes.json();
+          if (!aiData.success) throw new Error("AI грешка");
+
+          let finalTour = aiData.tour;
+
+          // ФАЛБЕК: ако AI не върне country (празен масив ␸ли липсва), използваме държавата,
+          // която САМИЯТ ти вече избра в панела (linkObj.countryMatched) — това е надежден източник.
+          // Без това цялата логика за избор на снимки по-долу се прескача, защото работи с finalTour.country
+          if (!finalTour.country || !Array.isArray(finalTour.country) || finalTour.country.length === 0) {
+            finalTour.country = linkObj.countryMatched ? [linkObj.countryMatched] : [];
+          } else if (linkObj.countryMatched && !finalTour.country.some((c: string) => c.toLowerCase() === linkObj.countryMatched.toLowerCase())) {
+            // AI е намерило други/допълнителни държави — добавяме и избраната, ако липсва
+            finalTour.country = [linkObj.countryMatched, ...finalTour.country];
+          }
+
+          // В) Умният Арт Директор: Избира снимки
+          // Правила:
+          // - Hero: снимка с име "<Държава> hero" (напр. "Япония hero")
+          // - Галерия: 6 СЛУЧАЙНИ снимки; при няколко държави — поравно от всяка;
+          //   ако за някоя държава няма снимки, квотата й се прехвърля към държавите със снимки
+          // - Ако няма НИКАКВИ снимки — не слагаме нищо (img и gallery остават празни)
+          const shuffle = (arr: any[]) => [...arr].sort(() => Math.random() - 0.5);
+
+          let heroImg = '';
+          let selectedImages: any[] = [];
+
+          if (finalTour.country && Array.isArray(finalTour.country) && finalTour.country.length > 0) {
+            // Винаги проверяваме ПЪРВО избраната в панела държава (linkObj.countryMatched) — тя е най-надеждната,
+            // тъй като ти лично я избра в автоматизацията; AI може да е добавило други държави след
+            const countrySearchOrder = [
+              linkObj.countryMatched,
+              ...finalTour.country.filter((c: string) => c?.toLowerCase() !== linkObj.countryMatched?.toLowerCase())
+            ].filter(Boolean);
+
+            // 1. HERO: събираме ВСИЧКИ съвпадащи hero снимки за държавата и избираме СЛУЧАЙНА —
+            // така различните турове за същата държава получават различни главни снимки
+            for (const c of countrySearchOrder) {
+              const cLower = c.toLowerCase();
+              const heroCandidates = allMedia.filter(m => {
+                if (!m.name) return false;
+                const n = m.name.toLowerCase();
+                return n.includes(cLower) && n.includes('hero');
+              });
+              if (heroCandidates.length > 0) {
+                heroImg = heroCandidates[Math.floor(Math.random() * heroCandidates.length)].url;
+                break;
+              }
+            }
+
+            // 2. ГАЛЕРИЯ: групираме наличните снимки по държава (без hero снимките), също по-гъвкаво съвпадане
+            const mediaByCountry: Record<string, any[]> = {};
+            countrySearchOrder.forEach((c: string) => {
+              const cLower = c.toLowerCase();
+              const matched = allMedia.filter(m => {
+                if (!m.name) return false;
+                const n = m.name.toLowerCase();
+                return n.includes(cLower) && !n.includes('hero');
+              });
+              if (matched.length > 0) mediaByCountry[c] = shuffle(matched);
+            });
+
+            const countriesWithImages = Object.keys(mediaByCountry);
+
+            if (countriesWithImages.length > 0) {
+              // Разпределяме квотата от 6 снимки между държавите СЪС снимки
+              // Първи пас: поравно; втори пас: остатъкът отива където има още налични
+              const target = 6;
+              const picked: any[] = [];
+              const pools = countriesWithImages.map(c => [...mediaByCountry[c]]);
+
+              // Round-robin: взимаме по 1 от всяка държава докато стигнем 6 или свършат
+              let poolIdx = 0;
+              let emptyRounds = 0;
+              while (picked.length < target && emptyRounds < pools.length) {
+                const pool = pools[poolIdx % pools.length];
+                if (pool.length > 0) {
+                  const media = pool.shift();
+                  picked.push({ url: media.url, alt: media.name });
+                  emptyRounds = 0;
+                } else {
+                  emptyRounds++;
+                }
+                poolIdx++;
+              }
+
+              selectedImages = shuffle(picked); // разбъркваме финалния ред
+            }
+          }
+
+          // ВАЖНО: сайтът (TourClient) чете 'galleryWithCaptions' с ключ 'caption' — не 'gallery' с 'alt'!
+          finalTour.galleryWithCaptions = selectedImages.map((s: any) => ({ url: s.url, caption: s.alt || '' }));
+          finalTour.images = selectedImages.map((s: any) => s.url).join(', '); // legacy поле за съвместимост
+          if (heroImg) finalTour.img = heroImg;
+          // Ако няма hero снимка, но има галерия — първата от галерията става главна
+          else if (selectedImages.length > 0) finalTour.img = selectedImages[0].url;
+          // Ако няма никакви снимки — img остава празно (не слагаме нищо)
+
+          // ДЕБАГ в конзолата — помага веднага дали снимките са намерени или защо не
+          console.log(`[СНИМКИ] ${finalTour.title}: country=${JSON.stringify(finalTour.country)}, hero=${heroImg ? ('✓ ' + heroImg) : '✗'}, галерия=${selectedImages.length} снимки`);
+          if (!heroImg || selectedImages.length === 0) {
+            // Ако нещо липсва, показваме ВСИЧКИ имена в библиотеката, за да се види точно как са кръстени
+            console.log(`[СНИМКИ] Всички имена в библиотеката (${allMedia.length}): ${allMedia.map((m: any) => m.name).join(', ')}`);
+          }
+
+          // Г) КОНВЕРСИЯ: AI формат → формат на сайта
+          // AI връща масиви (includes/excludes/docs/info), сайтът очаква стрингове с нови редове
+          const joinArr = (arr: any) => Array.isArray(arr) ? arr.join('\n') : (arr || '');
+
+          // Генерираме tourId: countrySlug-MM-YYYY-N
+          const firstCountry = Array.isArray(finalTour.country) ? finalTour.country[0] : finalTour.country;
+          const countrySlug = slugify(firstCountry || 'tour');
+          const now = new Date();
+          const mm = String(now.getMonth() + 1).padStart(2, '0');
+          const yyyy = now.getFullYear();
+          const sameCountry = allTours.filter((t: any) => t.tourId?.startsWith(`${countrySlug}-${mm}-${yyyy}`));
+          const genTourId = `${countrySlug}-${mm}-${yyyy}-${sameCountry.length + 1}`;
+
+          const tourDoc: any = {
+            title: finalTour.title || linkObj.title,
+            intro: finalTour.intro || '',
+            country: finalTour.country || [linkObj.countryMatched],
+            price: finalTour.price || '',
+            duration: finalTour.days ? String(finalTour.days) : '',
+            nights: finalTour.nights ? String(finalTour.nights) : '',
+            route: finalTour.route || '',
+            // ВАЖНО: сайтът (TourTabs) и TourForm четат поле 'itinerary' с ключ 'content' —
+            // AI връща 'program' с 'description', затова мапваме тук.
+            // Също почистваме евентуален префикс "1 ДЕН – 28.08.2026" от описанието (дублира заглавието)
+            itinerary: (finalTour.program || []).map((p: any, idx: number) => {
+              let content = p.description || p.content || '';
+              // Махаме водещ "N ден" / "N-ти ДЕН" + евентуална дата от началото на текста
+              content = content.replace(/^\s*\d{1,2}\s*(?:-?\s*(?:ви|ри|ти|ми|ва))?\s*ден\s*[–\-—]?\s*(?:\d{2}\.\d{2}\.\d{4})?\s*[–\-—:]?\s*/i, '');
+              return {
+                day: p.day || idx + 1,
+                title: p.title || `Ден ${p.day || idx + 1}`,
+                content
+              };
+            }),
+            included: joinArr(finalTour.includes),
+            notIncluded: joinArr(finalTour.excludes),
+            documents: joinArr(finalTour.docs),
+            generalInfo: joinArr(finalTour.info),
+            img: finalTour.img || '',
+            galleryWithCaptions: finalTour.galleryWithCaptions || [],
+            images: finalTour.images || '',
+            tourId: genTourId,
+            slug: genTourId,
+            operator: '2МКО',
+            date: '', // датите се добавят ръчно при одобрение (или от scraped dates ако има)
+            dates: [],
+            categories: [],
+            originalUrl: linkObj.url, // ЗА ДЕДУПЛИКАЦИЯ — за да не го теглим пак утре
+            externalSourceLink: linkObj.url, // СЪЩОТО, НО за "Провери с бот" полето в TourForm — за да е предпопълнено при редактиране
+            status: 'pending', // СТАТУС ЧАКАЩА!
+            createdAt: serverTimestamp()
+          };
+
+          // Ако scrape-ът е намерил дати — вземаме ги
+          if (scrapedData.dates && scrapedData.dates.length > 0) {
+            tourDoc.dates = scrapedData.dates;
+            tourDoc.date = scrapedData.dates[0];
+          }
+
+          // Д) Записваме във Firebase като PENDING!
+          setAutoProcessStatus(`Записване на ${tourDoc.title} в базата...`);
+          await addDoc(collection(db, "tours"), tourDoc);
+
+          successCount++;
+        } catch (err) {
+          console.error("Грешка при обработка на", linkObj.url, err);
+          // Продължаваме със следващата, ако тази гръмне
+        }
+      }
+
+      setAutoProcessStatus(`Готово! Успешно автоматизирахме ${successCount} екскурзии${automationLimit ? ` (ограничено до ${automationLimit})` : ''}.`);
+      setTimeout(() => setAutoProcessStatus(''), 5000);
+      
+      // onSnapshot listener-ът автоматично ще покаже новите турове — не трябва ръчно опресняване
+
+    } catch (err) {
+      console.error(err);
+      setAutoProcessStatus('Грешка в автоматизацията.');
+      setTimeout(() => setAutoProcessStatus(''), 3000);
+    }
+    
+    setIsAutoProcessing(false);
+  };
+
 
   return (
     <div className="flex min-h-screen bg-[#fcfaf7] text-left">
@@ -498,9 +769,132 @@ export default function AdminDashboardClient() {
         {activeTab === 'archived' && (
             <div className="space-y-6 animate-in fade-in">
                 <div className="flex flex-wrap gap-2 bg-white rounded-2xl p-2 shadow-sm border border-gray-100 w-fit mb-4">
+                    <button onClick={() => setArchivedSubTab('pending')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${archivedSubTab === 'pending' ? 'bg-brand-gold text-brand-dark shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>
+                        Чакащи одобрение ({allTours.filter((t: any) => t.status === 'pending').length})
+                    </button>
                     <button onClick={() => setArchivedSubTab('drafts')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${archivedSubTab === 'drafts' ? 'bg-brand-dark text-white shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>Чакащи промени (Чернови/XML)</button>
                     <button onClick={() => setArchivedSubTab('archived')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${archivedSubTab === 'archived' ? 'bg-brand-dark text-white shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>Архивирани (Стари)</button>
                 </div>
+
+                {/* АВТОМАТИЗАЦИЯ — панел видим само в "Чакащи одобрение" */}
+                {archivedSubTab === 'pending' && (
+                  <div className="bg-brand-dark rounded-[2.5rem] p-8 shadow-xl space-y-5">
+                    <div>
+                      <h3 className="text-brand-gold font-serif italic text-xl mb-1">Автоматична машина за екскурзии</h3>
+                      <p className="text-white/50 text-xs">Добави държави една по една и натисни Старт. Новите турове се появяват тук за одобрение.</p>
+                    </div>
+
+                    {/* Избрани държави */}
+                    <div className="flex flex-wrap gap-2">
+                      {automationCountries.map(c => (
+                        <span key={c} className="bg-brand-gold/20 border border-brand-gold/40 text-brand-gold px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2">
+                          {c}
+                          <button onClick={() => setAutomationCountries(automationCountries.filter(x => x !== c))} className="hover:text-white transition-colors"><X size={14}/></button>
+                        </span>
+                      ))}
+                      {automationCountries.length === 0 && <span className="text-white/30 text-sm italic">Няма избрани държави</span>}
+                    </div>
+
+                    {/* Добавяне на държава + старт */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input
+                        type="text"
+                        placeholder="Държава на български (напр. Япония)"
+                        value={automationCountryInput}
+                        onChange={e => setAutomationCountryInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && automationCountryInput.trim()) {
+                            const c = automationCountryInput.trim();
+                            if (!automationCountries.includes(c)) setAutomationCountries([...automationCountries, c]);
+                            setAutomationCountryInput('');
+                          }
+                        }}
+                        className="flex-1 bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-white placeholder:text-white/30 outline-none focus:border-brand-gold transition-colors"
+                        disabled={isAutoProcessing}
+                      />
+                      <button
+                        onClick={() => {
+                          const c = automationCountryInput.trim();
+                          if (c && !automationCountries.includes(c)) {
+                            setAutomationCountries([...automationCountries, c]);
+                            setAutomationCountryInput('');
+                          }
+                        }}
+                        disabled={isAutoProcessing}
+                        className="bg-white/10 border border-white/20 text-white px-6 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all disabled:opacity-40"
+                      >
+                        + Добави
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (automationCountries.length === 0) { alert('Добави поне една държава.'); return; }
+                          setIsAutoProcessing(true);
+                          setAutoProcessStatus('Проверка за нови екскурзии...');
+                          try {
+                            const res = await fetch('/api/scout', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ countries: automationCountries })
+                            });
+                            const data = await res.json();
+                            const count = data.totalNewFound || 0;
+                            setAutoProcessStatus(count > 0
+                              ? `Намерени ${count} нови екскурзии! Натисни "Стартирай сканиране" за да ги обработиш.`
+                              : 'Няма нови екскурзии за избраните държави.');
+                            setTimeout(() => setAutoProcessStatus(''), 8000);
+                          } catch {
+                            setAutoProcessStatus('Грешка при проверката.');
+                            setTimeout(() => setAutoProcessStatus(''), 3000);
+                          }
+                          setIsAutoProcessing(false);
+                        }}
+                        disabled={isAutoProcessing || automationCountries.length === 0}
+                        className="bg-white/10 border border-brand-gold/40 text-brand-gold px-6 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-brand-gold/20 transition-all disabled:opacity-40"
+                      >
+                        Провери за нови
+                      </button>
+                      <button
+                        onClick={runTourAutomation}
+                        disabled={isAutoProcessing || automationCountries.length === 0}
+                        className="bg-brand-gold text-brand-dark px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
+                      >
+                        {isAutoProcessing ? 'Работи...' : 'Стартирай сканиране'}
+                      </button>
+                    </div>
+
+                    {/* Лимит на туровете за пускане — безопасен начин за тестване */}
+                    <div className="flex items-center gap-3 pt-1">
+                      <span className="text-white/40 text-[10px] font-black uppercase tracking-widest">Лимит на турове на пускане:</span>
+                      <div className="flex gap-2">
+                        {[3, 5, 10].map(n => (
+                          <button
+                            key={n}
+                            onClick={() => setAutomationLimit(n)}
+                            disabled={isAutoProcessing}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${automationLimit === n ? 'bg-brand-gold text-brand-dark' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setAutomationLimit(null)}
+                          disabled={isAutoProcessing}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${automationLimit === null ? 'bg-red-500/80 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
+                        >
+                          Без лимит
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Статус */}
+                    {autoProcessStatus && (
+                      <div className="bg-brand-gold/10 border border-brand-gold/30 rounded-2xl px-5 py-4 text-brand-gold text-sm font-medium flex items-center gap-3">
+                        {isAutoProcessing && <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-brand-gold shrink-0" />}
+                        {autoProcessStatus}
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 <SearchBar value={searchTour} onChange={setSearchTour} placeholder="Търси екскурзия..." />
                 

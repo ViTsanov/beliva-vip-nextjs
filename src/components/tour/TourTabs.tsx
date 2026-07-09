@@ -18,8 +18,41 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
   const [activeDay, setActiveDay] = useState(0);
   const [direction, setDirection] = useState(1); // 1 = forward, -1 = backward
 
-  const hasMultipleDates = tour.dates && tour.dates.length > 1;
-  const formatDate = (dateStr: string) => dateStr.split('-').reverse().join('.');
+  // Универсална нормализация — всички формати → YYYY-MM-DD
+  const normDate = (d: any): string | null => {
+    if (!d) return null;
+    if (typeof d === 'object' && typeof d.toDate === 'function') return d.toDate().toISOString().split('T')[0];
+    if (typeof d === 'object' && d.seconds) return new Date(d.seconds * 1000).toISOString().split('T')[0];
+    const str = String(d).trim();
+    const clean = str.split('T')[0];
+    const sep = clean.includes('-') ? '-' : clean.includes('/') ? '/' : clean.includes('.') ? '.' : null;
+    if (!sep) return null;
+    const parts = clean.split(sep).map((p: string) => p.trim());
+    if (parts.length !== 3) return null;
+    const [a, b, c] = parts;
+    if (a.length === 4) return `${a}-${b.padStart(2,'0')}-${c.padStart(2,'0')}`;
+    if (c.length === 4) return `${c}-${b.padStart(2,'0')}-${a.padStart(2,'0')}`;
+    return null;
+  };
+  // Отскан резултат: DD.MM.YYYY
+  const displayDate = (d: any): string => {
+    const iso = normDate(d);
+    if (!iso) return String(d); // ако не може да обработи, връща сурово
+    return iso.split('-').reverse().join('.');
+  };
+
+  // Сортира всички дати — нормализирани като YYYY-MM-DD, хронологично
+  const allDatesISO: string[] = (() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const d of [...(tour.dates || []), ...(tour.date ? [tour.date] : [])]) {
+      const iso = normDate(d);
+      if (iso && !seen.has(iso)) { seen.add(iso); result.push(iso); }
+    }
+    return result.sort();
+  })();
+
+  const hasMultipleDates = allDatesISO.length > 1;
   const programData = tour.itinerary || tour.program || [];
   const isPromoActive = tour.isPromo && tour.discountPrice;
 
@@ -40,7 +73,7 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
           <div className="bg-white p-5 rounded-3xl shadow-xl border-b-4 border-brand-dark group hover:-translate-y-1 transition-all">
             <div className="mb-2 text-gray-400 group-hover:text-brand-gold transition-colors"><Calendar size={24}/></div>
             <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1">Дата</p>
-            <p className="font-bold text-brand-dark text-sm md:text-lg">{tour.date}</p>
+            <p className="font-bold text-brand-dark text-sm md:text-lg">{displayDate(tour.date)}</p>
           </div>
         )}
         <div className={`bg-white p-5 rounded-3xl shadow-xl border-b-4 border-brand-dark group hover:-translate-y-1 transition-all ${hasMultipleDates ? 'md:col-span-2' : ''}`}>
@@ -83,13 +116,47 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             <CalendarDays size={24} className="text-brand-gold"/>
             <span className="text-lg font-bold font-serif italic">Налични дати за пътуване</span>
           </div>
-          <div className="flex flex-wrap gap-3">
-            {tour.dates?.sort().map((d: string, index: number) => (
-              <span key={index} className="px-6 py-3 bg-gray-50 border border-gray-200 rounded-xl text-brand-dark font-bold text-sm shadow-sm hover:bg-brand-dark hover:text-brand-gold transition-all cursor-default">
-                {formatDate(d)}
-              </span>
-            ))}
-          </div>
+
+          {/* Ако има datePrices — покажи таблица дата/цена */}
+          {tour.datePrices && Object.keys(tour.datePrices).length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left text-[10px] font-black uppercase tracking-widest text-gray-400 pb-3">Дата</th>
+                    <th className="text-right text-[10px] font-black uppercase tracking-widest text-gray-400 pb-3">Цена</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDatesISO.map((iso) => (
+                    <tr key={iso} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+                      <td className="py-3">
+                        <span className="font-bold text-brand-dark text-base">{displayDate(iso)}</span>
+                      </td>
+                      <td className="py-3 text-right">
+                        {tour.datePrices?.[iso] ? (
+                          <span className="font-bold text-brand-gold text-base bg-brand-gold/10 px-3 py-1 rounded-lg">
+                            {tour.datePrices[iso]}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">{tour.price}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* Само дати — стандартен изглед */
+            <div className="flex flex-wrap gap-3">
+              {allDatesISO.map((iso, index) => (
+                <span key={index} className="px-6 py-3 bg-gray-50 border border-gray-200 rounded-xl text-brand-dark font-bold text-sm shadow-sm hover:bg-brand-dark hover:text-brand-gold transition-all cursor-default">
+                  {displayDate(iso)}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -131,7 +198,7 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
         <div className="rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-xl bg-white">
 
           {/* Section header */}
-          <div className="px-8 md:px-12 pt-9 pb-7 border-b border-gray-100 bg-gradient-to-r from-white to-[#fffdf8]">
+          <div className="px-4 sm:px-8 md:px-12 pt-9 pb-7 border-b border-gray-100 bg-gradient-to-r from-white to-[#fffdf8]">
             <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.35em] block mb-1">Ден по ден</span>
             <h2 className="text-3xl md:text-4xl font-serif italic text-brand-dark leading-none">
               Програма
@@ -140,7 +207,7 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
           </div>
 
           {/* Day pills selector */}
-          <div className="px-8 md:px-12 py-5 border-b border-gray-100 bg-gray-50/60 overflow-x-auto">
+          <div className="px-3 sm:px-8 md:px-12 py-4 border-b border-gray-100 bg-gray-50/60 overflow-x-auto scrollbar-hide">
             <div className="flex gap-2 min-w-max">
               {programData.map((_: any, i: number) => (
                 <button
@@ -170,7 +237,7 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: direction * -40 }}
                 transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className="px-8 md:px-12 py-9"
+                className="px-4 sm:px-8 md:px-12 py-6 md:py-9"
               >
                 {(() => {
                   const day = programData[activeDay];
@@ -208,7 +275,7 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
           </div>
 
           {/* Footer: prev / progress / next */}
-          <div className="px-8 md:px-12 py-5 bg-gray-50/60 border-t border-gray-100 flex items-center gap-5">
+          <div className="px-4 sm:px-8 md:px-12 py-5 bg-gray-50/60 border-t border-gray-100 flex items-center gap-3 sm:gap-5">
             <button
               onClick={goPrev}
               disabled={activeDay === 0}

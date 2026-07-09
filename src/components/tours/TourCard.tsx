@@ -16,16 +16,23 @@ interface TourCardProps {
 
 export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: TourCardProps) {
   const getAllDates = () => {
-    // Normalize any date string to YYYY-MM-DD, stripping time part
-    const normalize = (d: string): string | null => {
+    // Универсална нормализация — обработва всички познати формати на дати → YYYY-MM-DD
+    const normalize = (d: any): string | null => {
       if (!d) return null;
-      const clean = d.split('T')[0]; // strip ISO time part e.g. "2025-05-15T00:00:00Z" → "2025-05-15"
-      const parts = clean.split('-');
+      // Firestore Timestamp обекти
+      if (typeof d === 'object' && typeof d.toDate === 'function') return d.toDate().toISOString().split('T')[0];
+      if (typeof d === 'object' && d.seconds) return new Date(d.seconds * 1000).toISOString().split('T')[0];
+      const str = String(d).trim();
+      const clean = str.split('T')[0]; // махни време (напр. 2026-04-07T00:00:00Z)
+      // Определи разделителя
+      const sep = clean.includes('-') ? '-' : clean.includes('/') ? '/' : clean.includes('.') ? '.' : null;
+      if (!sep) return null;
+      const parts = clean.split(sep).map((p: string) => p.trim());
       if (parts.length !== 3) return null;
-      // DD-MM-YYYY → YYYY-MM-DD
-      if (parts[0].length === 2) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-      // Already YYYY-MM-DD
-      return clean;
+      const [a, b, c] = parts;
+      if (a.length === 4) return `${a}-${b.padStart(2,'0')}-${c.padStart(2,'0')}`; // YYYY-MM-DD
+      if (c.length === 4) return `${c}-${b.padStart(2,'0')}-${a.padStart(2,'0')}`; // DD.MM.YYYY / DD/MM/YYYY
+      return null;
     };
 
     const seen = new Set<string>();
@@ -39,7 +46,7 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
       }
     }
 
-    return result.sort();
+    return result.sort(); // YYYY-MM-DD сортира правилно хронологично
   };
 
   const allDatesISO = getAllDates();
@@ -183,7 +190,29 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
                 <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase mb-1">
                     <Calendar size={14} className="text-brand-gold" /><span>Дати на отпътуване:</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+
+                {/* Таблица дата-цена — показва се само ако екскурзията има datePrices */}
+                {tour.datePrices && Object.keys(tour.datePrices).length > 0 ? (
+                  <div className="flex flex-col gap-1 mt-0.5">
+                    {allDatesISO.slice(0, 4).map((isoDate) => (
+                      <div key={isoDate} className="flex items-center justify-between gap-3 py-1 border-b border-gray-50 last:border-0">
+                        <span className="text-[13px] font-bold text-brand-dark">
+                          {formatISOtoDisplay(isoDate)}
+                        </span>
+                        {tour.datePrices?.[isoDate] && (
+                          <span className="text-[12px] font-bold text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-md">
+                            {tour.datePrices[isoDate]}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {allDatesISO.length > 4 && (
+                      <span className="text-[11px] text-gray-400 font-bold">+{allDatesISO.length - 4} още</span>
+                    )}
+                  </div>
+                ) : (
+                  /* Стандартен изглед — само дати */
+                  <div className="flex flex-wrap gap-2">
                     {allDatesISO.slice(0, 3).map((isoDate, idx) => (
                         <span key={idx} className="text-[15px] font-bold text-brand-dark bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
                             {formatISOtoDisplay(isoDate)}
@@ -192,7 +221,8 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli }: T
                     {allDatesISO.length > 3 && (
                         <span className="text-[12px] font-bold text-gray-400 self-center">+{allDatesISO.length - 3}</span>
                     )}
-                </div>
+                  </div>
+                )}
                 </div>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shrink-0 mt-2 ${isLedByPoli ? 'bg-brand-gold text-white shadow-md' : 'bg-brand-gold/10 text-brand-gold group-hover:bg-brand-gold group-hover:text-white'}`}>
                     <ArrowRight size={20} />

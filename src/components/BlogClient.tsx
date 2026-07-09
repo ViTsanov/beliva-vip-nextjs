@@ -177,7 +177,7 @@ export default function BlogClient({ post }: { post: any }) {
             )}
 
             {post.excerpt && (
-              <div className="mb-8 p-8 bg-[#fffdf5] rounded-3xl border-l-4 border-brand-gold">
+              <div className="mb-8 p-5 md:p-8 bg-[#fffdf5] rounded-3xl border-l-4 border-brand-gold">
                  <p className="text-xl md:text-2xl text-brand-dark font-serif italic leading-relaxed opacity-90">
                      "{post.excerpt}"
                  </p>

@@ -146,7 +146,7 @@ export default function ContactClient() {
       />
       
       {/* HERO SECTION */}
-      <section className="relative h-[60vh] flex items-center justify-center bg-brand-dark overflow-hidden">
+      <section className="relative h-[40vh] md:h-[60vh] flex items-center justify-center bg-brand-dark overflow-hidden">
         <div className="absolute inset-0 bg-black/40 z-10" />
         <img 
           src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80" 
@@ -169,11 +169,11 @@ export default function ContactClient() {
       </section>
 
       {/* CONTENT SECTION */}
-      <section className="py-24 container mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
+      <section className="py-12 md:py-24 container mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20">
           
           {/* ЛЯВА КОЛОНА: ИНФОРМАЦИЯ (БЕЗ АДРЕС) */}
-          <div className="space-y-12">
+          <div className="space-y-8 md:space-y-12">
             <div>
               <h2 className="text-4xl font-serif text-brand-dark mb-6 italic">Контакти</h2>
               <p className="text-gray-500 font-light text-lg max-w-md">
@@ -232,7 +232,7 @@ export default function ContactClient() {
           {/* ДЯСНА КОЛОНА: ФОРМА */}
           <div className="relative">
             <div className="absolute -top-10 -right-10 w-64 h-64 bg-brand-gold/5 rounded-full -z-10 animate-pulse" />
-            <div className="bg-white p-8 md:p-12 rounded-[4rem] shadow-2xl border border-gray-50">
+            <div className="bg-white p-6 md:p-12 rounded-[3rem] md:rounded-[4rem] shadow-2xl border border-gray-50">
               <h3 className="text-3xl font-serif italic mb-8 text-brand-dark text-center lg:text-left">Изпратете ни Запитване</h3>
               
               {status === 'success' ? (

@@ -79,14 +79,22 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
           {tour.title}
         </h1>
 
-        {/* МАРШРУТ - С леко подобрен премиум дизайн */}
+        {/* МАРШРУТ — скрит на mobile (бута заглавието), видимен само на md+ — или показан като truncate с max-w */}
         {tour.route && (
-           <div className="flex items-center gap-3 text-brand-gold bg-black/40 backdrop-blur-md px-6 py-3.5 rounded-full border border-brand-gold/30 animate-in slide-in-from-bottom duration-1000 delay-200 fade-in shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-              <MapPin size={18} className="opacity-90" />
-              <span className="font-bold tracking-[0.2em] uppercase text-[11px] md:text-xs">
+           <div className="hidden md:flex items-center gap-3 text-brand-gold bg-black/40 backdrop-blur-md px-6 py-3.5 rounded-full border border-brand-gold/30 animate-in slide-in-from-bottom duration-1000 delay-200 fade-in shadow-[0_10px_30px_rgba(0,0,0,0.5)] max-w-[90vw]">
+              <MapPin size={18} className="opacity-90 shrink-0" />
+              <span className="font-bold tracking-[0.2em] uppercase text-[11px] md:text-xs truncate">
                 {tour.route}
               </span>
            </div>
+        )}
+
+        {/* МАРШРУТ mobile — много по-компактен пил, видимен само на mobile */}
+        {tour.route && (
+          <div className="flex md:hidden items-center gap-2 text-brand-gold/80 bg-black/30 backdrop-blur-md px-4 py-2 rounded-full border border-brand-gold/20 max-w-[85vw]">
+            <MapPin size={13} className="opacity-80 shrink-0" />
+            <span className="font-bold uppercase text-[10px] truncate">{tour.route}</span>
+          </div>
         )}
       </div>
     </div>

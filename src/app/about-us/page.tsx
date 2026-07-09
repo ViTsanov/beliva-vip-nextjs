@@ -77,7 +77,7 @@ export default function AboutPage() {
             <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.35em]">Beliva VIP Tour</span>
             <div className="h-px w-12 bg-brand-gold" />
           </div>
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif italic text-white mb-4 leading-tight">
+          <h1 className="text-4xl md:text-7xl lg:text-8xl font-serif italic text-white mb-4 leading-tight">
             За <span className="text-brand-gold">Нас</span>
           </h1>
           <p className="text-white/60 text-base md:text-lg max-w-lg mx-auto font-light">
@@ -92,7 +92,7 @@ export default function AboutPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-brand-gold/10">
             {STATS.map((s) => (
               <div key={s.label} className="flex flex-col items-center py-8 px-4">
-                <span className="text-4xl md:text-5xl font-serif font-bold text-brand-gold leading-none mb-2">
+                <span className="text-3xl md:text-5xl font-serif font-bold text-brand-gold leading-none mb-2">
                   {s.value}
                 </span>
                 <span className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em] text-center">
@@ -237,7 +237,7 @@ export default function AboutPage() {
       {/* ── CTA ── */}
       <section className="py-20 bg-[#f7f4ee] text-center">
         <div className="container mx-auto px-6">
-          <div className="bg-brand-dark rounded-[3rem] px-8 py-16 md:px-16">
+          <div className="bg-brand-dark rounded-[3rem] px-5 py-12 md:px-8 md:py-16 lg:px-16">
             <h2 className="text-3xl md:text-4xl font-serif italic text-white mb-4">
               Готови ли сте за следващото пътуване?
             </h2>
