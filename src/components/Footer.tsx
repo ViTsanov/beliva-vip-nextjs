@@ -59,66 +59,89 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer className="bg-brand-dark text-white pt-20 pb-10 rounded-t-[3rem] mt-auto">
+    <footer className="bg-brand-dark text-white pt-12 pb-10 rounded-t-[3rem] mt-auto">
       <div className="container mx-auto px-6">
-        {/* Добавихме още една колона, затова grid-cols-4 става grid-cols-5 на големи екрани или преразпределяме */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16 border-b border-white/10 pb-16">
-          
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-8 mb-12 border-b border-white/10 pb-12">
+
           {/* Brand */}
-          <div className="space-y-6">
+          <div className="lg:col-span-2 space-y-6">
             <Link href="/" className="text-3xl font-serif italic font-bold block">
               Beliva <span className="text-brand-gold">VIP</span> Tour
             </Link>
-            
+
             <div className="space-y-2">
-                <p className="text-brand-gold/80 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
-                    <ShieldCheck size={12} /> {COMPANY_INFO.legalName}
-                </p>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                    Вашият доверен партньор в света на пътешествията. Създаваме спомени, които остават за цял живот.
-                </p>
-                <p className="text-gray-500 text-[10px] uppercase tracking-tighter italic">
-                    Лиценз: {COMPANY_INFO.license} | ЕИК: {COMPANY_INFO.eik}
-                </p>
+              <p className="text-brand-gold/80 text-[10px] uppercase font-bold tracking-widest flex items-center gap-2">
+                <ShieldCheck size={12} /> {COMPANY_INFO.legalName}
+              </p>
+              <p className="text-gray-400 text-sm leading-relaxed">
+                Препродаваме турове на водещи оператори — проверени, надеждни и на добри цени.
+                Работим с личен подход и грижа за всеки клиент.
+              </p>
+              <p className="text-gray-500 text-[10px] uppercase tracking-tighter italic">
+                Лиценз: {COMPANY_INFO.license} | ЕИК: {COMPANY_INFO.eik}
+              </p>
             </div>
 
             <div className="flex gap-4">
-              <a href={COMPANY_INFO.socials.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-gold hover:text-brand-dark transition-all"><Facebook size={18}/></a>
-              <a href={COMPANY_INFO.socials.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-gold hover:text-brand-dark transition-all"><Instagram size={18}/></a>
+              <a href={COMPANY_INFO.socials.facebook} target="_blank" rel="noreferrer" aria-label="Beliva VIP Tour във Facebook" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-gold hover:text-brand-dark transition-all"><Facebook size={18}/></a>
+              <a href={COMPANY_INFO.socials.instagram} target="_blank" rel="noreferrer" aria-label="Beliva VIP Tour в Instagram" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-gold hover:text-brand-dark transition-all"><Instagram size={18}/></a>
+              <a href={COMPANY_INFO.socials.whatsapp} target="_blank" rel="noreferrer" aria-label="Beliva VIP Tour в WhatsApp" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-gold hover:text-brand-dark transition-all">
+                {/* WhatsApp icon */}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              </a>
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div className="grid grid-cols-2 gap-8 lg:col-span-2">
-              <div>
-                <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Навигация</h4>
-                <ul className="space-y-4 text-sm text-gray-400">
-                    <li><Link href="/" className="hover:text-white transition-colors">Начало</Link></li>
-                    <li><Link href="/about-us" className="hover:text-white transition-colors">За нас</Link></li>
-                    <li><Link href="/blog" className="hover:text-white transition-colors">Блог & Пътеводител</Link></li>
-                    <li><Link href="/favorites" className="hover:text-white transition-colors">Любими оферти</Link></li>
-                    <li><Link href="/contacts" className="hover:text-white transition-colors">Контакти</Link></li>
-                    <li><Link href="/reviews" className="hover:text-white transition-colors">Отзиви</Link></li>
-                </ul>
-              </div>
-
-              {/* 🚀 НОВА КОЛОНА: ТОП ДЕСТИНАЦИИ (Deep Links) */}
-              <div>
-                <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Топ Дестинации</h4>
-                <ul className="space-y-4 text-sm text-gray-400">
-                    {footerLinks.map((link, idx) => (
-                      <li key={idx}>
-                        <Link href={link.href} className="hover:text-white transition-colors">
-                          {link.label}
-                        </Link>
-                      </li>
-                    ))}
-                </ul>
-              </div>
+          {/* Дестинации */}
+          <div>
+            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Дестинации</h4>
+            <ul className="space-y-3 text-sm text-gray-400">
+              <li><Link href="/destinations/tayland"    className="hover:text-white transition-colors">Тайланд</Link></li>
+              <li><Link href="/destinations/yaponia"    className="hover:text-white transition-colors">Япония</Link></li>
+              <li><Link href="/destinations/avstraliya" className="hover:text-white transition-colors">Австралия</Link></li>
+              <li><Link href="/destinations/peru"       className="hover:text-white transition-colors">Перу</Link></li>
+              <li><Link href="/destinations/singapur"   className="hover:text-white transition-colors">Сингапур</Link></li>
+              <li><Link href="/destinations/oae"        className="hover:text-white transition-colors">ОАЕ</Link></li>
+              <li><Link href="/destinations/india"      className="hover:text-white transition-colors">Индия</Link></li>
+              <li><Link href="/destinations/kitay"      className="hover:text-white transition-colors">Китай</Link></li>
+            </ul>
           </div>
 
-          {/* NEWSLETTER (Оставяме го в 4-тата колона) */}
-          <div className="lg:-mt-6">
+          {/* Категории */}
+          <div>
+            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Категории</h4>
+            <ul className="space-y-3 text-sm text-gray-400">
+              <li><Link href="/?cat=potvardenи"          className="hover:text-white transition-colors">Потвърдени турове</Link></li>
+              <li><Link href="/?cat=vodena-ot-poli"      className="hover:text-white transition-colors">Водена от Поли</Link></li>
+              <li><Link href="/?cat=promoczii"           className="hover:text-white transition-colors">Промоции</Link></li>
+              <li><Link href="/?cat=posledni-mesta"      className="hover:text-white transition-colors">Последни места</Link></li>
+              <li><Link href="/destinations"             className="hover:text-white transition-colors">Всички дестинации</Link></li>
+              <li><Link href="/favorites"                className="hover:text-white transition-colors">Любими оферти</Link></li>
+              {footerLinks.map((link, idx) => (
+                <li key={idx}>
+                  <Link href={link.href} className="hover:text-white transition-colors">{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Информация */}
+          <div>
+            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Информация</h4>
+            <ul className="space-y-3 text-sm text-gray-400">
+              <li><Link href="/about-us"  className="hover:text-white transition-colors">За нас</Link></li>
+              <li><Link href="/blog"      className="hover:text-white transition-colors">Блог & Пътеводител</Link></li>
+              <li><Link href="/reviews"   className="hover:text-white transition-colors">Отзиви</Link></li>
+              <li><Link href="/contacts"  className="hover:text-white transition-colors">Контакти</Link></li>
+              <li><Link href="/faq"       className="hover:text-white transition-colors">Въпроси и отговори</Link></li>
+              <li><Link href="/terms"     className="hover:text-white transition-colors">Общи условия</Link></li>
+              <li><Link href="/privacy"   className="hover:text-white transition-colors">Поверителност</Link></li>
+              <li><Link href="/sitemaps"  className="hover:text-white transition-colors">Карта на сайта</Link></li>
+            </ul>
+          </div>
+
+          {/* Newsletter — собствена колона */}
+          <div>
               <div className="bg-gradient-to-br from-brand-gold via-yellow-400 to-amber-500 p-6 rounded-2xl shadow-[0_10px_40px_-10px_rgba(234,179,8,0.4)] text-brand-dark relative overflow-hidden transform hover:-translate-y-1 transition-all duration-300">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
@@ -138,17 +161,21 @@ export default function Footer() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubscribe} className="relative">
-                    <input 
-                      type="email" 
-                      placeholder="Вашият имейл..." 
+                    <label htmlFor="footer-newsletter-email" className="sr-only">Имейл адрес за бюлетина</label>
+                    <input
+                      id="footer-newsletter-email"
+                      type="email"
+                      placeholder="Вашият имейл..."
                       required
+                      autoComplete="email"
                       className="w-full bg-white border-0 rounded-xl py-3 pl-4 pr-12 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-dark/20 shadow-sm"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                     />
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       disabled={status === 'loading'}
+                      aria-label="Абонирай се за бюлетина"
                       className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 bg-brand-dark text-brand-gold rounded-lg hover:bg-gray-800 hover:scale-105 transition-all disabled:opacity-70 shadow-md"
                     >
                       <Send size={14} />
@@ -157,17 +184,8 @@ export default function Footer() {
                 )}
               </div>
 
-              {/* Legal Links (Сложих ги тук под бюлетина за баланс, или може да са отделно) */}
-               <div className="mt-8">
-                  <h4 className="font-bold uppercase tracking-widest text-xs mb-4 text-brand-gold">Полезна информация</h4>
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-400">
-                    <Link href="/terms" className="hover:text-white transition-colors">Общи условия</Link>
-                    <Link href="/privacy" className="hover:text-white transition-colors">Политика</Link>
-                    <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
-                  </div>
-               </div>
-          </div>
-        </div>
+          </div>{/* end newsletter column */}
+        </div>{/* end grid */}
 
         {/* Contacts, Legal & Copyright */}
         <div className="flex flex-col lg:flex-row justify-between items-center gap-8 text-[10px] md:text-xs text-gray-500 font-medium tracking-tight">

@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ITour, IPost } from "@/types";
 import { CheckCircle2, ScrollText, FileText, Flame, ChevronLeft, ChevronRight } from 'lucide-react';
 import ShareButtons from '@/components/ShareButtons';
+import { formatPrice } from '@/lib/formatPrice';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
 interface TourSidebarProps {
   tour: ITour;
@@ -49,7 +52,7 @@ export default function TourSidebar({ tour, relatedPosts, onOpenInquiry, onOpenI
                   </p>
                   {tour.discountAmount && (
                       <p className="text-[9px] mt-0.5 opacity-80">
-                          Спестявате {tour.discountAmount} {tour.price.replace(/[0-9.,\s]/g, '') || '€'}!
+                          Спестявате {tour.discountAmount} {formatPrice(tour.price).replace(/[0-9.,\s]/g, '') || '€'}!
                       </p>
                   )}
               </div>
@@ -94,10 +97,15 @@ export default function TourSidebar({ tour, relatedPosts, onOpenInquiry, onOpenI
                           <Link href={`/blog/${post.slug || post.id}`} className="block w-full">
                               
                               <div className="relative h-44 overflow-hidden rounded-[1.5rem] bg-gray-50">
-                                  <img 
-                                      src={post.coverImg || post.img || '/placeholder.jpg'} 
-                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                                      alt={post.title} 
+                                  <Image
+                                      src={post.coverImg || post.img || '/placeholder.jpg'}
+                                      alt={post.title}
+                                      fill
+                                      loading="lazy"
+                                      placeholder="blur"
+                                      blurDataURL={BLUR_PLACEHOLDER}
+                                      sizes="(max-width: 1024px) 100vw, 400px"
+                                      className="object-cover transition-transform duration-700 group-hover:scale-105"
                                   />
                                   <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm border border-white/20">
                                       Пътеводител

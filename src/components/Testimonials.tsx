@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { Star, MessageSquarePlus, ChevronRight, ChevronLeft, MapPin, Quote, MessageSquareQuote, User, UserRound, UsersRound, Ban } from 'lucide-react';
@@ -15,7 +16,16 @@ const AVATARS = [
   { id: 'family', label: 'Семейство', icon: UsersRound, color: 'bg-amber-50 text-amber-600 border-amber-200' },
 ];
 
-function ReviewCard({ review, onReadMore }: { review: any, onReadMore: () => void }) {
+interface IReview {
+  id: string;
+  name: string;
+  text: string;
+  rating?: number;
+  destination?: string;
+  avatarId?: string;
+}
+
+function ReviewCard({ review, onReadMore }: { review: IReview, onReadMore: () => void }) {
   const textLimit = 150;
   const isLongText = review.text.length > textLimit;
   const displayText = review.text.substring(0, textLimit);
@@ -24,7 +34,7 @@ function ReviewCard({ review, onReadMore }: { review: any, onReadMore: () => voi
   const Icon = (avatarData && review.avatarId !== 'none') ? avatarData.icon : null;
 
   return (
-    <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-brand-gold/10 flex flex-col justify-between hover:shadow-md transition-all duration-300 h-full group relative overflow-hidden">
+    <div className="bg-white p-8 rounded-[2.5rem] shadow-md border border-gray-200 hover:border-brand-gold/40 flex flex-col justify-between hover:shadow-lg transition-all duration-300 h-full group relative overflow-hidden">
       <Quote className="absolute top-6 right-6 text-gray-100 rotate-180" size={64} />
       
       <div className="relative z-10">
@@ -43,7 +53,7 @@ function ReviewCard({ review, onReadMore }: { review: any, onReadMore: () => voi
 
         <div>
           <p className="text-gray-600 italic mb-4 leading-relaxed group-hover:text-brand-dark transition-colors font-serif">
-            "{displayText}{isLongText ? '...' : ''}"
+            &quot;{displayText}{isLongText ? '...' : ''}&quot;
           </p>
           
           {isLongText && (
@@ -77,10 +87,10 @@ function ReviewCard({ review, onReadMore }: { review: any, onReadMore: () => voi
 }
 
 export default function Testimonials() {
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<IReview[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAddReviewModal, setShowAddReviewModal] = useState(false);
-  const [selectedReview, setSelectedReview] = useState<any>(null);
+  const [selectedReview, setSelectedReview] = useState<IReview | null>(null);
   const [itemsPerPage, setItemsPerPage] = useState(3);
 
   useEffect(() => {
@@ -96,7 +106,7 @@ export default function Testimonials() {
   useEffect(() => {
     const q = query(collection(db, "reviews"), where("isVisible", "==", true), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setReviews(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setReviews(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as IReview)));
     });
     return () => unsubscribe();
   }, []);
@@ -137,8 +147,9 @@ export default function Testimonials() {
   }
 
   return (
-    // 👇 ПРОМЯНА 1: Секцията вече е w-full и има фона
-    <section className="w-full py-20 overflow-hidden bg-[#f7f0e4] border-y border-brand-gold/10">
+    // Светлосив сив фон (не бял, не cream като MeetGuides) — белите карти с техен бордер се губеше на чисто бял фон —
+    // сега имат реален контраст и секцията остава визуално отделена от MeetGuides над нея.
+    <section className="w-full py-20 overflow-hidden bg-gray-50 border-t border-brand-gold/10">
       
       {/* 👇 ПРОМЯНА 2: Добавяме вътрешен контейнер за центриране */}
       <div className="container mx-auto px-6">
@@ -146,7 +157,7 @@ export default function Testimonials() {
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-8 ">
             <div className="text-center md:text-left max-w-2xl">
             {totalReviews > 0 && (
-                <div className="inline-flex items-center gap-2 mb-4 bg-white border border-brand-gold/20 px-4 py-2 rounded-full shadow-sm">
+                <div className="inline-flex items-center gap-2 mb-4 bg-[#f7f0e4] border border-brand-gold/20 px-4 py-2 rounded-full shadow-sm">
                     <div className="flex items-center gap-1">
                         <Star className="fill-brand-gold text-brand-gold" size={16} />
                         <span className="font-bold text-brand-dark text-lg leading-none">{averageRating}</span>
@@ -171,8 +182,8 @@ export default function Testimonials() {
             
             {reviews.length > itemsPerPage && (
                 <div className="flex gap-2">
-                <button onClick={prevReviews} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-brand-gold/20 text-brand-gold hover:bg-brand-gold hover:text-white transition-all shadow-sm"><ChevronLeft size={20} /></button>
-                <button onClick={() => setCurrentIndex((prevIndex) => prevIndex + itemsPerPage >= reviews.length ? 0 : prevIndex + itemsPerPage)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-brand-gold/20 text-brand-gold hover:bg-brand-gold hover:text-white transition-all shadow-sm"><ChevronRight size={20} /></button>
+                <button onClick={prevReviews} aria-label="Предишни отзиви" className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-brand-gold/20 text-brand-gold hover:bg-brand-gold hover:text-white transition-all shadow-sm"><ChevronLeft size={20} /></button>
+                <button onClick={() => setCurrentIndex((prevIndex) => prevIndex + itemsPerPage >= reviews.length ? 0 : prevIndex + itemsPerPage)} aria-label="Следващи отзиви" className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-brand-gold/20 text-brand-gold hover:bg-brand-gold hover:text-white transition-all shadow-sm"><ChevronRight size={20} /></button>
                 </div>
             )}
             </div>
@@ -200,8 +211,16 @@ export default function Testimonials() {
 
         {reviews.length === 0 && <div className="text-center py-20 text-gray-400 italic bg-white/50 rounded-[2rem] border border-dashed border-gray-300">Все още няма споделени отзиви. Бъдете първият!</div>}
 
-        {showAddReviewModal && <ReviewModal onClose={() => setShowAddReviewModal(false)} />}
-        {selectedReview && <ReviewDetailModal review={selectedReview} onClose={() => setSelectedReview(null)} />}
+        {showAddReviewModal && (
+          <AnimatePresence>
+            <ReviewModal key="add-review" onClose={() => setShowAddReviewModal(false)} />
+          </AnimatePresence>
+        )}
+        {selectedReview && (
+          <AnimatePresence>
+            <ReviewDetailModal key="review-detail" review={selectedReview} onClose={() => setSelectedReview(null)} />
+          </AnimatePresence>
+        )}
       
       </div>
     </section>

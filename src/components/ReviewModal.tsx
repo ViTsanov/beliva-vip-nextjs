@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { X, CheckCircle2, AlertCircle, User, UserRound, UsersRound, Ban } from 'lucide-react'; 
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase'; // 👈 Next.js import
@@ -46,10 +47,22 @@ export default function ReviewModal({ onClose }: ReviewModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-brand-dark/95 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-10 relative shadow-2xl transition-all max-h-[90vh] overflow-y-auto">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-brand-dark/95 backdrop-blur-sm"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white w-full max-w-lg rounded-[2.5rem] p-10 relative shadow-2xl max-h-[90vh] overflow-y-auto"
+      >
         
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-brand-gold hover:text-white transition-colors z-10">
+        <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-brand-gold hover:text-white active:scale-90 transition-colors z-10">
           <X size={20} />
         </button>
         
@@ -132,13 +145,13 @@ export default function ReviewModal({ onClose }: ReviewModalProps) {
                     <textarea required placeholder="Напишете вашия отзив тук..." className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl outline-none focus:border-brand-gold/50 transition-colors h-28 resize-none placeholder:text-gray-400 text-brand-dark" value={formData.text} onChange={e => setFormData({...formData, text: e.target.value})} />
                 </div>
 
-                <button type="submit" disabled={status === 'submitting'} className="w-full bg-brand-dark text-white py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-brand-gold hover:text-brand-dark transition-all shadow-lg disabled:opacity-50">
+                <button type="submit" disabled={status === 'submitting'} className="w-full bg-brand-dark text-white py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-brand-gold hover:text-brand-dark active:scale-[0.98] transition-all shadow-lg disabled:opacity-50">
                     {status === 'submitting' ? 'Качване...' : 'Публикувай'}
                 </button>
                 </form>
             </>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

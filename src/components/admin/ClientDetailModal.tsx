@@ -98,9 +98,18 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
     }
   };
 
-  const joinedDate = client.createdAt?.seconds 
-    ? new Date(client.createdAt.seconds * 1000).toLocaleDateString('bg-BG')
-    : 'Неизвестна дата';
+  // Timestamp | FieldValue | string | null — само реален Firestore Timestamp има .seconds; стринг (вече сериализиран) се parse-ва отделно.
+  const joinedDate = (() => {
+    const c = client.createdAt;
+    if (c && typeof c === 'object' && 'seconds' in c) {
+      return new Date(c.seconds * 1000).toLocaleDateString('bg-BG');
+    }
+    if (typeof c === 'string') {
+      const d = new Date(c);
+      if (!isNaN(d.getTime())) return d.toLocaleDateString('bg-BG');
+    }
+    return 'Неизвестна дата';
+  })();
 
   return (
     <div className="fixed inset-0 z-[160] flex items-center justify-end bg-black/50 backdrop-blur-sm">
@@ -311,7 +320,7 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
                           {isHidden ? <><Eye size={14} /> Покажи в сайта</> : <><EyeOff size={14} /> Скрий от сайта</>}
                         </button>
                       </div>
-                      <p className="text-sm text-gray-600 italic">"{review.comment || review.text}"</p>
+                      <p className="text-sm text-gray-600 italic">&quot;{review.comment || review.text}&quot;</p>
                     </div>
                   );
                 })}

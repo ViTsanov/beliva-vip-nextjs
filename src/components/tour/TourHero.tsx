@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from 'react';
 import { ITour } from "@/types";
 import { ArrowLeft, MapPin, Heart, Flame } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Badge from '@/components/ui/Badge';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
+import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 
 interface TourHeroProps {
   tour: ITour;
@@ -15,29 +18,41 @@ interface TourHeroProps {
 export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroProps) {
   const router = useRouter();
   const isPromoActive = tour.isPromo && tour.discountPrice;
+  const [imgError, setImgError] = useState(false);
+  // Снимка от чужд туроператорски сайт — не я рендираме директно като hero
+  // (юридически риск + може да се счупи всеки момент, ако операторът я премести/изтрие).
+  const heroImg = tour.img && !isOperatorHotlink(tour.img) ? tour.img : null;
 
   return (
-    <div className="relative h-[80vh] w-full bg-brand-dark overflow-hidden">
+    <div className="relative w-full bg-brand-dark overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent z-10 opacity-90"></div>
-      <Image 
-        src={tour.img} 
-        alt={tour.title}
-        fill
-        priority 
-        sizes="100vw"
-        className="object-cover" 
-      />
+      {heroImg && !imgError ? (
+        <Image 
+          src={heroImg} 
+          alt={tour.title}
+          fill
+          priority 
+          placeholder="blur"
+          blurDataURL={BLUR_PLACEHOLDER}
+          sizes="100vw"
+          className="object-cover" 
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        // Снимката липсва или връща 404 (напр. изтрита от медийната библиотека) — показваме брандиран градиент вместо счупена снимка
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-dark via-brand-dark to-black" />
+      )}
       
       <button 
           onClick={() => router.back()} 
-          className="absolute top-28 left-6 z-40 p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all lg:hidden shadow-lg border border-white/20"
+          className="absolute top-28 left-6 z-40 p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 active:scale-90 transition-all lg:hidden shadow-lg border border-white/20"
       >
           <ArrowLeft size={24} />
       </button>
 
       <button 
           onClick={toggleFavorite}
-          className="absolute top-28 right-6 md:top-24 md:right-12 p-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-full hover:bg-white hover:text-red-500 transition-all group z-30 shadow-lg"
+          className="absolute top-28 right-6 md:top-24 md:right-12 p-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-full hover:bg-white hover:text-red-500 active:scale-90 transition-all group z-30 shadow-lg"
           title={isFavorite ? "Премахни от любими" : "Добави в любими"}
       >
           <Heart 
@@ -46,7 +61,7 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
           />
       </button>
 
-      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center p-6">
+      <div className="relative z-20 flex flex-col items-center justify-center text-center px-6 pt-28 pb-12 min-h-[80vh]">
         
         <div className="mb-6 flex flex-wrap items-center justify-center gap-3 animate-in slide-in-from-bottom duration-700 fade-in">
           
@@ -75,7 +90,11 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
           
         </div>
         
-        <h1 className="text-4xl md:text-7xl lg:text-8xl font-serif italic text-white drop-shadow-2xl mb-8 max-w-5xl leading-tight animate-in slide-in-from-bottom duration-1000 delay-100 fade-in">
+        <h1 className={`font-serif italic text-white drop-shadow-2xl mb-8 max-w-5xl leading-tight animate-in slide-in-from-bottom duration-1000 delay-100 fade-in ${
+          (tour.title?.length || 0) > 60 ? 'text-3xl md:text-5xl lg:text-6xl' :
+          (tour.title?.length || 0) > 40 ? 'text-3xl md:text-6xl lg:text-7xl' :
+          'text-4xl md:text-7xl lg:text-8xl'
+        }`}>
           {tour.title}
         </h1>
 

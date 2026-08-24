@@ -20,6 +20,7 @@ import DashboardCharts from '@/components/DashboardCharts';
 import TourForm from '@/components/admin/TourForm'; 
 import BlogForm from '@/components/admin/BlogForm'; 
 import { performAutoMaintenance, slugify } from '@/lib/admin-helpers';
+import { formatPrice } from '@/lib/formatPrice';
 import { IClient } from '@/types';
 
 import ClientsTab from '@/components/admin/ClientsTab';
@@ -50,7 +51,9 @@ export default function AdminDashboardClient() {
   const [posts, setPosts] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]); 
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [departures, setDepartures] = useState<any[]>([]);
 
   const [globalSelectedClient, setGlobalSelectedClient] = useState<any>(null);
 
@@ -167,13 +170,16 @@ export default function AdminDashboardClient() {
                     }
                 });
             });
-            onSnapshot(query(collection(db, "reviews"), orderBy("createdAt", "desc")), (snap) => setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-            onSnapshot(query(collection(db, "posts"), orderBy("createdAt", "desc")), (snap) => setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-            onSnapshot(query(collection(db, "inquiries"), orderBy("createdAt", "desc")), (snap) => setInquiries(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-            onSnapshot(query(collection(db, "subscribers"), orderBy("createdAt", "desc")), (snap) => setSubscribers(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-            onSnapshot(query(collection(db, "customers"), orderBy("createdAt", "desc")), (snap) => setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-            onSnapshot(query(collection(db, "campaigns")), (snap) => setCampaigns(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-            setLoading(false); 
+            const silent = (name: string) => (err: any) => console.warn(`[${name}] snapshot denied:`, err.code);
+            onSnapshot(query(collection(db, "reviews"),     orderBy("createdAt", "desc")), (snap) => setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() }))),     silent("reviews"));
+            onSnapshot(query(collection(db, "posts"),       orderBy("createdAt", "desc")), (snap) => setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() }))),        silent("posts"));
+            onSnapshot(query(collection(db, "inquiries"),   orderBy("createdAt", "desc")), (snap) => setInquiries(snap.docs.map(d => ({ id: d.id, ...d.data() }))),    silent("inquiries"));
+            onSnapshot(query(collection(db, "subscribers"), orderBy("createdAt", "desc")), (snap) => setSubscribers(snap.docs.map(d => ({ id: d.id, ...d.data() }))),  silent("subscribers"));
+            onSnapshot(query(collection(db, "customers"),   orderBy("createdAt", "desc")), (snap) => setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() }))),    silent("customers"));
+            onSnapshot(query(collection(db, "campaigns")),                                 (snap) => setCampaigns(snap.docs.map(d => ({ id: d.id, ...d.data() }))),    silent("campaigns"));
+            onSnapshot(query(collection(db, "bookings"),    orderBy("createdAt", "desc")), (snap) => setBookings(snap.docs.map(d => ({ id: d.id, ...d.data() }))),     silent("bookings"));
+            onSnapshot(query(collection(db, "departures")),                                (snap) => setDepartures(snap.docs.map(d => ({ id: d.id, ...d.data() }))),   silent("departures"));
+            setLoading(false);
         }
     });
     return () => unsubAuth();
@@ -409,6 +415,9 @@ export default function AdminDashboardClient() {
 
       // 3. Обработваме всяка нова екскурзия ЕДНА ПО ЕДНА (ограничена до linksToProcess)
       let successCount = 0;
+      // ФИКС ЗА ДУБЛИРАНИ ID-та: allTours е снимка ОТПРЕДИ старта и НЕ вижда току-що записаните в същия цикъл турове.
+      // Затова пазим генерираните в ТОЗИ цикъл ID-та тук и ги броим заедно с тези от базата.
+      const generatedIdsThisRun = new Set<string>();
       for (let i = 0; i < linksToProcess.length; i++) {
         const linkObj = linksToProcess[i];
         setAutoProcessStatus(`Обработка ${i + 1} от ${linksToProcess.length}: ${linkObj.title}...`);
@@ -539,19 +548,46 @@ export default function AdminDashboardClient() {
 
           // Генерираме tourId: countrySlug-MM-YYYY-N
           const firstCountry = Array.isArray(finalTour.country) ? finalTour.country[0] : finalTour.country;
-          const countrySlug = slugify(firstCountry || 'tour');
+          const countrySlug = slugify(firstCountry || 'tour') || 'tour';
+          // MM-YYYY в ID-то = месец/година на ОТПЪТУВАНЕТО, НЕ на импорта!
+          // Източници по приоритет: 1) първата скрейпната дата, 2) датата от заглавието на Ден 1, 3) днешна дата (fallback)
           const now = new Date();
-          const mm = String(now.getMonth() + 1).padStart(2, '0');
-          const yyyy = now.getFullYear();
-          const sameCountry = allTours.filter((t: any) => t.tourId?.startsWith(`${countrySlug}-${mm}-${yyyy}`));
-          const genTourId = `${countrySlug}-${mm}-${yyyy}-${sameCountry.length + 1}`;
+          let mm = String(now.getMonth() + 1).padStart(2, '0');
+          let yyyy = String(now.getFullYear());
+          const firstDateStr = String((scrapedData.dates && scrapedData.dates[0]) || '');
+          let dm;
+          if ((dm = firstDateStr.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/))) {
+            // ISO: YYYY-MM-DD
+            yyyy = dm[1]; mm = dm[2].padStart(2, '0');
+          } else if ((dm = firstDateStr.match(/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})/))) {
+            // BG: DD.MM.YYYY
+            mm = dm[2].padStart(2, '0'); yyyy = dm[3];
+          } else {
+            // Пробваме от заглавието на Ден 1 (формат "DD.MM.YY Заглавие")
+            const day1Title = String(finalTour.program?.[0]?.title || '');
+            const tm = day1Title.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+            if (tm) { mm = tm[2].padStart(2, '0'); yyyy = tm[3].length === 2 ? '20' + tm[3] : tm[3]; }
+          }
+          const idPrefix = `${countrySlug}-${mm}-${yyyy}`;
+          const existingIds = new Set<string>(
+            allTours.filter((t: any) => t.tourId?.startsWith(idPrefix)).map((t: any) => t.tourId)
+          );
+          // Слагаме и ID-тата, генерирани по-рано в СЪЩИЯ цикъл (allTours не ги вижда още)
+          generatedIdsThisRun.forEach(id => { if (id.startsWith(idPrefix)) existingIds.add(id); });
+          // Търсим първия свободен номер (гарантирано уникален, дори при дупки в номерацията)
+          let counter = existingIds.size + 1;
+          while (existingIds.has(`${idPrefix}-${counter}`)) counter++;
+          const genTourId = `${idPrefix}-${counter}`;
+          generatedIdsThisRun.add(genTourId);
 
           const tourDoc: any = {
             title: finalTour.title || linkObj.title,
             intro: finalTour.intro || '',
             country: finalTour.country || [linkObj.countryMatched],
+            continent: '', // попълва се ръчно при одобрение — но полето трябва да СЪЩЕСТВУВА (where(undefined) гърми в SimilarTours)
             price: finalTour.price || '',
             duration: finalTour.days ? String(finalTour.days) : '',
+            durationDays: finalTour.days ? String(finalTour.days) : '', // TourForm и сайтът четат 'Дни' от това поле!
             nights: finalTour.nights ? String(finalTour.nights) : '',
             route: finalTour.route || '',
             // ВАЖНО: сайтът (TourTabs) и TourForm четат поле 'itinerary' с ключ 'content' —
@@ -586,10 +622,23 @@ export default function AdminDashboardClient() {
             createdAt: serverTimestamp()
           };
 
-          // Ако scrape-ът е намерил дати — вземаме ги
+          // Ако scrape-ът е намерил дати — НОРМАЛИЗИРАМЕ ги към ISO (YYYY-MM-DD)!
+          // Скрейпърът ги връща като "27.11.2026" (с точки), а целият сайт филтрира/сортира по ISO —
+          // без конверсия турът се брои "без валидни дати" и НЕ се показва на началната страница!
           if (scrapedData.dates && scrapedData.dates.length > 0) {
-            tourDoc.dates = scrapedData.dates;
-            tourDoc.date = scrapedData.dates[0];
+            const toISO = (d: string) => {
+              const s = String(d).trim();
+              let m = s.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+              if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+              m = s.match(/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})/);
+              if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+              return '';
+            };
+            const isoDates = scrapedData.dates.map(toISO).filter(Boolean);
+            if (isoDates.length > 0) {
+              tourDoc.dates = isoDates;
+              tourDoc.date = isoDates[0];
+            }
           }
 
           // Д) Записваме във Firebase като PENDING!
@@ -722,7 +771,14 @@ export default function AdminDashboardClient() {
         )}
 
         {/* TABS CONTENT */}
-        {activeTab === 'dashboard' && <div className="space-y-8 animate-in fade-in duration-500"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><StatCard icon={Inbox} color="emerald" count={stats.newInquiries} label="Нови Запитвания" highlight /><StatCard icon={UserCheck} color="blue" count={stats.totalCustomers} label="Клиенти (CRM)" /><StatCard icon={Map} color="orange" count={stats.activeTours} label="Активни Оферти" /><StatCard icon={Users} color="purple" count={stats.totalSubscribers} label="Абонати" /></div><DashboardCharts inquiries={inquiries} tours={allTours} /></div>}
+        {activeTab === 'dashboard' && <div className="space-y-8 animate-in fade-in duration-500"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><StatCard icon={Inbox} color="emerald" count={stats.newInquiries} label="Нови Запитвания" highlight /><StatCard icon={UserCheck} color="blue" count={stats.totalCustomers} label="Клиенти (CRM)" /><StatCard icon={Map} color="orange" count={stats.activeTours} label="Активни Оферти" /><StatCard icon={Users} color="purple" count={stats.totalSubscribers} label="Абонати" /></div><DashboardCharts
+                    inquiries={inquiries}
+                    tours={allTours}
+                    bookings={bookings}
+                    clients={customers}
+                    departures={departures}
+                    subscribers={subscribers}
+                  /></div>}
 
         {activeTab === 'customers' && (
             <ClientsTab onAddClient={() => setIsAddCustomerModalOpen(true)} />
@@ -749,7 +805,7 @@ export default function AdminDashboardClient() {
                             )}
                             <div className="flex-grow">
                                 <h3 className="font-bold text-brand-dark leading-tight">{tour.title}</h3>
-                                <p className="text-xs text-gray-400 mt-1">{tour.country} • {tour.price}</p>
+                                <p className="text-xs text-gray-400 mt-1">{Array.isArray(tour.country) ? tour.country.join(', ') : tour.country} • {formatPrice(tour.price)}</p>
                             </div>
                             <div className="flex gap-2">
                                 <ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(tour)} />
@@ -908,7 +964,7 @@ export default function AdminDashboardClient() {
                                     {tour.title}
                                     {tour.source === 'peakview' && <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-md text-[9px] uppercase">PeakView</span>}
                                 </h3>
-                                <p className="text-xs text-gray-400 mt-1">{tour.country} • {tour.price}</p>
+                                <p className="text-xs text-gray-400 mt-1">{Array.isArray(tour.country) ? tour.country.join(', ') : tour.country} • {formatPrice(tour.price)}</p>
                             </div>
                             <div className="flex gap-2">
                                 <ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(tour)} />
@@ -1198,8 +1254,11 @@ export default function AdminDashboardClient() {
                       }}>
                           <option value="">-- Избери от списъка --</option>
                           {allTours.filter(t => {
-                              // Търсачка по държава
-                              if (tripSearchCountry && !t.country.toLowerCase().includes(tripSearchCountry.toLowerCase())) return false;
+                              // Търсачка по държава — country може да е стринг (ръчни турове) ИЛИ масив (скрейпнати) — .toLowerCase() върху масив гърми!
+                              if (tripSearchCountry) {
+                                const countryStr = Array.isArray(t.country) ? t.country.join(' ') : (t.country || '');
+                                if (!countryStr.toLowerCase().includes(tripSearchCountry.toLowerCase())) return false;
+                              }
                               
                               // ⚠️ ВАЖНО: Тук сме премахнали проверката за status === 'public', 
                               // за да показва АБСОЛЮТНО ВСИЧКИ екскурзии (и активни, и архивни).
@@ -1274,11 +1333,13 @@ export default function AdminDashboardClient() {
 
       {/* Main Forms (Tours/Blog) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-brand-dark/95 backdrop-blur-sm">
-           <div className="bg-white w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-[4rem] p-12 relative shadow-2xl border border-white/10 animate-in zoom-in duration-300">
-              <button onClick={() => {setIsModalOpen(false); setEditingItem(null)}} className="absolute top-8 right-8 p-3 bg-gray-50 text-gray-400 rounded-full hover:bg-red-50 hover:text-white transition-all shadow-lg active:scale-90 z-50"><X size={24}/></button>
-              {(activeTab === 'tours' || activeTab === 'archived') && <TourForm initialData={editingItem} onClose={() => setIsModalOpen(false)} allTours={allTours} allCampaigns={campaigns} />}
-              {activeTab === 'blog' && <BlogForm initialData={editingItem} onClose={() => setIsModalOpen(false)} availableCountries={Array.from(new Set(allTours.map((t: any) => t.country))).sort()} />}
+        <div className="fixed inset-0 z-[100] overflow-y-auto flex items-start md:items-center justify-center p-4 md:p-6 bg-brand-dark/95 backdrop-blur-sm">
+           <div className="bg-white w-full max-w-6xl max-h-[90vh] rounded-[4rem] relative shadow-2xl border border-white/10 animate-in zoom-in duration-300 my-6 md:my-auto overflow-hidden flex flex-col">
+              <button onClick={() => {setIsModalOpen(false); setEditingItem(null)}} className="absolute top-6 right-6 p-3 bg-gray-50 text-gray-400 rounded-full hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-90 z-50"><X size={24}/></button>
+              <div className="flex-1 overflow-y-auto p-12">
+                {(activeTab === 'tours' || activeTab === 'archived') && <TourForm initialData={editingItem} onClose={() => setIsModalOpen(false)} allTours={allTours} allCampaigns={campaigns} />}
+                {activeTab === 'blog' && <BlogForm initialData={editingItem} onClose={() => setIsModalOpen(false)} availableCountries={Array.from(new Set(allTours.map((t: any) => t.country))).sort()} />}
+              </div>
            </div>
         </div>
       )}

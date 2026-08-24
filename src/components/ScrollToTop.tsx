@@ -101,14 +101,14 @@ export default function ScrollToTop() {
   return (
     <button
       onClick={handleClick}
-      aria-label="Scroll control"
+      aria-label={isAboveGrid && pathname === "/" ? "Иди към офертите" : "Върни се в началото"}
       className={`
-        fixed z-[90]
+        fixed z-[90] right-6
         ${isTourPage
-          ? 'right-6 bottom-40 md:right-10 md:bottom-28'
-          : 'right-6 bottom-24 md:right-10 md:bottom-28'}
+          ? 'bottom-[calc(10rem+env(safe-area-inset-bottom))] md:right-10 md:bottom-28'
+          : 'bottom-[calc(6rem+env(safe-area-inset-bottom))] md:right-10 md:bottom-28'}
         p-3 md:p-4 rounded-full
-        transition-all duration-500 ease-in-out hover:scale-110
+        transition-all duration-500 ease-in-out hover:scale-110 active:scale-95
         flex items-center justify-center
         ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"}
         ${isAboveGrid && pathname === "/"

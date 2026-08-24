@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 
 interface ImageModalProps {
@@ -35,10 +36,16 @@ export default function ImageModal({
     };
   }, [isOpen, hasNext, hasPrev, onClose, onNext, onPrev]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-200">
+    <AnimatePresence>
+    {isOpen && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm flex flex-col items-center justify-center"
+    >
       
       {/* Top bar: close + counter (only shown when totalCount is provided) */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-5 z-50">
@@ -49,7 +56,7 @@ export default function ImageModal({
           ) : <span />}
         <button 
           onClick={onClose} 
-          className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
+          className="p-3 bg-white/10 hover:bg-white/20 active:scale-90 text-white rounded-full transition-all"
         >
           <X size={22} />
         </button>
@@ -59,7 +66,7 @@ export default function ImageModal({
       {hasPrev && (
         <button 
           onClick={(e) => { e.stopPropagation(); onPrev(); }}
-          className="absolute left-4 md:left-8 p-3 bg-white/10 hover:bg-brand-gold text-white rounded-full transition-all z-50"
+          className="absolute left-4 md:left-8 p-3 bg-white/10 hover:bg-brand-gold active:scale-90 text-white rounded-full transition-all z-50"
         >
           <ChevronLeft size={32} />
         </button>
@@ -70,10 +77,14 @@ export default function ImageModal({
         className="relative w-full flex-1 flex items-center justify-center px-16 py-4"
         onClick={onClose}
       >
-        <img 
+        <motion.img 
+          key={image}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           src={image} 
           alt={caption || 'Снимка от екскурзия'} 
-          className="max-h-[80vh] max-w-full object-contain rounded-xl shadow-2xl animate-in zoom-in duration-300"
+          className="max-h-[80vh] max-w-full object-contain rounded-xl shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         />
       </div>
@@ -82,7 +93,7 @@ export default function ImageModal({
       {hasNext && (
         <button 
           onClick={(e) => { e.stopPropagation(); onNext(); }}
-          className="absolute right-4 md:right-8 p-3 bg-white/10 hover:bg-brand-gold text-white rounded-full transition-all z-50"
+          className="absolute right-4 md:right-8 p-3 bg-white/10 hover:bg-brand-gold active:scale-90 text-white rounded-full transition-all z-50"
         >
           <ChevronRight size={32} />
         </button>
@@ -97,6 +108,8 @@ export default function ImageModal({
           <span className="text-white text-sm font-semibold tracking-wide">{caption || ''}</span>
         </div>
       </div>
-    </div>
+    </motion.div>
+    )}
+    </AnimatePresence>
   );
 }

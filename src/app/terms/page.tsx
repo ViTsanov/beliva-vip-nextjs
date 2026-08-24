@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { COMPANY_INFO } from "@/lib/companyInfo";
 
 export const metadata: Metadata = {
   title: "Общи условия | Beliva VIP Tour",
@@ -19,17 +20,18 @@ export default function TermsPage() {
         
         <div className="prose prose-lg text-gray-600 max-w-none">
           <p className="lead font-medium text-xl text-gray-800 mb-8">
-            Настоящите Общи условия уреждат взаимоотношенията между <strong>[ТВОЯТА ФИРМА ЕООД/ООД]</strong> (оперираща под търговската марка Beliva VIP Tour) и потребителите на туристически услуги, предлагани чрез този уебсайт.
+            Настоящите Общи условия уреждат взаимоотношенията между <strong>{COMPANY_INFO.legalName}</strong> (оперираща под търговската марка Beliva VIP Tour) и потребителите на туристически услуги, предлагани чрез този уебсайт.
           </p>
 
           <section className="mb-10">
             <h2 className="text-2xl font-serif text-brand-dark mb-4 border-b border-brand-gold/30 pb-2">1. Данни за Агента</h2>
             <ul className="list-none space-y-2 bg-gray-50 p-6 rounded-xl border border-gray-100">
-              <li><strong>Наименование:</strong> [ТВОЯТА ФИРМА ЕООД/ООД]</li>
-              <li><strong>ЕИК:</strong> [123456789]</li>
-              <li><strong>Седалище и адрес на управление:</strong> [гр. София, ул. Примерна 1]</li>
-              <li><strong>Удостоверение за регистрация като Туристически агент:</strong> № [РК-01-XXXX]</li>
-              <li><strong>Имейл:</strong> office@belivavip.bg</li>
+              <li><strong>Наименование:</strong> {COMPANY_INFO.legalName}</li>
+              <li><strong>ЕИК:</strong> {COMPANY_INFO.eik}</li>
+              <li><strong>Седалище и адрес на управление:</strong> {COMPANY_INFO.address}</li>
+              <li><strong>Удостоверение за регистрация като Туристически агент:</strong> № {COMPANY_INFO.license}</li>
+              <li><strong>Имейл:</strong> {COMPANY_INFO.email}</li>
+              <li><strong>Телефон:</strong> {COMPANY_INFO.phone}</li>
             </ul>
           </section>
 
@@ -40,6 +42,9 @@ export default function TermsPage() {
             </p>
             <p className="mt-4">
               Всички договори за организирано туристическо пътуване (туристически пакети) се сключват от името и за сметка на съответния Туроператор. Условията на пътуването, анулациите и отговорностите се определят от Общите условия на конкретния Туроператор, които се предоставят на Потребителя преди сключване на договора.
+            </p>
+            <p className="mt-4">
+              В съответствие с изискванията на Закона за туризма, преди сключване на договор ще ви информираме кой е конкретният Туроператор-организатор на вашето пътуване и ще ви предоставим данните за неговата гаранция за защита при неплатежоспособност (застраховател или гаранционен фонд), вкл. нейните координати, заедно с офертата/договора за конкретното пътуване. Ние, в качеството си на туристически агент, не разполагаме с отделна собствена гаранция за неплатежоспособност, тъй като такава е законово задължение на съответния Туроператор-организатор.
             </p>
           </section>
 

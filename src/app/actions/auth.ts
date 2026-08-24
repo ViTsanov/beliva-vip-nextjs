@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 
 export async function createSession() {
   const cookieStore = await cookies(); // Добавено await
-  cookieStore.set('admin_session', 'true', {
+  cookieStore.set('admin_session', process.env.ADMIN_SESSION_TOKEN ?? 'MISSING_TOKEN', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     maxAge: 60 * 60 * 24, // 24 часа

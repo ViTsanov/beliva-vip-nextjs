@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, doc, getDoc, DocumentData, Timestamp } from "firebase/firestore";
 import { ITour } from "@/types";
 
 /**
@@ -7,7 +7,7 @@ import { ITour } from "@/types";
  * Тази функция взима "мръсните" данни от Firebase и ги превръща 
  * в перфектен, строго типизиран обект за фронтенда.
  */
-export const normalizeTour = (docData: any, docId: string): ITour => {
+export const normalizeTour = (docData: DocumentData, docId: string): ITour => {
   // 1. Гарантираме, че included е ВИНАГИ масив
   let includedArr: string[] = [];
   if (Array.isArray(docData.included)) includedArr = docData.included;
@@ -34,8 +34,10 @@ export const normalizeTour = (docData: any, docId: string): ITour => {
     gallery: galleryArr,
     createdAt: docData.createdAt?.toDate ? docData.createdAt.toDate().toISOString() : null,
     updatedAt: docData.updatedAt?.toDate ? docData.updatedAt.toDate().toISOString() : null,
-    dates: Array.isArray(docData.dates) ? docData.dates.map((d: any) => d.toDate ? d.toDate().toISOString() : d) : [],
-  } as ITour;
+    dates: Array.isArray(docData.dates) ? docData.dates.map((d: Timestamp | string) => (typeof d === 'string' ? d : d.toDate().toISOString())) : [],
+  } as unknown as ITour; // Двоен каст през unknown — TypeScript губи index signature-а на спреднатия DocumentData при директен `as ITour`,
+  // така че мисли че липсват полета които реално идват от спреда на docData. Това е стандартния TS идиом
+  // за точно този случай — нормализация на хлабаво типизирани външни данни към строг вътрешен тип.
 };
 
 
@@ -44,9 +46,13 @@ export const normalizeTour = (docData: any, docId: string): ITour => {
  */
 
 // Взима всички публични екскурзии (Ползва се в Начална страница и Sitemap)
+// ВАЖНО: винаги с изричен orderBy — без него Firestore НЕ гарантира стабилен ред на резултатите между
+// отделни извиквания на заявката. Ако редът варира между сървърния рендър и по-късен ре-фетч (напр. при
+// клиентска навигация към нов URL), React вижда различно дърво и гърми хидратационна грешка.
+// Подреждаме по document ID (__name__) — гарантирано стабилно, не изисква допълнителен composite индекс.
 export async function getActiveTours(): Promise<ITour[]> {
   try {
-    const q = query(collection(db, "tours"), where("status", "==", "public"));
+    const q = query(collection(db, "tours"), where("status", "==", "public"), orderBy("__name__"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => normalizeTour(doc.data(), doc.id));
   } catch (error) {

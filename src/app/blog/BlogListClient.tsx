@@ -144,7 +144,9 @@ export default function BlogListClient({ posts }: { posts: BlogPost[] }) {
   const [selectedContinent, setSelectedContinent] = useState<string | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
 
-  // Read URL params on mount — supports ?country=X from external links / destination tiles
+  // Read URL params on mount — supports ?country=X from external links / destination tiles.
+  // Легитимна синхронизация на състояние от URL параметри, не derived-state анти-патерн.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const country = searchParams.get('country');
     const continent = searchParams.get('continent');
@@ -158,6 +160,7 @@ export default function BlogListClient({ posts }: { posts: BlogPost[] }) {
       setSelectedContinent(continent);
     }
   }, [searchParams]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Countries that appear in posts
   const postCountries = useMemo(() => {

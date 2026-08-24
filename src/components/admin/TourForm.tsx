@@ -497,7 +497,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                         <p className="text-[10px] text-rose-500 mt-1 ml-2 font-medium">Показва се като пулсиращ badge върху картата на екскурзията</p>
                       </div>
                     )}
-                    <div><label className={labelStyle}>Видимост</label><select className={inputStyle} value={form.status} onChange={e => setForm({...form, status: e.target.value})}><option value="public">👁️ Публична</option><option value="draft">🚫 Скрита</option><option value="archived">📦 В Архив</option></select></div>
+                    <div><label className={labelStyle}>Видимост</label><select className={inputStyle} value={form.status} onChange={e => setForm({...form, status: e.target.value})}><option value="public">👁️ Публична</option><option value="pending">⏳ Чакаща одобрение</option><option value="draft">🚫 Скрита</option><option value="archived">📦 В Архив</option></select></div>
 
                     {/* Комбинация стаи */}
                     <div>

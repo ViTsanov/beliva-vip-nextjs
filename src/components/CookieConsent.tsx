@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Cookie, FileText, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { COOKIE_CONSENT_EVENT } from './ConditionalAnalytics';
 
 export default function CookieConsent() {
   const [showBanner, setShowBanner] = useState(false);
@@ -28,6 +30,7 @@ export default function CookieConsent() {
   // 1. ПРИЕМИ ВСИЧКИ
   const handleAcceptAll = () => {
     localStorage.setItem('beliva_cookie_consent', 'all');
+    window.dispatchEvent(new Event(COOKIE_CONSENT_EVENT)); // включва GA веднага, без презареждане
     setShowBanner(false);
     setShowMiniBadge(true);
   };
@@ -35,6 +38,7 @@ export default function CookieConsent() {
   // 2. САМО НЕОБХОДИМИ
   const handleNecessary = () => {
     localStorage.setItem('beliva_cookie_consent', 'necessary');
+    window.dispatchEvent(new Event(COOKIE_CONSENT_EVENT));
     setShowBanner(false);
     setShowMiniBadge(true);
   };
@@ -42,6 +46,7 @@ export default function CookieConsent() {
   // 3. ОТКАЗВАМ
   const handleDecline = () => {
     localStorage.setItem('beliva_cookie_consent', 'declined');
+    window.dispatchEvent(new Event(COOKIE_CONSENT_EVENT));
     setShowBanner(false);
     setShowMiniBadge(true);
   };
@@ -55,8 +60,15 @@ export default function CookieConsent() {
   return (
     <>
       {/* --- ГОЛЯМ БАНЕР --- */}
+      <AnimatePresence>
       {showBanner && (
-        <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-brand-gold/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] z-[1001] p-6 animate-in slide-in-from-bottom duration-500">
+        <motion.div
+          initial={{ y: '100%', opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: '100%', opacity: 0 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-brand-gold/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] z-[1001] px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+        >
           <div className="container mx-auto">
             <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6">
               
@@ -85,7 +97,7 @@ export default function CookieConsent() {
                   {/* 1. ОТКАЗВАМ */}
                   <button 
                       onClick={handleDecline}
-                      className="px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest border border-red-200 text-red-500 hover:bg-red-50 transition-all flex-grow sm:flex-grow-0"
+                      className="px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest border border-red-200 text-red-500 hover:bg-red-50 active:scale-95 transition-all flex-grow sm:flex-grow-0"
                   >
                       Отказвам
                   </button>
@@ -93,7 +105,7 @@ export default function CookieConsent() {
                   {/* 2. САМО НЕОБХОДИМИ */}
                   <button 
                       onClick={handleNecessary}
-                      className="px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest border border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-brand-dark transition-all flex-grow sm:flex-grow-0"
+                      className="px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest border border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-brand-dark active:scale-95 transition-all flex-grow sm:flex-grow-0"
                   >
                       Само необходими
                   </button>
@@ -101,30 +113,38 @@ export default function CookieConsent() {
                   {/* 3. ПРИЕМАМ ВСИЧКИ */}
                   <button 
                       onClick={handleAcceptAll}
-                      className="bg-brand-dark text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-gold hover:text-brand-dark transition-all shadow-lg flex-grow sm:flex-grow-0"
+                      className="bg-brand-dark text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-gold hover:text-brand-dark active:scale-95 transition-all shadow-lg flex-grow sm:flex-grow-0"
                   >
                       Приемам всички
                   </button>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* --- МАЛКА ЗНАЧКА (Когато банерът е затворен) --- */}
+      <AnimatePresence>
       {showMiniBadge && !showBanner && (
-        <button 
+        <motion.button
+            initial={{ opacity: 0, scale: 0.7 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.7 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             onClick={openSettings}
-            className={`fixed z-[999] bg-white p-3 rounded-full shadow-lg border border-gray-100 text-brand-dark hover:text-brand-gold hover:scale-110 transition-all group
-              ${isTourPage ? 'bottom-24 left-4 lg:bottom-4' : 'bottom-4 left-4'}`}
+            aria-label="Настройки за бисквитки"
+            className={`fixed z-[999] bg-white p-3 rounded-full shadow-lg border border-gray-100 text-brand-dark hover:text-brand-gold hover:scale-110 active:scale-95 transition-all group left-4
+              ${isTourPage ? 'bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:bottom-[calc(1rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(1rem+env(safe-area-inset-bottom))]'}`}
             title="Настройки за бисквитки"
         >
             <Cookie size={24} />
             <span className="absolute left-12 top-1/2 -translate-y-1/2 bg-brand-dark text-white text-[10px] uppercase font-bold px-3 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                 Настройки бисквитки
             </span>
-        </button>
+        </motion.button>
       )}
+      </AnimatePresence>
     </>
   );
 }

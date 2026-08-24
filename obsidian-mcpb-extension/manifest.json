@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/schemas/mcpb-manifest-v0.4.schema.json",
+  "manifest_version": "0.4",
+  "name": "obsidian-vault",
+  "display_name": "Obsidian Vault (Claude Code plugin)",
+  "version": "0.1.0",
+  "description": "Connects Claude Desktop to an Obsidian vault via the 'Claude Code' Obsidian plugin (iansinnott), bridging its local SSE endpoint to stdio.",
+  "author": {
+    "name": "Viktor"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"]
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["win32"]
+  }
+}

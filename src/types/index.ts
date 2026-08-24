@@ -1,3 +1,7 @@
+import { Timestamp, FieldValue } from 'firebase/firestore';
+
+type FirestoreDate = Timestamp | FieldValue | string | null;
+
 export interface ITour {
   id: string;
   tourId?: string;
@@ -72,7 +76,7 @@ export interface IPost {
   content?: string;
   author?: string;
   relatedCountry?: string | string[];
-  createdAt?: any; 
+  createdAt?: FirestoreDate;
   readTime?: number;
   gallery?: string;
   externalSourceLink?: string;
@@ -103,8 +107,8 @@ export interface IClient {
   passportNumber?: string;
   passportValidity?: string;
 
-  createdAt: any;
-  updatedAt?: any;
+  createdAt: FirestoreDate;
+  updatedAt?: FirestoreDate;
 }
 
 // 2. РЕЗЕРВАЦИЯ (Booking)
@@ -129,8 +133,8 @@ export interface IBooking {
   passengersInfo?: string;     // Текст с имената на другите пътуващи, ако не са главният клиент
   
   notes?: string;
-  createdAt: any;
-  updatedAt?: any;
+  createdAt: FirestoreDate;
+  updatedAt?: FirestoreDate;
 }
 
 // 3. КОНКРЕТНО ЗАМИНАВАНЕ / ГРУПА (Departure)

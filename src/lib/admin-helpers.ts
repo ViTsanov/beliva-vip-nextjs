@@ -27,7 +27,7 @@ export const performAutoMaintenance = async (tours: any[]) => {
         let hasChanges = false;
         let newDates = [...(tour.dates || [])].sort();
         let newStatus = tour.status;
-        let newCategories = [...(tour.categories || [])];
+        const newCategories = [...(tour.categories || [])];
         let newMainDate = tour.date;
 
         // Махаме стари дати

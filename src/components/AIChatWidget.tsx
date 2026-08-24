@@ -19,6 +19,7 @@ export default function AIChatWidget() {
   const pathname = usePathname();
   const isTourPage = pathname.startsWith('/tour/');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Снифване на URL за контекст на екскурзия
   useEffect(() => {
@@ -57,8 +58,16 @@ export default function AIChatWidget() {
   }, [pathname]); 
 
   useEffect(() => {
-    if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isOpen]);
+    if (!isOpen) return;
+    // Скролваме контейнера директно (по-надеждно от scrollIntoView при отваряне/streaming)
+    const frame = requestAnimationFrame(() => {
+      const container = messagesContainerRef.current;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [messages, isLoading, isOpen]);
 
   // Забрана на скрола на тялото при отворен чат на мобилни
   useEffect(() => {
@@ -88,11 +97,12 @@ export default function AIChatWidget() {
   return (
     <>
       {/* БУТОН ЗА ОТВАРЯНЕ */}
-      <div className={`fixed z-[100] font-sans transition-transform duration-300
-        ${isTourPage ? 'bottom-24 right-6 lg:bottom-6' : 'bottom-6 right-6'}
+      <div className={`fixed z-[100] font-sans transition-transform duration-300 right-6
+        ${isTourPage ? 'bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(1.5rem+env(safe-area-inset-bottom))]'}
         ${isOpen ? 'scale-0 md:scale-100' : 'scale-100'}`}>
-        <button 
-          onClick={() => setIsOpen(!isOpen)} 
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label={isOpen ? 'Затвори AI асистент' : 'Отвори AI асистент'}
           className="bg-brand-gold text-brand-dark p-4 rounded-full shadow-2xl hover:scale-110 transition-all group relative border-2 border-white"
         >
           <div className="absolute top-1/2 -left-4 -translate-x-full -translate-y-1/2 bg-white text-brand-dark text-[10px] font-black px-4 py-2 rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-brand-gold/20 uppercase tracking-widest pointer-events-none">
@@ -141,7 +151,7 @@ export default function AIChatWidget() {
           </div>
 
           {/* MESSAGES AREA */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#fcfaf7] space-y-4">
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#fcfaf7] space-y-4">
             {messages.length === 0 && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
                  <div className="max-w-[90%] bg-white p-5 rounded-2xl rounded-tl-none border border-brand-gold/20 shadow-md text-brand-dark">

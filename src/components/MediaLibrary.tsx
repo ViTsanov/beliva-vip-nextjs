@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { storage, db } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { Upload, Trash2, Search, X, Check, Loader2, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
 import { convertToWebP } from '@/lib/utils/imageConverter';
 
@@ -177,9 +177,30 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
   // --------------------------------------------------------
   // ЛОГИКА ЗА ИЗТРИВАНЕ
   // --------------------------------------------------------
-  const handleDelete = async (id: string, path: string) => {
-    if (!confirm("Сигурни ли сте?")) return;
+  const handleDelete = async (id: string, path: string, url: string) => {
     try {
+      // ПРЕДИ да трием проверяваме дали някоя екскурзия вече използва тази снимка (hero или галерия) —
+      // иначе турът остава със счупена (404) снимка в сайта.
+      const toursSnap = await getDocs(collection(db, "tours"));
+      const usedByTours: string[] = [];
+      toursSnap.forEach(d => {
+        const t: any = d.data();
+        const inGallery = Array.isArray(t.galleryWithCaptions) && t.galleryWithCaptions.some((g: any) => g?.url === url);
+        const inImagesStr = typeof t.images === 'string' && t.images.includes(url);
+        if (t.img === url || inGallery || inImagesStr) {
+          usedByTours.push(t.title || d.id);
+        }
+      });
+
+      if (usedByTours.length > 0) {
+        const proceed = confirm(
+          `⚠️ Тази снимка се използва в ${usedByTours.length} екскурзи${usedByTours.length === 1 ? 'я' : 'и'}:\n\n${usedByTours.join('\n')}\n\nАко я изтриеш, снимката ще изчезне от тези екскурзии!\n\nНаистина ли искаш да продължиш?`
+        );
+        if (!proceed) return;
+      } else {
+        if (!confirm("Сигурни ли сте?")) return;
+      }
+
       // Трием от Storage само ако реално е качен там
       if (path && path !== 'external' && path !== 'google_drive') {
           const imgRef = ref(storage, path);
@@ -245,7 +266,7 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
                                         <Check size={16} />
                                     </button>
                                 )}
-                                <button onClick={() => handleDelete(img.id, img.path)} className="bg-red-500 p-2 rounded-full hover:scale-110" title="Изтрий">
+                                <button onClick={() => handleDelete(img.id, img.path, img.url)} className="bg-red-500 p-2 rounded-full hover:scale-110" title="Изтрий">
                                     <Trash2 size={16} />
                                 </button>
                             </div>

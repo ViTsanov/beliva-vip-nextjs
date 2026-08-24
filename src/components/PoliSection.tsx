@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ITour } from "@/types";
 import { Star, ArrowRight, MapPin } from "lucide-react";
-import TourCard from "@/components/tours/TourCard";
+import { formatPrice } from "@/lib/formatPrice";
 
 interface PoliSectionProps {
   poliTours: ITour[];
@@ -55,7 +55,7 @@ function PoliTourCard({ tour }: { tour: ITour }) {
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-serif font-bold text-brand-gold text-lg">{tour.price}</span>
+            <span className="font-serif font-bold text-brand-gold text-lg">{formatPrice(tour.price)}</span>
             <div className="w-8 h-8 rounded-full bg-brand-gold/10 flex items-center justify-center group-hover:bg-brand-gold group-hover:text-white transition-all">
               <ArrowRight size={14} className="text-brand-gold group-hover:text-white transition-colors" />
             </div>

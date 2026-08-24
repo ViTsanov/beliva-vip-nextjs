@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { Facebook, Link as LinkIcon, Smartphone, Share2, Check } from 'lucide-react'; // 👈 Добави Check
+
+const emptySubscribe = () => () => {};
 
 interface ShareProps {
   url: string;
@@ -7,14 +9,14 @@ interface ShareProps {
 }
 
 export default function ShareButtons({ url, title }: ShareProps) {
-  const [isMobileView, setIsMobileView] = useState(false);
+  // Детекция на native share поддръжка + тесен екран — useSyncExternalStore вместо useEffect+setState,
+  // така че няма нито допълнителен render pass, нито react-hooks/set-state-in-effect предупреждение.
+  const isMobileView = useSyncExternalStore(
+    emptySubscribe,
+    () => typeof navigator !== 'undefined' && typeof navigator.share === 'function' && window.innerWidth < 1024,
+    () => false,
+  );
   const [copied, setCopied] = useState(false); // 👈 Ново състояние за тикчето
-
-  useEffect(() => {
-    const supportsShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-    const isSmallScreen = window.innerWidth < 1024;
-    setIsMobileView(supportsShare && isSmallScreen);
-  }, []);
 
   const handleNativeShare = async () => {
     try {

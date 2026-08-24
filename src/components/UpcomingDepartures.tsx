@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ITour } from "@/types";
+import { useMounted } from "@/lib/hooks/useMounted";
+import { formatPrice } from "@/lib/formatPrice";
 import {
   Calendar, MapPin, ChevronLeft, ChevronRight,
   Flame, CheckCircle2, Clock, AlertCircle
@@ -49,9 +51,7 @@ export default function UpcomingDepartures({ tours }: UpcomingDeparturesProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(true);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
 
   const departures = useMemo<Departure[]>(() => {
     const today = new Date();
@@ -209,11 +209,11 @@ export default function UpcomingDepartures({ tours }: UpcomingDeparturesProps) {
                       <span className="text-[10px] text-white/30 font-medium">от</span>
                       {tour.discountPrice ? (
                         <>
-                          <span className="text-white/30 text-xs line-through">{tour.price}</span>
-                          <span className="text-red-400 text-sm font-black">{tour.discountPrice}</span>
+                          <span className="text-white/30 text-xs line-through">{formatPrice(tour.price)}</span>
+                          <span className="text-red-400 text-sm font-black">{formatPrice(tour.discountPrice)}</span>
                         </>
                       ) : (
-                        <span className="text-white font-black text-sm">{tour.price}</span>
+                        <span className="text-white font-black text-sm">{formatPrice(tour.price)}</span>
                       )}
                     </div>
                   )}

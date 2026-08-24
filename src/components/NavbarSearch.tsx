@@ -120,6 +120,12 @@ export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: Na
   }, [queryText, allTours, allPosts, uniqueCountries]);
 
   // 3. Управление на прозореца
+  const handleClose = () => {
+    setIsOpen(false);
+    setQueryText('');
+    if (onCloseParent) onCloseParent();
+  };
+
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -132,12 +138,6 @@ export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: Na
       };
     }
   }, [isOpen]);
-
-  const handleClose = () => {
-    setIsOpen(false);
-    setQueryText('');
-    if (onCloseParent) onCloseParent();
-  };
 
   // Функция за прилагане на филтър по държава
   const applyCountryFilter = (country: string) => {

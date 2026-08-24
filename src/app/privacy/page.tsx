@@ -14,7 +14,7 @@ export default function PrivacyPage() {
         
         <div className="prose prose-lg text-gray-600 max-w-none">
           <p className="lead font-medium text-xl text-gray-800 mb-8">
-            Настоящата Политика за поверителност има за цел да ви информира как <strong>[ИМЕ НА ФИРМАТА]</strong> („Ние“, „Beliva VIP Tour“, „Администраторът“) третира Вашите лични данни и какви са Вашите права съгласно Общия регламент относно защитата на данните (ЕС) 2016/679 (GDPR) и българското законодателство.
+            Настоящата Политика за поверителност има за цел да ви информира как <strong>{COMPANY_INFO.legalName}</strong> („Ние“, „Beliva VIP Tour“, „Администраторът“) третира Вашите лични данни и какви са Вашите права съгласно Общия регламент относно защитата на данните (ЕС) 2016/679 (GDPR) и българското законодателство.
           </p>
 
           <h3 className="text-brand-dark font-serif mt-12 text-2xl border-b border-brand-gold/30 pb-2">1. Данни за Администратора</h3>
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
               <h4 className="font-bold text-gray-800 text-lg flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-red-500"></span> Строго необходими бисквитки
               </h4>
-              <p className="text-sm mt-1">Необходими за базовото функциониране на сайта (напр. запазване на оферти в "Любими", сесийни данни). Те не могат да бъдат изключени.</p>
+              <p className="text-sm mt-1">Необходими за базовото функциониране на сайта (напр. запазване на оферти в &quot;Любими&quot;, сесийни данни). Те не могат да бъдат изключени.</p>
             </div>
             <div>
               <h4 className="font-bold text-gray-800 text-lg flex items-center gap-2">

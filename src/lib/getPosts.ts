@@ -1,8 +1,8 @@
-import { collection, getDocs, query, where, doc, getDoc, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc, orderBy, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 // Helper за почистване на дати
-const serializePost = (data: any, id: string) => {
+const serializePost = (data: DocumentData, id: string) => {
   return {
     ...data,
     id: id,

@@ -84,7 +84,7 @@ export default function Hero() {
           >
             <Image
               src={s.img}
-              alt={s.destination}
+              alt={`${s.destination} — ${s.subtitle}`}
               fill
               className="object-cover"
               style={{ objectPosition: 'center 35%' }}
@@ -96,6 +96,12 @@ export default function Hero() {
           </div>
         ))}
       </div>
+
+      {/* ─── LAYER 0.5: aurora mesh wash — adds depth/color without fighting the photo ─── */}
+      <div
+        className="aurora-mesh absolute inset-0 z-[5] pointer-events-none"
+        style={{ mixBlendMode: 'screen', opacity: 0.85 }}
+      />
 
       {/* ─── LAYER 1: cinematic overlays ─── */}
       {/* Top vignette — navbar readability */}
@@ -138,10 +144,16 @@ export default function Hero() {
           <div className="h-px w-12 bg-brand-gold/90" />
         </motion.div>
 
+        {/* Истински H1 за SEO/screen readers — визуално скрит, защото видимата дестинация се върти на всеки {INTERVAL}ms
+            и сама по себе си не описва бизнеса пред търсачки/асистивни технологии. */}
+        <h1 className="sr-only">
+          Beliva VIP Tour — Луксозни пътувания, екскурзии и почивки по света с личен водач
+        </h1>
+
         {/* Destination name — no overflow-hidden so letters don't clip */}
         <div className="mb-4 py-2">
           <AnimatePresence mode="wait">
-            <motion.h1
+            <motion.div
               key={`dest-${current}`}
               initial={{ opacity: 0, y: 50, filter: 'blur(8px)' }}
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -149,13 +161,16 @@ export default function Hero() {
               transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
               className="font-serif italic text-white leading-none"
               style={{
-                fontSize: 'clamp(4.5rem, 14vw, 11rem)',
+                // Минимумът е намален, за да не се отрязва по-дългите имена („Австралия“, „Сингапур“) на телефон
+                // — при 4.5rem те се режеха в overflow-hidden секцията и букви се отрязват.
+                // 14vw надвишава 2.75rem едва след ~314px viewport, така че телефоните все пак получават плавно мащабиране, не фиксиран min.
+                fontSize: 'clamp(2.75rem, 14vw, 11rem)',
                 textShadow: '0 4px 40px rgba(0,0,0,0.5)',
                 letterSpacing: '-0.01em',
               }}
             >
               {slide.destination}
-            </motion.h1>
+            </motion.div>
           </AnimatePresence>
         </div>
 
@@ -181,51 +196,48 @@ export default function Hero() {
           </AnimatePresence>
         </div>
 
-        {/* CTAs */}
+        {/* Floating glass dock — CTAs + trust stats, docked as one unit (2026 spatial-UI treatment) */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.35 }}
-          className="flex flex-col sm:flex-row items-center gap-3"
+          className="glass-panel flex flex-col items-center gap-6 rounded-[2rem] px-6 py-6 sm:px-10 sm:py-7"
         >
-          <a
-            href="/#tours-grid"
-            className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark px-8 py-3.5 rounded-full font-black uppercase text-[11px] tracking-widest hover:bg-amber-400 active:scale-95 transition-all shadow-2xl shadow-brand-gold/30 group"
-          >
-            Разгледай оферти
-            <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-          </a>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <Link
+              href="/#tours-grid"
+              className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark px-8 py-3.5 rounded-full font-black uppercase text-[11px] tracking-widest hover:bg-amber-400 active:scale-95 transition-all shadow-2xl shadow-brand-gold/30 group"
+            >
+              Разгледай оферти
+              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+            </Link>
 
-          {/* Second button — fixed width so row never shifts */}
-          <Link
-            href={slide.filterHref}
-            className="inline-flex items-center justify-center gap-2 border border-white/25 text-white/70 px-7 py-3.5 rounded-full font-black uppercase text-[11px] tracking-widest hover:border-brand-gold hover:text-brand-gold backdrop-blur-sm transition-all"
-            style={{ minWidth: 180 }}
-          >
-            <MapPin size={11} /> {slide.destination}
-          </Link>
-        </motion.div>
+            {/* Second button — fixed width so row never shifts */}
+            <Link
+              href={slide.filterHref}
+              className="inline-flex items-center justify-center gap-2 border border-white/25 text-white/70 px-7 py-3.5 rounded-full font-black uppercase text-[11px] tracking-widest hover:border-brand-gold hover:text-brand-gold transition-all"
+              style={{ minWidth: 180 }}
+            >
+              <MapPin size={11} /> {slide.destination}
+            </Link>
+          </div>
 
-        {/* Trust pills */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          className="flex items-center gap-6 mt-10"
-        >
-          {[
-            { v: '60+', l: 'Дестинации' },
-            { v: '150+', l: 'Водени групи' },
-            { v: '★ 4.9', l: 'Оценка' },
-          ].map(({ v, l }, i, arr) => (
-            <div key={l} className="flex items-center gap-6">
-              <div className="flex flex-col items-center">
-                <span className="text-brand-gold font-serif font-bold text-xl leading-none">{v}</span>
-                <span className="text-white/70 text-[8px] font-black uppercase tracking-[0.25em] mt-1">{l}</span>
+          {/* Trust pills */}
+          <div className="flex items-center gap-6">
+            {[
+              { v: '60+', l: 'Дестинации' },
+              { v: '150+', l: 'Водени групи' },
+              { v: '★ 4.9', l: 'Оценка' },
+            ].map(({ v, l }, i, arr) => (
+              <div key={l} className="flex items-center gap-6">
+                <div className="flex flex-col items-center">
+                  <span className="text-brand-gold font-serif font-bold text-xl leading-none">{v}</span>
+                  <span className="text-white/70 text-[8px] font-black uppercase tracking-[0.25em] mt-1">{l}</span>
+                </div>
+                {i < arr.length - 1 && <div className="h-6 w-px bg-white/12" />}
               </div>
-              {i < arr.length - 1 && <div className="h-6 w-px bg-white/12" />}
-            </div>
-          ))}
+            ))}
+          </div>
         </motion.div>
       </div>
 
@@ -258,7 +270,7 @@ export default function Hero() {
                 {/* Thumbnail image */}
                 <Image
                   src={s.img}
-                  alt={s.destination}
+                  alt={`Разгледай оферти за ${s.destination}`}
                   fill
                   className="object-cover transition-transform duration-700 group-hover:scale-110"
                   style={{ objectPosition: 'center 35%' }}

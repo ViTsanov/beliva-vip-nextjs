@@ -8,6 +8,9 @@ import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { MapPin, Calendar, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ITour } from "@/types";
 import { slugify } from '@/lib/admin-helpers';
+import { formatPrice } from '@/lib/formatPrice';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
+import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 
 export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
   const [similarTours, setSimilarTours] = useState<ITour[]>([]);
@@ -21,22 +24,24 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
         const toursRef = collection(db, "tours");
         let combinedTours: any[] = [];
 
-        // 1. Търсим от същата държава
-        const countryQuery = query(
-          toursRef, 
-          where("status", "==", "public"),
-          where("country", "==", currentTour.country),
-          limit(4) 
-        );
-        const countrySnapshot = await getDocs(countryQuery);
-        const countryTours = countrySnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter((t: any) => t.tourId !== currentTour.id && t.id !== currentTour.id);
+        // country може да е стринг (ръчни турове) ИЛИ масив (скрейпнати) — нормализираме
+        const countryVal = Array.isArray(currentTour.country) ? currentTour.country[0] : currentTour.country;
+        const isSelf = (t: any) => t.id === currentTour.id || (t.tourId && t.tourId === (currentTour as any).tourId);
 
-        combinedTours = [...countryTours];
+        // 1. Търсим от същата държава — с две заявки, защото полето в базата е смесен тип
+        if (countryVal) {
+          const [snapEq, snapArr] = await Promise.all([
+            getDocs(query(toursRef, where("status", "==", "public"), where("country", "==", countryVal), limit(4))),
+            getDocs(query(toursRef, where("status", "==", "public"), where("country", "array-contains", countryVal), limit(4)))
+          ]);
+          const countryTours = [...snapEq.docs, ...snapArr.docs]
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter((t: any) => !isSelf(t));
+          combinedTours = [...countryTours];
+        }
 
-        // 2. Допълваме от континента ако няма достатъчно
-        if (combinedTours.length < 3) {
+        // 2. Допълваме от континента САМО ако полето съществува (скрейпнатите турове нямат continent — where(undefined) гърми!)
+        if (combinedTours.length < 3 && currentTour.continent) {
           const continentQuery = query(
             toursRef,
             where("status", "==", "public"),
@@ -46,9 +51,18 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
           const continentSnapshot = await getDocs(continentQuery);
           const continentTours = continentSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter((t: any) => t.tourId !== currentTour.id && t.id !== currentTour.id && t.country !== currentTour.country); 
+            .filter((t: any) => !isSelf(t) && t.country !== countryVal);
 
           combinedTours = [...combinedTours, ...continentTours];
+        }
+
+        // 3. Краен fallback — просто последни публични турове, за да не е празна секцията
+        if (combinedTours.length < 3) {
+          const anySnapshot = await getDocs(query(toursRef, where("status", "==", "public"), limit(10)));
+          const anyTours = anySnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter((t: any) => !isSelf(t) && !combinedTours.some(c => c.id === t.id));
+          combinedTours = [...combinedTours, ...anyTours];
         }
 
         setSimilarTours(combinedTours.slice(0, 3) as ITour[]);
@@ -88,7 +102,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
               Още вдъхновение
               </span>
               <h2 className="text-3xl md:text-4xl font-serif text-brand-dark">
-              Вижте още от <span className="italic text-brand-gold">{currentTour.country}</span> и региона
+              Вижте още от <span className="italic text-brand-gold">{Array.isArray(currentTour.country) ? currentTour.country.join(', ') : currentTour.country}</span> и региона
               </h2>
           </div>
           <Link 
@@ -116,17 +130,24 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
               className="min-w-full md:min-w-0 snap-center group bg-white rounded-[2rem] overflow-hidden border border-brand-gold/100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col h-full"
               >
               <div className="relative h-60 md:h-60 overflow-hidden">
+                  {tour.img && !isOperatorHotlink(tour.img) ? (
                   <Image
                   src={tour.img}
                   alt={tour.title}
                   fill
+                  loading="lazy"
+                  placeholder="blur"
+                  blurDataURL={BLUR_PLACEHOLDER}
                   className="object-cover transition-transform duration-700 group-hover:scale-110"
                   sizes="(max-width: 768px) 100vw, 33vw"
                   />
+                  ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand-dark/60" />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
                   <div className="absolute bottom-4 left-4 text-white">
                   <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider mb-1 text-brand-gold">
-                      <MapPin size={12} /> {tour.country}
+                      <MapPin size={12} /> {Array.isArray(tour.country) ? tour.country.join(', ') : tour.country}
                   </div>
                   <p className="font-serif text-xl">{tour.title}</p>
                   </div>
@@ -144,7 +165,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
                       <div className="text-right">
                       <span className="text-[10px] text-gray-400 font-bold uppercase">Цена от</span>
                       <div className="text-xl font-serif font-bold text-brand-gold">
-                          {tour.price}
+                          {formatPrice(tour.price)}
                       </div>
                       </div>
                   </div>

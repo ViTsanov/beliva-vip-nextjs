@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
-import { GoogleAnalytics } from '@next/third-parties/google'
+import ConditionalAnalytics from '@/components/ConditionalAnalytics';
 import AIChatWidget from '@/components/AIChatWidget';
 
 // 1. ШРИФТОВЕ
@@ -139,7 +139,7 @@ export default function RootLayout({
           {children}
           <AIChatWidget />
         </LayoutWrapper>
-        <GoogleAnalytics gaId="G-FXLJBHSJ6K" /> {/* 👈 Сложи твоя ID тук */}
+        <ConditionalAnalytics /> {/* GA се зарежда само след изрично съгласие в CookieConsent */}
       </body>
     </html>
   );

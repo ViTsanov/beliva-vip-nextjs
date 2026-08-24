@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // Нормализира URL за стабилна дедупликация:
 // - маха http/https разлики, www, trailing slash, query params, ловъркейс
@@ -47,6 +48,9 @@ function extractCleanTitle(rawText: string): string {
 }
 
 export async function POST(req: Request) {
+    const authError = await requireAdmin();
+    if (authError) return authError;
+
     try {
         const { countries } = await req.json();
         
@@ -66,8 +70,8 @@ export async function POST(req: Request) {
                 .map((u: string) => normalizeUrl(u))
         );
 
-        let newLinksFound: { url: string; title: string; countryMatched: string }[] = [];
-        let visitedUrls = new Set<string>(); // За да не добавяме един и същ линк два пъти
+        const newLinksFound: { url: string; title: string; countryMatched: string }[] = [];
+        const visitedUrls = new Set<string>(); // За да не добавяме един и същ линк два пъти
 
         // ==========================================
         // 2. СКАНИРАНЕ НА ТУРОПЕРАТОРА (2mko)
@@ -96,8 +100,8 @@ export async function POST(req: Request) {
             // Обикаляме абсолютно всички <a> тагове на страницата
             $('a').each((_, el) => {
                 const hrefRaw = $(el).attr('href');
-                let text = $(el).text().trim().toLowerCase();
-                let titleAttr = $(el).attr('title')?.trim().toLowerCase() || '';
+                const text = $(el).text().trim().toLowerCase();
+                const titleAttr = $(el).attr('title')?.trim().toLowerCase() || '';
 
                 if (!hrefRaw) return;
 

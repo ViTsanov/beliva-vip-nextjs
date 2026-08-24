@@ -1,11 +1,27 @@
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { WORLD_COUNTRIES } from '@/lib/constants';
+import { requireAdmin } from '@/lib/adminAuth';
+
+// Единственият разрешен домейн — предпазва от SSRF към вътрешни мрежи/метаданни
+const ALLOWED_HOSTNAMES = new Set(['2mko.com', 'www.2mko.com']);
 
 export async function POST(req: Request) {
+    const authError = await requireAdmin();
+    if (authError) return authError;
+
     try {
         const { url } = await req.json();
         if (!url) return NextResponse.json({ error: 'Липсва линк' }, { status: 400 });
+
+        // Проверка на домейна преди fetch-а
+        let parsed: URL;
+        try { parsed = new URL(url); } catch {
+            return NextResponse.json({ error: 'Невалиден URL' }, { status: 400 });
+        }
+        if (!ALLOWED_HOSTNAMES.has(parsed.hostname)) {
+            return NextResponse.json({ error: 'Домейнът не е разрешен' }, { status: 400 });
+        }
 
         const response = await fetch(url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
@@ -20,9 +36,9 @@ export async function POST(req: Request) {
         const $ = cheerio.load(html);
 
         let title = '', price = '', durationDays = '', durationNights = '', route = '';
-        let program: { day: number; title: string; description: string }[] = [];
-        let dates: string[] = [];
-        let detectedCountries: string[] = [];
+        const program: { day: number; title: string; description: string }[] = [];
+        const dates: string[] = [];
+        const detectedCountries: string[] = [];
         let included = '', notIncluded = '', documents = '', generalInfo = '';
         let debugRawMatchCount = 0;
         let debugDenWordCount = 0;
@@ -169,7 +185,7 @@ export async function POST(req: Request) {
                                   lowerLine.match(/^(?:\d+\.)?\s*(в\s+цената\s+се\s+включват|в\s+цената\s+не\s+се\s+включват|пояснения\s+по\s+програма|необходими\s+документи)/);
 
                 // Премахваме маркера, за да запишем чист текст в базата данни
-                let finalLine = line.replace(/\|\|\|HEAD\|\|\|/g, '').trim();
+                const finalLine = line.replace(/\|\|\|HEAD\|\|\|/g, '').trim();
 
                 if (isHeading) {
                     if (lowerLine.includes('не са включени') || lowerLine.includes('не се включват') || lowerLine.includes('цената не включва') || lowerLine.includes('не включва') || lowerLine.includes('не се включва') || lowerLine.includes('допълнително се заплаща') || lowerLine.includes('допълнителни услуги')) {
@@ -197,22 +213,25 @@ export async function POST(req: Request) {
             });
         }
 
-        return NextResponse.json({ 
-            success: true, title, price, durationDays, durationNights, dates, route, 
-            program, detectedCountries, 
-            included: included.trim(), 
-            notIncluded: notIncluded.trim(), 
-            documents: documents.trim(), 
+        return NextResponse.json({
+            success: true, title, price, durationDays, durationNights, dates, route,
+            program, detectedCountries,
+            included: included.trim(),
+            notIncluded: notIncluded.trim(),
+            documents: documents.trim(),
             generalInfo: generalInfo.trim(),
-            debug: {
-                programDaysFound: program.length,
-                bodyTextLength: $('body').text().length,
-                rawMatchCount: debugRawMatchCount,
-                denWordCount: debugDenWordCount,
-                firstRawMatches: debugFirstRawMatches,
-                snippetAroundFirstDen: debugSnippetAroundDen,
-                day1Contexts: debugDay1Contexts
-            }
+            // Дебъг данни само в development — не излагаме вътрешна логика в production
+            ...(process.env.NODE_ENV !== 'production' && {
+                debug: {
+                    programDaysFound: program.length,
+                    bodyTextLength: $('body').text().length,
+                    rawMatchCount: debugRawMatchCount,
+                    denWordCount: debugDenWordCount,
+                    firstRawMatches: debugFirstRawMatches,
+                    snippetAroundFirstDen: debugSnippetAroundDen,
+                    day1Contexts: debugDay1Contexts
+                }
+            })
         });
 
     } catch (error: any) {

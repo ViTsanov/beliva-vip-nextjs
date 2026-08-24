@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { Star, MessageSquarePlus, MapPin, Quote, MessageSquareQuote, User, UserRound, UsersRound, Ban, Filter } from 'lucide-react';
@@ -40,7 +41,7 @@ function ReviewCard({ review, onReadMore }: { review: any, onReadMore: () => voi
 
         <div>
           <p className="text-gray-600 italic mb-4 leading-relaxed group-hover:text-brand-dark transition-colors font-serif">
-            "{displayText}{isLongText ? '...' : ''}"
+            &quot;{displayText}{isLongText ? '...' : ''}&quot;
           </p>
           {isLongText && (
             <button onClick={onReadMore} className="flex items-center gap-1 text-brand-gold text-xs font-bold uppercase tracking-wider hover:text-brand-dark mb-6 transition-colors">
@@ -155,8 +156,10 @@ export default function ReviewsPage() {
         )}
       </div>
 
-      {showAddReviewModal && <ReviewModal onClose={() => setShowAddReviewModal(false)} />}
-      {selectedReview && <ReviewDetailModal review={selectedReview} onClose={() => setSelectedReview(null)} />}
+      <AnimatePresence>
+      {showAddReviewModal && <ReviewModal key="add-review" onClose={() => setShowAddReviewModal(false)} />}
+      {selectedReview && <ReviewDetailModal key="review-detail" review={selectedReview} onClose={() => setSelectedReview(null)} />}
+      </AnimatePresence>
     </main>
   );
 }

@@ -4,12 +4,12 @@ import TourSchema from "@/components/TourSchema";
 import { getTourBySlug } from "@/services/tourService";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, limit } from "firebase/firestore";
+import { isOperatorHotlink } from "@/lib/operatorImageDomains";
 
 // Презарежда на 60 секунди — новите турове се появяват в продукция максимум след  1 минута
 export const revalidate = 60; 
 
 const SITE_URL = "https://belivavip.bg";
-const FIREBASE_PROJECT_ID = "belivavip"; 
 
 type Props = {
   params: Promise<{ id: string }>
@@ -85,11 +85,8 @@ const getRawImageUrl = (tour: any): string => {
     // Google Drive и lh3 изискват Google auth — не работят за OG
     if (url.includes('drive.google.com')) return false;
     if (url.includes('docs.google.com')) return false;
-    // Сайтове на оператори — имат hotlink protection, блокират Facebook crawler
-    if (url.includes('webtours.bg')) return false;
-    if (url.includes('2mko.com')) return false;
-    if (url.includes('anekatravel.com')) return false;
-    if (url.includes('phoenixtours.bg')) return false;
+    // Сайтове на оператори — хотlink риск / hotlink protection, блокират Facebook crawler
+    if (isOperatorHotlink(url)) return false;
     return true;
   };
 

@@ -8,6 +8,20 @@ html {
   background-color: #fcf9f2; /* Лек крем, за да не е чисто бяло */
 }
 
+/* Премахва 300ms закъснение при тап на мобилни устройства за всички интерактивни елементи */
+a, button, [role="button"], input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Хоризонтални "carousel" ленти (месеци, континенти) — snap на всяка карта за по-плавно, app-like мобилно скролиране */
+.snap-carousel {
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.snap-carousel > * {
+  scroll-snap-align: start;
+}
+
 /* Ако искаш да си сигурен, че скролбарът е красив (опционално) */
 ::-webkit-scrollbar {
   width: 10px;
@@ -93,3 +107,60 @@ html {
 /* 🎉 Празничен (Glitch/Confetti) */
 .effect-party { border: 1px dashed currentColor; animation: partyColor 3s infinite; }
 @keyframes partyColor { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+
+/* ========================================= */
+/* AURORA / GLASS — 2026 design system layer */
+/* ========================================= */
+
+/* Slow-flowing navy/gold mesh gradient — used as a decorative wash behind hero/CTA sections */
+.aurora-mesh {
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 20%, rgba(212, 175, 55, 0.22), transparent 60%),
+    radial-gradient(ellipse 70% 60% at 85% 15%, rgba(15, 23, 42, 0.5), transparent 55%),
+    radial-gradient(ellipse 90% 70% at 50% 100%, rgba(212, 175, 55, 0.14), transparent 60%);
+  background-size: 200% 200%;
+  animation: auroraFlow 16s ease-in-out infinite;
+}
+@keyframes auroraFlow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Frosted glass panel — floating search bars, stat strips, docked cards */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Cursor-reactive tilt for bento/tour cards — JS sets --rx/--ry via pointer move */
+.tilt-card {
+  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.15s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-mesh { animation: none; background-position: 50% 50%; }
+  .tilt-card { transform: none !important; transition: none; }
+
+  /* Промо ефектите по-долу всички са infinite loop анимации (пулсиране, трептене, светване) —
+     точно типа движение, което prefers-reduced-motion е предназначено да спира заради вестибуларна
+     чувствителност. Запазваме цвета/формата (те остават читаеми), махаме само движението. */
+  .effect-fire, .effect-neon, .effect-shimmer::after, .effect-pulse, .effect-bounce,
+  .effect-glow, .effect-shake, .effect-hearts::before, .effect-hearts::after,
+  .effect-scale, .effect-party {
+    animation: none !important;
+  }
+  .effect-shake { transform: none !important; }
+
+  /* Tailwind utility animations */
+  .animate-bounce, .animate-pulse, .animate-spin { animation: none !important; }
+}

@@ -149,7 +149,7 @@ export default async function DestinationPage({ params }: Props) {
             <div className="lg:col-span-7">
               <div className="relative">
                 {/* Giant opening quote */}
-                <span className="absolute -top-8 -left-4 text-8xl text-brand-gold/20 font-serif leading-none select-none">"</span>
+                <span className="absolute -top-8 -left-4 text-8xl text-brand-gold/20 font-serif leading-none select-none">&quot;</span>
                 <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif italic text-white leading-[1.1] pl-6 mb-10">
                   Изживяването,<br />
                   <span className="text-brand-gold">не само пейзажът</span>
@@ -260,7 +260,7 @@ export default async function DestinationPage({ params }: Props) {
             </div>
           </div>
         </div>
-        <ToursGrid initialTours={destinationTours} hideFilters={true} />
+        <ToursGrid initialTours={destinationTours} hideFilters={true} todayStr={new Date().toISOString().split('T')[0]} />
       </div>
 
       {/* ── 4. EXPLORE MORE ── */}

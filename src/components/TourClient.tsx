@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Compass, Clock as ClockIcon, X, CheckCircle2, XCircle, Star, Send, Euro, Flame } from 'lucide-react';
 
 import { ITour, IPost } from "@/types";
@@ -14,6 +15,7 @@ import TourTabs from './tour/TourTabs';
 import TourSidebar from './tour/TourSidebar';
 import SimilarTours from './tour/SimilarTours';
 import InquiryModal from './tour/InquiryModal'; 
+import { formatPrice } from '@/lib/formatPrice';
 
 interface TourClientProps {
   tourData: ITour;
@@ -55,12 +57,15 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
   const isLedByPoli = tourData.categories?.includes('Водена от ПОЛИ');
 
   // Favorites Logic
+  // Проверката в localStorage е генуинно client-only операция (localStorage не съществува при SSR) —
+  // не е derived-state анти-патерн, а легитимна синхронизация с външен източник (еднократно при mount).
   useEffect(() => {
     if (tourData) {
         const stored = localStorage.getItem('beliva_favorites');
         if (stored) {
             const favorites = JSON.parse(stored);
-            if (favorites.some((f: any) => f.id === (tourData.tourId || id))) {
+            if (favorites.some((f: { id: string }) => f.id === (tourData.tourId || id))) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setIsFavorite(true);
             }
         }
@@ -78,7 +83,7 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
     let favorites = stored ? JSON.parse(stored) : [];
     const currentId = tourData.tourId || id; 
     if (isFavorite) {
-        favorites = favorites.filter((f: any) => f.id !== currentId);
+        favorites = favorites.filter((f: { id: string }) => f.id !== currentId);
         setIsFavorite(false);
     } else {
         favorites.push({
@@ -125,14 +130,14 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
         {isLedByPoli && (
           <div className="mb-8 w-full bg-gradient-to-r from-brand-gold via-[#e8c872] to-brand-gold text-brand-dark py-4 sm:py-5 rounded-3xl shadow-[0_10px_30px_rgba(212,175,55,0.2)] border border-white/40 overflow-hidden relative">
             {/* Декоративен отблясък */}
-            <div className="absolute inset-0 bg-white/20 w-1/2 h-full skew-x-12 -translate-x-full animate-[shimmer_3s_infinite]"></div>
+            <div className="absolute inset-0 bg-white/20 w-1/2 h-full skew-x-12 -translate-x-full animate-[shimmer_3s_infinite] motion-reduce:hidden"></div>
             
             <div className="relative max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
-              <Star size={18} className="animate-pulse shrink-0 fill-brand-dark text-brand-dark" />
+              <Star size={18} className="animate-pulse motion-reduce:animate-none shrink-0 fill-brand-dark text-brand-dark" />
               <p className="text-xs sm:text-sm font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-center">
                 Тази екскурзия е водена лично от Поли
               </p>
-              <Star size={18} className="animate-pulse shrink-0 fill-brand-dark text-brand-dark" />
+              <Star size={18} className="animate-pulse motion-reduce:animate-none shrink-0 fill-brand-dark text-brand-dark" />
             </div>
           </div>
         )}
@@ -144,6 +149,7 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
             <TourTabs 
                 tour={tourData} 
                 galleryImages={galleryImages} 
+                galleryCaptions={gallery.map(g => g.caption)}
                 onImageClick={setSelectedImageIndex}
             />
           </div>
@@ -170,12 +176,14 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
       <InquiryModal isOpen={showInquiryModal} onClose={() => setShowInquiryModal(false)} tourId={tourData.id} tourTitle={tourData.title} tourPrice={tourData.price} tourDates={tourData.dates} />
 
       {/* 2. Inclusion Modal */}
+      <AnimatePresence>
       {showInclusions && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 md:p-12 relative shadow-2xl max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setShowInclusions(false)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-brand-dark hover:text-white transition-all"><X size={20} /></button>
-            <h2 className="text-3xl font-serif italic mb-8 text-brand-dark text-center">Пакетни услуги</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 md:p-12 relative shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Бутон за затваряне — винаги видим, вне от скролващата се зона */}
+            <button onClick={() => setShowInclusions(false)} className="absolute top-6 right-6 z-10 p-2 bg-gray-100 rounded-full hover:bg-brand-dark hover:text-white active:scale-90 transition-all shrink-0"><X size={20} /></button>
+            <h2 className="text-3xl font-serif italic mb-8 text-brand-dark text-center shrink-0 pr-8">Пакетни услуги</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 overflow-y-auto">
               <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100">
                 <h4 className="flex items-center gap-2 text-emerald-800 font-black uppercase text-[10px] tracking-widest mb-6 border-b border-emerald-200 pb-2"><CheckCircle2 size={16} /> Включва</h4>
                 <ul className="space-y-3">{getListItems(tourData.included).map((item, i) => (<li key={i} className="text-sm text-gray-700 flex items-start gap-2"><span className="text-emerald-500 font-bold">✓</span> {item}</li>))}</ul>
@@ -185,19 +193,21 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
                 <ul className="space-y-3">{getListItems(tourData.notIncluded || tourData.excluded).map((item, i) => (<li key={i} className="text-sm text-gray-700 flex items-start gap-2"><span className="text-rose-400 font-bold">✕</span> {item}</li>))}</ul>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* 3. Documents Modal */}
+      <AnimatePresence>
       {showDocuments && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md text-left">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 md:p-12 relative shadow-2xl flex flex-col max-h-[90vh]">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md text-left">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 md:p-12 relative shadow-2xl flex flex-col max-h-[90vh]">
             
             {/* Бутон за затваряне (Винаги видим) */}
             <button 
               onClick={() => setShowDocuments(false)} 
-              className="absolute top-6 right-6 z-10 p-2 bg-gray-100 rounded-full hover:bg-brand-dark hover:text-white transition-all shrink-0"
+              className="absolute top-6 right-6 z-10 p-2 bg-gray-100 rounded-full hover:bg-brand-dark hover:text-white active:scale-90 transition-all shrink-0"
             >
               <X size={20} />
             </button>
@@ -221,9 +231,10 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
               </ul>
             </div>
               
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
         
       <style jsx global>{`.inquiry-input { width: 100%; padding: 1rem 1.2rem; background: #f3f4f6; border: 2px solid transparent; border-radius: 1rem; outline: none; font-size: 0.95rem; transition: 0.3s; font-weight: 500; color: #1f2937; } .inquiry-input:focus { border-color: #c5a35d; background: #fff; box-shadow: 0 4px 20px rgba(197, 163, 93, 0.1); } .inquiry-input::placeholder { color: #9ca3af; }`}</style>
 
@@ -247,14 +258,14 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
               <>
                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none mb-0.5">Промо цена</span>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-xs text-gray-400 line-through leading-none">{tourData.price}</span>
-                  <span className="text-xl font-black text-red-500 leading-none">{tourData.discountPrice}</span>
+                  <span className="text-xs text-gray-400 line-through leading-none">{formatPrice(tourData.price)}</span>
+                  <span className="text-xl font-black text-red-500 leading-none">{formatPrice(tourData.discountPrice)}</span>
                 </div>
               </>
             ) : (
               <>
                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none mb-0.5">Цена от</span>
-                <span className="text-xl font-black text-brand-dark leading-none">{tourData.price}</span>
+                <span className="text-xl font-black text-brand-dark leading-none">{formatPrice(tourData.price)}</span>
               </>
             )}
           </div>

@@ -9,17 +9,17 @@ import { ArrowRight, MapPin } from 'lucide-react';
 // pos = CSS object-position: "X% Y%" (за X: 0%=ляво 50%=център 100%=дясно | за Y: 0%=горе 50%=среда 100%=долу)
 const SIDE_PHOTOS = [
   // Колона 1 (най-вляво)
-  { src: '/guides/poly-8.jpg', pos: 'center 55%' },   // Великденски остров — Поли + моаита
-  { src: '/guides/poly-1.jpg', pos: 'center 48%' },   // Боливия — лице + залезът
+  { src: '/guides/poly-8.jpg', pos: 'center 55%', alt: 'Поли на Великденски остров, пред статуите моаи' },
+  { src: '/guides/poly-1.jpg', pos: 'center 48%', alt: 'Поли в Боливия по залез слънце' },
   // Колона 2
-  { src: '/guides/poly-2.jpg', pos: 'center 30%' },   // Дубай ATV — лице + пустиня
-  { src: '/guides/poly-3.jpg', pos: 'center 55%' },   // Сингапур орхидеи — Поли + цветя
+  { src: '/guides/poly-2.jpg', pos: 'center 30%', alt: 'Поли на АТВ сафари в пустинята на Дубай' },
+  { src: '/guides/poly-3.jpg', pos: 'center 55%', alt: 'Поли сред орхидеи в Сингапур' },
   // Колона 3
-  { src: '/guides/poly-4.jpg', pos: 'center 42%' },   // Австралия — лице + кенгуру
-  { src: '/guides/poly-5.jpg', pos: '65% 60%' },      // Индия, Тадж Махал — дясно на Поли + храм
+  { src: '/guides/poly-4.jpg', pos: 'center 42%', alt: 'Поли с кенгуру в Австралия' },
+  { src: '/guides/poly-5.jpg', pos: '65% 60%', alt: 'Поли пред Тадж Махал, Индия' },
   // Колона 4 (най-вдясно)
-  { src: '/guides/poly-6.jpg', pos: '70% 50%' },      // Кариби — дясно на Поли + море
-  { src: '/guides/poly-7.jpg', pos: 'center 58%' },   // Китай стена — Поли + стена
+  { src: '/guides/poly-6.jpg', pos: '70% 50%', alt: 'Поли на плаж в Карибите' },
+  { src: '/guides/poly-7.jpg', pos: 'center 58%', alt: 'Поли на Великата китайска стена' },
 ];
 
 // translateY стагеринг на всяка от 4-те колони (2 снимки в колона)
@@ -89,7 +89,7 @@ export default function MeetGuides() {
         >
           {[SIDE_PHOTOS[0], SIDE_PHOTOS[1]].map((p, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden shadow-md flex-1">
-              <Image src={p.src} alt="Поли в пътуване" fill className="object-cover"
+              <Image src={p.src} alt={p.alt} fill className="object-cover"
                 style={{ objectPosition: p.pos }} sizes="20vw" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
             </div>
@@ -107,7 +107,7 @@ export default function MeetGuides() {
         >
           {[SIDE_PHOTOS[2], SIDE_PHOTOS[3]].map((p, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden shadow-md flex-1">
-              <Image src={p.src} alt="Поли в пътуване" fill className="object-cover"
+              <Image src={p.src} alt={p.alt} fill className="object-cover"
                 style={{ objectPosition: p.pos }} sizes="20vw" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
             </div>
@@ -135,7 +135,7 @@ export default function MeetGuides() {
         >
           {[SIDE_PHOTOS[4], SIDE_PHOTOS[5]].map((p, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden shadow-md flex-1">
-              <Image src={p.src} alt="Поли в пътуване" fill className="object-cover"
+              <Image src={p.src} alt={p.alt} fill className="object-cover"
                 style={{ objectPosition: p.pos }} sizes="20vw" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
             </div>
@@ -153,7 +153,7 @@ export default function MeetGuides() {
         >
           {[SIDE_PHOTOS[6], SIDE_PHOTOS[7]].map((p, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden shadow-md flex-1">
-              <Image src={p.src} alt="Поли в пътуване" fill className="object-cover"
+              <Image src={p.src} alt={p.alt} fill className="object-cover"
                 style={{ objectPosition: p.pos }} sizes="20vw" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
             </div>

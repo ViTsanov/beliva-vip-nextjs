@@ -1,22 +1,55 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import Image from 'next/image';
 import { ITour } from "@/types";
 import { Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatPrice } from '@/lib/formatPrice';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
 interface TourTabsProps {
   tour: ITour;
   galleryImages: string[];
+  galleryCaptions?: string[];
   onImageClick: (index: number) => void;
 }
 
-export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabsProps) {
+export default function TourTabs({ tour, galleryImages, galleryCaptions, onImageClick }: TourTabsProps) {
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [isGalleryExpanded, setIsGalleryExpanded] = useState(false);
   const [isInfoExpanded, setIsInfoExpanded] = useState(false);
   const [activeDay, setActiveDay] = useState(0);
   const [direction, setDirection] = useState(1); // 1 = forward, -1 = backward
+
+  // Reference точки за плавно връщане към началото на секцията, когато височината й се променя
+  // (смяна ден / затваряне на разгънат текст) — иначе четецът остава виснал по средата
+  const dayPillsRef = useRef<HTMLDivElement>(null);
+  const introRef = useRef<HTMLDivElement>(null);
+  const infoRef = useRef<HTMLDivElement>(null);
+
+  const scrollToTopOf = (ref: React.RefObject<HTMLDivElement | null>, offset = 90) => {
+    requestAnimationFrame(() => {
+      if (ref.current) {
+        const top = ref.current.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  };
+
+  const toggleDesc = () => {
+    const wasExpanded = isDescExpanded;
+    setIsDescExpanded(!wasExpanded);
+    // Скролваме обратно само при ЗАТВАРЯНЕ (текстът се смалява и четецът остава някъде долу)—
+    // при разгъване височината само расте, няма скачане, така че не е нужно скролване.
+    if (wasExpanded) scrollToTopOf(introRef);
+  };
+
+  const toggleInfo = () => {
+    const wasExpanded = isInfoExpanded;
+    setIsInfoExpanded(!wasExpanded);
+    if (wasExpanded) scrollToTopOf(infoRef);
+  };
 
   // Универсална нормализация — всички формати → YYYY-MM-DD
   const normDate = (d: any): string | null => {
@@ -59,6 +92,9 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
   const goToDay = (index: number) => {
     setDirection(index > activeDay ? 1 : -1);
     setActiveDay(index);
+    // При всяка смяна на ден скролваме плавно до началото на панела за деня — новият текст може да е
+    // по-къс или по-дълъг, а четецът трябва винаги да започва от началото, а не от където е скролнал за предишния.
+    scrollToTopOf(dayPillsRef);
   };
 
   const goNext = () => { if (activeDay < programData.length - 1) goToDay(activeDay + 1); };
@@ -96,13 +132,13 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
           {isPromoActive ? (
             <div className="relative z-10 flex flex-col">
               <p className="text-[10px] uppercase font-black text-brand-gold/70 tracking-widest mb-0.5">Специална цена</p>
-              <span className="text-xs text-gray-400 line-through decoration-red-500/50 decoration-2 font-serif leading-none mt-1">{tour.price}</span>
-              <span className="font-bold text-red-500 text-xl md:text-2xl drop-shadow-sm leading-tight">{tour.discountPrice}</span>
+              <span className="text-xs text-gray-400 line-through decoration-red-500/50 decoration-2 font-serif leading-none mt-1">{formatPrice(tour.price)}</span>
+              <span className="font-bold text-red-500 text-xl md:text-2xl drop-shadow-sm leading-tight">{formatPrice(tour.discountPrice)}</span>
             </div>
           ) : (
             <div className="relative z-10">
               <p className="text-[10px] uppercase font-black text-brand-gold/70 tracking-widest mb-1">Цена от</p>
-              <p className="font-bold text-white text-lg md:text-xl">{tour.price}</p>
+              <p className="font-bold text-white text-lg md:text-xl">{formatPrice(tour.price)}</p>
             </div>
           )}
         </div>
@@ -136,10 +172,10 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
                       <td className="py-3 text-right">
                         {tour.datePrices?.[iso] ? (
                           <span className="font-bold text-brand-gold text-base bg-brand-gold/10 px-3 py-1 rounded-lg">
-                            {tour.datePrices[iso]}
+                            {formatPrice(tour.datePrices[iso])}
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-sm">{tour.price}</span>
+                          <span className="text-gray-400 text-sm">{formatPrice(tour.price)}</span>
                         )}
                       </td>
                     </tr>
@@ -180,14 +216,14 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
 
       {/* ─── INTRO / ВПЕЧАТЛЕНИЯ ─── */}
       {tour.intro && (
-        <div className="bg-[#fffdf5] p-8 md:p-12 rounded-[2.5rem] shadow-lg border border-brand-gold/10 relative">
+        <div ref={introRef} className="bg-[#fffdf5] p-8 md:p-12 rounded-[2.5rem] shadow-lg border border-brand-gold/10 relative">
           <div className="absolute top-6 left-8 text-6xl text-brand-gold/10 font-serif italic">"</div>
           <h2 className="text-3xl font-serif italic mb-6 text-brand-dark relative z-10">Впечатления</h2>
           <div className={`relative transition-all duration-700 overflow-hidden ${!isDescExpanded ? 'max-h-40' : 'max-h-[5000px]'}`}>
             <p className="leading-relaxed whitespace-pre-wrap text-[18px] text-gray-700 font-light relative z-10">{tour.intro}</p>
             {!isDescExpanded && <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#fffdf5] to-transparent z-20"></div>}
           </div>
-          <button onClick={() => setIsDescExpanded(!isDescExpanded)} className="mt-6 flex items-center gap-2 text-brand-dark hover:text-brand-gold font-bold text-xs uppercase tracking-widest transition-colors relative z-20">
+          <button onClick={toggleDesc} className="mt-6 flex items-center gap-2 text-brand-dark hover:text-brand-gold font-bold text-xs uppercase tracking-widest transition-colors relative z-20">
             {isDescExpanded ? <>Скрий <ChevronUp size={14}/></> : <>Прочети цялото описание <ChevronDown size={14}/></>}
           </button>
         </div>
@@ -207,7 +243,7 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
           </div>
 
           {/* Day pills selector */}
-          <div className="px-3 sm:px-8 md:px-12 py-4 border-b border-gray-100 bg-gray-50/60 overflow-x-auto scrollbar-hide">
+          <div className="px-3 sm:px-8 md:px-12 py-4 border-b border-gray-100 bg-gray-50/60 overflow-x-auto scrollbar-hide" ref={dayPillsRef}>
             <div className="flex gap-2 min-w-max">
               {programData.map((_: any, i: number) => (
                 <button
@@ -274,6 +310,22 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
             </AnimatePresence>
           </div>
 
+          {/* Пълна програма за Google/screen reader-и — визуално скрито (sr-only), но налично в DOM-а.
+              Интерактивният панел по-горе показва само активния ден; без този блок дни 2..N никога
+              не се рендират в HTML-а и не се индексират. */}
+          <div className="sr-only">
+            {programData.map((day: any, i: number) => {
+              const dayNum = day.day || i + 1;
+              const content = day.content || day.desc || '';
+              return (
+                <div key={i}>
+                  <h3>Ден {dayNum}{day.title ? `: ${day.title}` : ''}</h3>
+                  <p>{content}</p>
+                </div>
+              );
+            })}
+          </div>
+
           {/* Footer: prev / progress / next */}
           <div className="px-4 sm:px-8 md:px-12 py-5 bg-gray-50/60 border-t border-gray-100 flex items-center gap-3 sm:gap-5">
             <button
@@ -312,13 +364,13 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
 
       {/* ─── ДОПЪЛНИТЕЛНА ИНФОРМАЦИЯ ─── */}
       {tour.generalInfo && (
-        <div className="bg-white p-8 md:p-10 rounded-[3rem] shadow-xl border border-gray-100 relative">
+        <div ref={infoRef} className="bg-white p-8 md:p-10 rounded-[3rem] shadow-xl border border-gray-100 relative">
           <h2 className="text-3xl md:text-4xl font-serif italic mb-6 text-brand-dark pl-4 border-l-4 border-brand-gold">Допълнителна информация</h2>
           <div className={`relative transition-all duration-700 overflow-hidden ${!isInfoExpanded ? 'max-h-48' : 'max-h-[10000px]'}`}>
             <p className="leading-relaxed whitespace-pre-wrap text-[16px] text-gray-600 font-light">{tour.generalInfo}</p>
             {!isInfoExpanded && <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent z-20"></div>}
           </div>
-          <button onClick={() => setIsInfoExpanded(!isInfoExpanded)} className="mt-6 flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-widest hover:text-brand-dark transition-colors relative z-30">
+          <button onClick={toggleInfo} className="mt-6 flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-widest hover:text-brand-dark transition-colors relative z-30">
             {isInfoExpanded ? <>Скрий информацията <ChevronUp size={14}/></> : <>Виж цялата информация <ChevronDown size={14}/></>}
           </button>
         </div>
@@ -337,7 +389,16 @@ export default function TourTabs({ tour, galleryImages, onImageClick }: TourTabs
                   className={`aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer relative group ${isHiddenOnMobile ? 'hidden md:block' : 'block'}`}
                   onClick={() => onImageClick(index)}
                 >
-                  <img src={url} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
+                  <Image
+                    src={url}
+                    alt={galleryCaptions?.[index] || `${tour.title} — снимка ${index + 1}`}
+                    fill
+                    loading="lazy"
+                    placeholder="blur"
+                    blurDataURL={BLUR_PLACEHOLDER}
+                    sizes="(max-width: 768px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <ImageIcon className="text-white w-10 h-10 drop-shadow-md" />
                   </div>

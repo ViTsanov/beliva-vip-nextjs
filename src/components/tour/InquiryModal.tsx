@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'; 
 import emailjs from '@emailjs/browser';
@@ -26,8 +27,6 @@ export default function InquiryModal({ isOpen, onClose, tourId, tourTitle, tourP
     user_name: '', user_email: '', user_phone: '', user_message: ''
   });
   const [errors, setErrors] = useState<any>({});
-
-  if (!isOpen) return null;
 
   const validate = () => {
     let newErrors: any = {};
@@ -84,10 +83,26 @@ export default function InquiryModal({ isOpen, onClose, tourId, tourTitle, tourP
   };
 
   return (
-    <div className="fixed inset-0 !z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-8 md:p-12 relative shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
-            <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-brand-dark hover:text-white transition-colors"><X size={20}/></button>
+    <AnimatePresence>
+    {isOpen && (
+    <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 !z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+    >
+        <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="bg-white w-full max-w-xl rounded-[2.5rem] p-8 md:p-12 relative shadow-2xl max-h-[90vh] flex flex-col"
+        >
+            {/* Бутон за затваряне — винаги видим, вне от скролващата се зона (формата е дълга на малки екрани) */}
+            <button onClick={onClose} className="absolute top-6 right-6 z-10 p-2 bg-gray-100 rounded-full hover:bg-brand-dark hover:text-white transition-colors shrink-0"><X size={20}/></button>
             
+            <div className="overflow-y-auto">
             {submitStatus === 'success' ? (
                 <div className="text-center py-12">
                     <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mx-auto mb-6"><CheckCircle2 size={48} /></div>
@@ -120,10 +135,10 @@ export default function InquiryModal({ isOpen, onClose, tourId, tourTitle, tourP
                         </div>
                             
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input placeholder="Име *" className={`w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-brand-gold ${errors.name ? 'border-red-500' : 'border-gray-100'}`} value={formData.user_name} onChange={e => setFormData({...formData, user_name: e.target.value})} />
-                            <input placeholder="Телефон *" className={`w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-brand-gold ${errors.phone ? 'border-red-500' : 'border-gray-100'}`} value={formData.user_phone} onChange={e => setFormData({...formData, user_phone: e.target.value})} />
+                            <input placeholder="Име *" autoComplete="name" className={`w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-brand-gold ${errors.name ? 'border-red-500' : 'border-gray-100'}`} value={formData.user_name} onChange={e => setFormData({...formData, user_name: e.target.value})} />
+                            <input placeholder="Телефон *" type="tel" inputMode="tel" autoComplete="tel" className={`w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-brand-gold ${errors.phone ? 'border-red-500' : 'border-gray-100'}`} value={formData.user_phone} onChange={e => setFormData({...formData, user_phone: e.target.value})} />
                         </div>
-                        <input placeholder="Имейл" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-brand-gold" value={formData.user_email} onChange={e => setFormData({...formData, user_email: e.target.value})} />
+                        <input placeholder="Имейл" type="email" inputMode="email" autoComplete="email" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-brand-gold" value={formData.user_email} onChange={e => setFormData({...formData, user_email: e.target.value})} />
                         <textarea placeholder="Вашето съобщение..." className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-brand-gold h-32 resize-none" value={formData.user_message} onChange={e => setFormData({...formData, user_message: e.target.value})} />
 
                         <button type="submit" disabled={submitStatus === 'sending'} className="w-full bg-brand-dark text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-brand-gold transition-all shadow-xl disabled:opacity-50">
@@ -132,7 +147,10 @@ export default function InquiryModal({ isOpen, onClose, tourId, tourTitle, tourP
                     </form>
                 </>
             )}
-        </div>
-    </div>
+            </div>
+        </motion.div>
+    </motion.div>
+    )}
+    </AnimatePresence>
   );
 }

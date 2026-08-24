@@ -28,7 +28,16 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       <main className="min-h-screen"> {/* Добавяме min-h-screen за стабилност */}
         {children}
       </main>
-      <Footer />
+      {/* На началната страница footer-ът се слага върху золотен фон —
+          така тъмните закръглени ъгли (rounded-t-[3rem]) изглеждат като дъги върху злато.
+          На останалите страници нямаме CTA секция, затова фонът е прозрачен/кремав. */}
+      {pathname === '/' ? (
+        <div style={{ background: 'linear-gradient(135deg,#b8920e 0%,#d4af37 40%,#c9a227 70%,#a37c0a 100%)' }}>
+          <Footer />
+        </div>
+      ) : (
+        <Footer />
+      )}
       <CookieConsent />
       <ScrollToTop />
     </>
