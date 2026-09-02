@@ -188,11 +188,7 @@ export default function Navbar() {
               >
                 <User size={14} /> Админ
               </Link>
-            ) : (
-              <Link href="/login-vip" aria-label="Вход в профила" className="hover:text-brand-gold transition-colors">
-                <User size={20}/>
-              </Link>
-            )}
+            ) : null}
           </div>
 
           {/* MOBILE ACTIONS */}
@@ -283,11 +279,7 @@ export default function Navbar() {
                   </Link>
                   <button onClick={handleLogout} className="text-red-500 font-bold uppercase text-xs">Изход</button>
                 </div>
-              ) : (
-                <Link href="/login-vip" onClick={() => setIsOpen(false)} className="flex items-center gap-2 text-lg font-medium text-brand-gold">
-                  <User size={20} aria-hidden="true" /> Вход
-                </Link>
-              )}
+              ) : null}
             </div>
 
             <div className="p-6 text-center text-gray-400 text-xs uppercase tracking-widest shrink-0">

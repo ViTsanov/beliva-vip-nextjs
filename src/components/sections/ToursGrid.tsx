@@ -159,6 +159,12 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     allTours.filter(t => passesFilters(t, { skipCategory: true })),
   [allTours, filterCountry, filterContinent, filterMonth, searchQuery, todayStr]);
 
+  // Само за чиповете за държава: всичко вкл. месец, без държава (така че да може да се превключва
+  // между държави в същия континент, без да изчезва останалите опции).
+  const toursForCountryFacet = useMemo(() =>
+    allTours.filter(t => passesFilters(t, { skipCountry: true })),
+  [allTours, filterContinent, filterCategory, filterMonth, searchQuery, todayStr]);
+
   const filteredTours = useMemo(() => {
     let result = allTours.filter(t => passesFilters(t, {}));
 
@@ -331,6 +337,10 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     updateParam('continent', filterContinent === value ? '' : value);
   };
 
+  const handleSelectCountry = (value: string) => {
+    updateParam('country', filterCountry === value ? '' : value);
+  };
+
   const toggleFavorite = (e: React.MouseEvent, tour: ITour) => {
     e.preventDefault(); e.stopPropagation();
     let newFavorites = [...favorites];
@@ -344,6 +354,30 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     localStorage.setItem('beliva_favorites', JSON.stringify(newFavorites));
     window.dispatchEvent(new Event("storage"));
   };
+
+  // Държави в рамките на избрания континент — показва се САМО ако има избран континент (празен арай, ако
+  // filterContinent е празен). Сортирани по брой турове, не азбучно — най-популярните държави първи.
+  const countryOptionsForContinent = useMemo(() => {
+    if (!filterContinent) return [];
+    const continentName = ['Азия', 'Европа', 'Африка', 'Северна Америка', 'Южна Америка', 'Австралия']
+      .find(c => slugify(c) === filterContinent);
+    if (!continentName) return [];
+
+    const countryMap = new Map<string, number>();
+    toursForCountryFacet.forEach(t => {
+      if (t.continent !== continentName) return;
+      const countries = typeof t.country === 'string'
+        ? t.country.split(',').map(c => c.trim())
+        : (Array.isArray(t.country) ? t.country : []);
+      countries.forEach(c => {
+        if (c) countryMap.set(c, (countryMap.get(c) || 0) + 1);
+      });
+    });
+
+    return Array.from(countryMap.entries())
+      .map(([name, count]) => ({ name, slug: slugify(name), count }))
+      .sort((a, b) => b.count - a.count);
+  }, [filterContinent, toursForCountryFacet]);
 
   let lastYear = "";
 
@@ -365,9 +399,12 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
 
   // Малка "чипка" за активен филтър — със собствен бутон за премахване, за да не се налага
   // на потребителя да скролва обратно до пикъра само за да изчисти един филтър.
-  const renderFilterChip = (label: string, onRemove: () => void) => (
+  // keyId е задължителен и различен от самия текст (label) — без това континент и държава със
+  // едно и също име (напр. „Австралия“ е и двете) биха дали еднакъв React key,
+  // гърмящ console грешка за дублиран ключ.
+  const renderFilterChip = (keyId: string, label: string, onRemove: () => void) => (
     <button
-      key={label}
+      key={keyId}
       onClick={onRemove}
       className="group flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full bg-white border border-brand-gold/25 text-brand-dark text-[11px] font-bold hover:border-brand-gold hover:bg-brand-gold/5 transition-all shadow-sm"
     >
@@ -381,7 +418,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
   return (
 
     <div
-      className="w-full py-16 relative overflow-hidden bg-#f7f0e4"
+      className="w-full py-16 relative overflow-hidden bg-[#f7f0e4]"
     >
 
     <section
@@ -431,14 +468,15 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
       {!hideFilters && hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2 mb-8 relative z-20">
           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mr-1">Активни филтри:</span>
-          {searchQuery && renderFilterChip(`„${searchQuery}“`, () => updateParam('q', ''))}
-          {filterContinent && renderFilterChip(displayContinentName, () => updateParam('continent', ''))}
-          {filterCountry && renderFilterChip(displayCountryName, () => updateParam('country', ''))}
+          {searchQuery && renderFilterChip('search', `„${searchQuery}“`, () => updateParam('q', ''))}
+          {filterContinent && renderFilterChip('continent', displayContinentName, () => updateParam('continent', ''))}
+          {filterCountry && renderFilterChip('country', displayCountryName, () => updateParam('country', ''))}
           {filterCategory && renderFilterChip(
+            'category',
             filterCategory === slugify('Водена от ПОЛИ') ? 'Групи с Поли' : displayCategoryName,
             () => updateParam('cat', '')
           )}
-          {filterMonth && renderFilterChip(selectedMonthLabel, () => updateParam('month', ''))}
+          {filterMonth && renderFilterChip('month', selectedMonthLabel, () => updateParam('month', ''))}
           <button
             onClick={clearFilters}
             className="text-[10px] font-black uppercase tracking-widest text-brand-gold hover:text-brand-dark underline underline-offset-2 ml-1"
@@ -459,6 +497,9 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
             continents={continentTiles}
             activeContinent={filterContinent}
             onSelectContinent={handleSelectContinent}
+            countries={countryOptionsForContinent}
+            activeCountry={filterCountry}
+            onSelectCountry={handleSelectCountry}
             scopedMonthLabel={selectedMonthLabel}
           />
           {/* Единствено действие, което скролва надолу — докато клиентът избира филтри, страницата остава отгоре,

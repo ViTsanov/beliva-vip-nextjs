@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Save, Globe, List, Plus, Trash2, ImageIcon, Link as LinkIcon } from 'lucide-react';
+import { Save, Globe, List, Plus, Trash2, ImageIcon, Link as LinkIcon, Compass } from 'lucide-react';
 import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
 import { WORLD_COUNTRIES } from '@/lib/constants'; // Твоят масив
@@ -12,6 +12,7 @@ export default function SettingsTab() {
   const [loading, setLoading] = useState(true);
   const [topDestinations, setTopDestinations] = useState<any[]>([]);
   const [footerLinks, setFooterLinks] = useState<any[]>([]);
+  const [destinationsSectionCountries, setDestinationsSectionCountries] = useState<string[]>([]);
   
   // Состояние за галерията
   const [isMediaOpen, setIsMediaOpen] = useState(false);
@@ -24,6 +25,7 @@ export default function SettingsTab() {
         if (docSnap.exists()) {
           setTopDestinations(docSnap.data().topDestinations || []);
           setFooterLinks(docSnap.data().footerLinks || []);
+          setDestinationsSectionCountries(docSnap.data().destinationsSectionCountries || []);
         }
       } catch (e) { console.error(e); }
       setLoading(false);
@@ -35,7 +37,8 @@ export default function SettingsTab() {
     try {
       await setDoc(doc(db, "settings", "homepage"), {
         topDestinations,
-        footerLinks
+        footerLinks,
+        destinationsSectionCountries
       });
       alert("Настройките са запазени успешно!");
     } catch (e) { alert("Грешка при запис"); }
@@ -106,6 +109,48 @@ export default function SettingsTab() {
             className="border-2 border-dashed border-gray-200 rounded-[2rem] p-10 text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all flex flex-col items-center justify-center gap-3 bg-gray-50/50"
           >
             <Plus size={32} /> <span className="text-[10px] font-black uppercase tracking-widest">Добави дестинация</span>
+          </button>
+        </div>
+      </section>
+
+      {/* СЕКЦИЯ: ДЕСТИНАЦИИ ЗА ВСЕКИ ВКУС (начална страница) */}
+      <section className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <h3 className="text-xl font-bold mb-2 flex items-center gap-2 text-brand-dark">
+            <Compass className="text-brand-gold" /> "Дестинации за всеки вкус" (начална страница)
+        </h3>
+        <p className="text-xs text-gray-400 mb-6">
+          Ако не избереш нищо тук, секцията автоматично показва топ 8 държави по брой активни турове. Снимките се взимат
+          автоматично от първия намерен тур за всяка държава — не се качват ръчно тук.
+        </p>
+        <div className="space-y-3">
+          {destinationsSectionCountries.map((country, idx) => (
+            <div key={idx} className="flex items-center gap-3">
+              <span className="text-xs font-black text-gray-300 w-6 shrink-0">{idx + 1}.</span>
+              <select
+                value={country}
+                onChange={e => {
+                  const next = [...destinationsSectionCountries];
+                  next[idx] = e.target.value;
+                  setDestinationsSectionCountries(next);
+                }}
+                className="flex-1 p-3.5 rounded-2xl border-none text-sm font-bold bg-gray-50 shadow-sm outline-none focus:ring-2 focus:ring-brand-gold/20"
+              >
+                <option value="">Избери държава...</option>
+                {WORLD_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button
+                onClick={() => setDestinationsSectionCountries(destinationsSectionCountries.filter((_, i) => i !== idx))}
+                className="bg-gray-50 text-red-400 p-3.5 rounded-2xl hover:text-red-600 transition-colors shrink-0"
+              >
+                <Trash2 size={18}/>
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => setDestinationsSectionCountries([...destinationsSectionCountries, ''])}
+            className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all font-bold text-xs uppercase tracking-widest"
+          >
+            + Добави държава
           </button>
         </div>
       </section>

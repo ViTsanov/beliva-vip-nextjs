@@ -61,7 +61,7 @@ export default function Footer() {
   return (
     <footer className="bg-brand-dark text-white pt-12 pb-10 rounded-t-[3rem] mt-auto">
       <div className="container mx-auto px-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-8 mb-12 border-b border-white/10 pb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 mb-12 border-b border-white/10 pb-12">
 
           {/* Brand */}
           <div className="lg:col-span-2 space-y-6">
@@ -92,31 +92,13 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Дестинации */}
+          {/* Дестинации — изцяло админ-контролирано (footerLinks от Settings → "Дестинации за всеки вкус"/Футър Линкове) — без
+              твърдо закодени държави като fallback — ако админът още не е добавил нищо, колоната просто остава празна
+              (без заглавие, чрез условието по-долу). */}
+          {footerLinks.length > 0 && (
           <div>
             <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Дестинации</h4>
             <ul className="space-y-3 text-sm text-gray-400">
-              <li><Link href="/destinations/tayland"    className="hover:text-white transition-colors">Тайланд</Link></li>
-              <li><Link href="/destinations/yaponia"    className="hover:text-white transition-colors">Япония</Link></li>
-              <li><Link href="/destinations/avstraliya" className="hover:text-white transition-colors">Австралия</Link></li>
-              <li><Link href="/destinations/peru"       className="hover:text-white transition-colors">Перу</Link></li>
-              <li><Link href="/destinations/singapur"   className="hover:text-white transition-colors">Сингапур</Link></li>
-              <li><Link href="/destinations/oae"        className="hover:text-white transition-colors">ОАЕ</Link></li>
-              <li><Link href="/destinations/india"      className="hover:text-white transition-colors">Индия</Link></li>
-              <li><Link href="/destinations/kitay"      className="hover:text-white transition-colors">Китай</Link></li>
-            </ul>
-          </div>
-
-          {/* Категории */}
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Категории</h4>
-            <ul className="space-y-3 text-sm text-gray-400">
-              <li><Link href="/?cat=potvardenи"          className="hover:text-white transition-colors">Потвърдени турове</Link></li>
-              <li><Link href="/?cat=vodena-ot-poli"      className="hover:text-white transition-colors">Водена от Поли</Link></li>
-              <li><Link href="/?cat=promoczii"           className="hover:text-white transition-colors">Промоции</Link></li>
-              <li><Link href="/?cat=posledni-mesta"      className="hover:text-white transition-colors">Последни места</Link></li>
-              <li><Link href="/destinations"             className="hover:text-white transition-colors">Всички дестинации</Link></li>
-              <li><Link href="/favorites"                className="hover:text-white transition-colors">Любими оферти</Link></li>
               {footerLinks.map((link, idx) => (
                 <li key={idx}>
                   <Link href={link.href} className="hover:text-white transition-colors">{link.label}</Link>
@@ -124,6 +106,7 @@ export default function Footer() {
               ))}
             </ul>
           </div>
+          )}
 
           {/* Информация */}
           <div>

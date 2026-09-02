@@ -1,21 +1,21 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 
 // Пълноекранен editorial момент — прекъсва утилитарния ритъм на страницата (Hero → Топ турове → Оферти)
 // с емоционална пауза, преди потребителят да влезе в "пазаруващия" режим на цялата решетка с оферти.
 export default function ParadiseQuote() {
   return (
     <section className="relative h-[70vh] min-h-[440px] max-h-[640px] w-full overflow-hidden bg-brand-dark">
-      <Image
-        src="/hero/thailand.webp"
-        alt=""
-        fill
-        className="object-cover"
-        style={{ objectPosition: 'center 40%' }}
-        sizes="100vw"
-        quality={80}
+      <video
+        src="/videos/sunset.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: 'center 0%' }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/70" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/40" />

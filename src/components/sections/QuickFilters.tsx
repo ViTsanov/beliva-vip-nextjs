@@ -12,6 +12,12 @@ interface ContinentTile {
   img: string;
 }
 
+interface CountryOption {
+  name: string;
+  slug: string;
+  count: number;
+}
+
 interface QuickFiltersProps {
   categories: string[];
   activeCategory: string;
@@ -20,12 +26,17 @@ interface QuickFiltersProps {
   continents: ContinentTile[];
   activeContinent: string;
   onSelectContinent: (slug: string) => void;
+  countries: CountryOption[]; // празен арай, ако няма избран континент — редицата се показва само тогава
+  activeCountry: string;
+  onSelectCountry: (slug: string) => void;
   scopedMonthLabel?: string; // ако е избран месец, показваме "Налични за месец X" над чиповете
 }
 
 export default function QuickFilters({
   categories, activeCategory, onSelectCategory, slugify,
-  continents, activeContinent, onSelectContinent, scopedMonthLabel,
+  continents, activeContinent, onSelectContinent,
+  countries, activeCountry, onSelectCountry,
+  scopedMonthLabel,
 }: QuickFiltersProps) {
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const continentScrollerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +169,35 @@ export default function QuickFilters({
             );
           })}
         </div>
+        </div>
+      )}
+
+      {/* Държави в рамките на избрания континент — появява се САМО ако има избран континент (countries е празен арай
+          в противен случай). Прост чипове, не снимки — това е второ ниво на стесняване (континент вече
+          е избран чрез снимките отгоре), така че не трябва два пъти толкова визуална тежест. */}
+      {countries.length > 0 && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2 mb-3 px-1">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Държава</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {countries.map(c => {
+              const isSelected = activeCountry === c.slug;
+              return (
+                <button
+                  key={c.slug}
+                  onClick={() => onSelectCountry(isSelected ? '' : c.slug)}
+                  className={`px-4 py-2.5 min-h-[40px] rounded-xl text-xs font-bold transition-all duration-200 border active:scale-95 ${
+                    isSelected
+                      ? 'bg-brand-dark text-white border-brand-dark shadow-md'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-brand-gold/50 hover:text-brand-gold'
+                  }`}
+                >
+                  {c.name} <span className={isSelected ? 'text-white/50' : 'text-gray-400'}>({c.count})</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
       </div>

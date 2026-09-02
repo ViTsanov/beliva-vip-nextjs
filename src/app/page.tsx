@@ -8,6 +8,8 @@ import CTASection from "@/components/sections/CTASection";
 import DestinationsSection from "@/components/sections/DestinationsSection";
 import { Suspense } from "react";
 import { getActiveTours } from "@/services/tourService";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import type { Metadata } from "next";
 
 export const revalidate = 120;
@@ -20,6 +22,17 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const tours = await getActiveTours();
+
+  let destinationsSectionCountries: string[] = [];
+  try {
+    const settingsSnap = await getDoc(doc(db, "settings", "homepage"));
+    if (settingsSnap.exists()) {
+      destinationsSectionCountries = settingsSnap.data().destinationsSectionCountries || [];
+    }
+  } catch (e) {
+    console.error("Грешка при изтегляне на homepage настройки:", e);
+  }
+
   // Изчисляваме „днешна дата“ веднъж тук, на сървъра, и я предаваме като prop надолу —
   // иначе ToursGrid щеше вика new Date() сама, и тъй като това е client component, рендиран
   // и на сървъра, и при хидратация на клиента, двата могат да хванат различни моменти и да дадат
@@ -39,7 +52,7 @@ export default async function HomePage() {
       <ParadiseQuote />
 
       {/* 3. Дестинации */}
-      <DestinationsSection tours={tours} />
+      <DestinationsSection tours={tours} adminCountries={destinationsSectionCountries} />
 
       {/* 4. Всички предложения */}
       <Suspense

@@ -5,7 +5,8 @@ import { auth } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { createSession } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
-import { Lock, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { Lock, Loader2, ArrowLeft } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -38,7 +39,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-dark flex items-center justify-center p-6">
+    <div className="min-h-screen bg-brand-dark flex items-center justify-center p-6 relative">
+      {/* За клиенти, които случайно са попаднали тук (напр. чрез директен линк/букмарк) — лесен път обратно без
+          да им се налага да въвеждат данни или да натискат „назад“ в браузъра. */}
+      <Link
+        href="/"
+        className="absolute top-6 left-6 md:top-8 md:left-8 inline-flex items-center gap-2 text-white/50 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors"
+      >
+        <ArrowLeft size={16} /> Към сайта
+      </Link>
+
       <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-2xl w-full max-w-md">
         <div className="w-20 h-20 bg-brand-gold/10 text-brand-gold rounded-full flex items-center justify-center mx-auto mb-8 text-4xl">
           <Lock size={40} />

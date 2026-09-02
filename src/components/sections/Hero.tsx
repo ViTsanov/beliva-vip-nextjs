@@ -11,57 +11,115 @@ const SLIDES = [
     destination: 'Тайланд',
     subtitle: 'Храмове, плажове и незабравими залези',
     img: '/hero/thailand.webp',
-    filterHref: '/destinations/tayland',
+    video: '/videos/thailand.mp4' ,
+    filterHref: '/?country=tayland#tours-grid',
   },
   {
     destination: 'Австралия',
     subtitle: 'Природа без граници, приключения без край',
     img: '/hero/australia.webp',
-    filterHref: '/destinations/avstraliya',
+    video: '/videos/australia.mov' , // Файлът е .mov, не .mp4 — пътят е коригиран да съвпада с реалния файл. Ако не тръгне в някой браузър,
+    // fallback логиката по-долу автоматично показва снимката вместо него.
+    filterHref: '/?country=avstraliya#tours-grid',
   },
   {
     destination: 'Китай',
     subtitle: 'Хиляди години история и модерни чудеса',
     img: '/hero/china.webp',
-    filterHref: '/destinations/kitay',
+    video: '/videos/china.mp4' ,
+    filterHref: '/?country=kitay#tours-grid',
   },
   {
     destination: 'Перу',
     subtitle: 'Мачу Пикчу и изгубените цивилизации',
     img: '/hero/peru.webp',
-    filterHref: '/destinations/peru',
+    video: '/videos/peru.mp4' ,
+    filterHref: '/?country=peru#tours-grid',
   },
   {
     destination: 'Сингапур',
     subtitle: 'Бъдещето среща традицията в Азия',
     img: '/hero/singapore.webp',
-    filterHref: '/destinations/singapur',
+    video: '/videos/singapore.mp4' ,
+    filterHref: '/?country=singapur#tours-grid',
   },
 ];
 
-const INTERVAL = 7000;
+// Фиксиран, предвидим ритъм на всеки слайд: 3s само снимка, после клипче отгоре. Преходът към следващата
+// държава се задвижва от реалното края на видеото (onEnded), не от фиксиран таймер. Фиксираният таймер по-долу
+// остава само като предпазна мрежа за случай, в който видеото никога не затръгне/не завърши.
+const PHOTO_DURATION = 3000;
+// Таван за fallback-а — генерозен, така че да не пречи никога нормално играещо видео (клипчетата са 5-10s) —
+// onEnded винаги ще стреля първо за работещо видео, тази стойност се използва само ако той никога не стреля.
+const FALLBACK_VIDEO_CEILING = 12000;
+const CROSSFADE_DURATION = 1400; // съвпада с opacity transition-а на обвиващия div по-долу
 
 export default function Hero() {
   const [current, setCurrent] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Проследява последния РЕНДВАН current — служи за синхронно засичане на смяна ПО ВРЕМЕ НА render (не в useEffect).
+  // Официален React pattern за "adjust state when a value changes" (React docs), различен от useEffect, който
+  // винаги изостава с поне един render цикъл.
+  const [renderedCurrent, setRenderedCurrent] = useState(0);
+  const [showVideoEl, setShowVideoEl] = useState(false); // след PHOTO_DURATION: дали <video> елементът вече е монтиран
+  const [videoVisible, setVideoVisible] = useState(false); // дали видеото реално свири и трябва да е видимо (насложено върху снимката)
+  // Индекс на слайда, чието видео все още трябва да остане монтирано, докато външният crossfade не завърши.
+  const [lingeringIndex, setLingeringIndex] = useState<number | null>(null);
 
-  const startTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setCurrent(c => (c + 1) % SLIDES.length);
-    }, INTERVAL);
-  }, []);
+  // СИНХРОННО по време на render (НЕ useEffect!) — засича смяна на current в СЪЩИЯ render цикъл, преди браузърът
+  // изобщо да нарисува нещо. Точно тук беше бъгът от преди: useEffect винаги изпълнява един render кадър по-късно,
+  // оставяйки видим момент, в който старият слайд вече не е current, но lingeringIndex още не е наваксал — видеото
+  // му мигновено се демонтираше, разкривайки снимката му за части от секундата, преди crossfade-ът изобщо да
+  // започне. С тази синхронна проверка React прихваща новото състояние и пре-рендва веднага, преди да нарисува
+  // каквото и да е — така че бъгливият междинен кадър никога не се вижда.
+  if (current !== renderedCurrent) {
+    setLingeringIndex(renderedCurrent);
+    setShowVideoEl(false);
+    setVideoVisible(false);
+    setRenderedCurrent(current);
+  }
 
+  // Таймерите остават в useEffect — setTimeout е неизбежен side effect, не може да се случи по време на render.
   useEffect(() => {
-    startTimer();
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [startTimer]);
+    const startVideoTimer = setTimeout(() => setShowVideoEl(true), PHOTO_DURATION);
+    const lingerTimer = setTimeout(() => setLingeringIndex(null), CROSSFADE_DURATION);
+    // Fallback — само ако onEnded никога не стреля (грешка, видео липсва за този слайд, браузърът блокира автоплей).
+    // За работещо видео никога не трябва да се стига дотук — handleVideoEnded винаги ще стреля първо и ще го анулира.
+    const fallbackTimer = setTimeout(() => {
+      setCurrent(c => (c + 1) % SLIDES.length);
+    }, PHOTO_DURATION + FALLBACK_VIDEO_CEILING);
+
+    return () => {
+      clearTimeout(startVideoTimer);
+      clearTimeout(fallbackTimer);
+      clearTimeout(lingerTimer);
+    };
+  }, [current]);
+
+  const handleVideoPlaying = () => setVideoVisible(true);
+  // Основният двигател на прехода към следващата държава — стреля точно когато видеото реално свърши,
+  // без изкуствена пауза между края на видеото и самия преход.
+  const handleVideoEnded = () => setCurrent(c => (c + 1) % SLIDES.length);
+
+  // Истински плавен progress bar чрез requestAnimationFrame (60 пъти/сек), вместо timeupdate (~4 пъти/сек), който
+  // изглеждаше стъпаловидно/накъсано. Обновяваме style директно по DOM (не React state), за да няма излишни re-render-и.
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const progressBarRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    let rafId: number;
+    const tick = () => {
+      const v = videoRef.current;
+      if (v && v.duration > 0 && progressBarRef.current) {
+        progressBarRef.current.style.transform = `scaleX(${Math.min(1, v.currentTime / v.duration)})`;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [current]);
 
   const goTo = useCallback((i: number) => {
-    if (i === current) return;
-    setCurrent(i);
-    startTimer();
-  }, [current, startTimer]);
+    setCurrent(prev => (i === prev ? prev : i));
+  }, []);
 
   const slide = SLIDES[current];
 
@@ -73,12 +131,23 @@ export default function Hero() {
 
       {/* ─── LAYER 0: images — pure CSS transition, no framer-motion flash ─── */}
       <div className="absolute inset-0 z-0">
-        {SLIDES.map((s, i) => (
+        {SLIDES.map((s, i) => {
+          const isCurrent = i === current;
+          const isLingering = i === lingeringIndex;
+          // Видеото се монтира: (а) за активния слайд, след PHOTO_DURATION, или (б) за слайда, който тъкмо
+          // престана да е активен, докато crossfade-ът му не завърши (isLingering) — за да не изчезне рязко.
+          const shouldMountVideo = (isCurrent && showVideoEl) || isLingering;
+          // За lingering слайда видеото просто остава на пълна видимост (вече беше видимо) — целият div
+          // (снимка+видео) избледнява заедно чрез външния opacity transition. За активния слайд видимостта
+          // зависи от реалния playback статус.
+          const isVideoVisible = isLingering || (isCurrent && videoVisible);
+
+          return (
           <div
             key={s.img}
             className="absolute inset-0"
             style={{
-              opacity: i === current ? 1 : 0,
+              opacity: isCurrent ? 1 : 0,
               transition: 'opacity 1.4s ease-in-out',
             }}
           >
@@ -93,8 +162,32 @@ export default function Hero() {
               quality={90}
               fetchPriority={i === 0 ? 'high' : 'auto'}
             />
+
+            {/* Монтира се точно {PHOTO_DURATION / 1000}s след като слайдът стане активен, автоматично стартира, и се появява
+                плавно едва когато onPlaying реално стреля. БЕЗ loop — onEnded веднага превключва към следващата държава,
+                без пауза след края на видеото. */}
+            {shouldMountVideo && s.video && (
+              <video
+                key={s.video}
+                ref={isCurrent ? videoRef : undefined}
+                src={s.video}
+                autoPlay={isCurrent}
+                muted
+                playsInline
+                preload="auto"
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{
+                  objectPosition: 'center 35%',
+                  opacity: isVideoVisible ? 1 : 0,
+                  transition: 'opacity 0.8s ease-in-out',
+                }}
+                onPlaying={handleVideoPlaying}
+                onEnded={isCurrent ? handleVideoEnded : undefined}
+              />
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ─── LAYER 0.5: aurora mesh wash — adds depth/color without fighting the photo ─── */}
@@ -144,7 +237,7 @@ export default function Hero() {
           <div className="h-px w-12 bg-brand-gold/90" />
         </motion.div>
 
-        {/* Истински H1 за SEO/screen readers — визуално скрит, защото видимата дестинация се върти на всеки {INTERVAL}ms
+        {/* Истински H1 за SEO/screen readers — визуално скрит, защото видимата дестинация се сменя автоматично
             и сама по себе си не описва бизнеса пред търсачки/асистивни технологии. */}
         <h1 className="sr-only">
           Beliva VIP Tour — Луксозни пътувания, екскурзии и почивки по света с личен водач
@@ -161,9 +254,6 @@ export default function Hero() {
               transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
               className="font-serif italic text-white leading-none"
               style={{
-                // Минимумът е намален, за да не се отрязва по-дългите имена („Австралия“, „Сингапур“) на телефон
-                // — при 4.5rem те се режеха в overflow-hidden секцията и букви се отрязват.
-                // 14vw надвишава 2.75rem едва след ~314px viewport, така че телефоните все пак получават плавно мащабиране, не фиксиран min.
                 fontSize: 'clamp(2.75rem, 14vw, 11rem)',
                 textShadow: '0 4px 40px rgba(0,0,0,0.5)',
                 letterSpacing: '-0.01em',
@@ -243,15 +333,15 @@ export default function Hero() {
 
       {/* ─── LAYER 3: destination slider at the bottom ─── */}
       <div className="absolute bottom-0 left-0 right-0 z-30">
-        {/* Global progress bar */}
-        <div className="h-[1px] bg-white/10">
-          <motion.div
+        {/* Global progress bar — обновяван на всеки анимационен кадър (requestAnimationFrame) спрямо реалния
+            прогрес на текущото видео. При смяна на слайда се нулира автоматично (key={current}). По време на
+            PHOTO_DURATION (само снимка) остава празна. */}
+        <div className="h-[2px] bg-white/10 overflow-hidden">
+          <div
             key={current}
-            className="h-full bg-brand-gold/60"
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: INTERVAL / 1000, ease: 'linear' }}
-            style={{ transformOrigin: 'left' }}
+            ref={progressBarRef}
+            className="h-full bg-brand-gold/70 origin-left"
+            style={{ transform: 'scaleX(0)' }}
           />
         </div>
 
@@ -308,13 +398,7 @@ export default function Hero() {
                     {s.destination}
                   </span>
                   {isActive && (
-                    <motion.div
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{ duration: INTERVAL / 1000, ease: 'linear' }}
-                      className="h-[1.5px] w-8 bg-brand-gold"
-                      style={{ transformOrigin: 'left', originX: 0 }}
-                    />
+                    <div className="h-[1.5px] w-8 bg-brand-gold" />
                   )}
                 </div>
               </button>

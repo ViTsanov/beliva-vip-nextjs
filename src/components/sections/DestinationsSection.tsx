@@ -33,9 +33,11 @@ const DEFAULT_FALLBACK: [string, string][] = [
 
 interface Props {
   tours: ITour[];
+  adminCountries?: string[]; // ако е зададено и непразно от админ панела — тези държави се показват, в това ред,
+  // вместо автоматичното „топ 8 по брой турове“ поведение.
 }
 
-export default function DestinationsSection({ tours }: Props) {
+export default function DestinationsSection({ tours, adminCountries = [] }: Props) {
   // Строим map: country → { count, img }
   // За снимка взимаме първия тур за тази дестинация с валиден img
   const destMap: Record<string, { count: number; img: string | null }> = {};
@@ -56,9 +58,14 @@ export default function DestinationsSection({ tours }: Props) {
     }
   }
 
-  const destinations = Object.entries(destMap)
-    .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 8);
+  const destinations = adminCountries.length > 0
+    // Админ-избрани държави, в точно този ред — взимаме броят/снимката от destMap, ако ги има (0, ако държавата
+    // временно няма активни турове, но все пак я показваме, тъй като админът изрично я е избрал).
+    ? adminCountries.map(name => [name, destMap[name] || { count: 0, img: null }] as [string, { count: number; img: string | null }])
+    // Автоматичен fallback — топ 8 по брой турове, ако админът още не е избрал нищо ръчно.
+    : Object.entries(destMap)
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 8);
 
   if (destinations.length === 0) return null;
 
@@ -94,7 +101,7 @@ export default function DestinationsSection({ tours }: Props) {
             return (
               <Link
                 key={name}
-                href={`/destinations/${slugify(name)}`}
+                href={`/?country=${slugify(name)}#tours-grid`}
                 className="group relative flex h-48 flex-col justify-end overflow-hidden rounded-[1.25rem] transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold"
                 style={!img ? { background: `linear-gradient(135deg, ${from}, ${to})` } : undefined}
               >
