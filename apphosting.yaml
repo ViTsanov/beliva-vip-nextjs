@@ -23,3 +23,10 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
     value: "1:325544509262:web:3627cd2adda7cdcbc4281f"
     availability: [BUILD, RUNTIME]
+  # Само на runtime, не и в build — този токен се чете само в Server Component/Server Action
+  # (admin-beliva-2025/page.tsx, actions/auth.ts), никога не стига до client bundle-а.
+  # ВАЖНО: самото добавяне на това линийка не е достатъчно — трябва реалната тайна стойност да се съхрани в
+  # Google Secret Manager първо (виж инструкциите в чата).
+  - variable: ADMIN_SESSION_TOKEN
+    secret: ADMIN_SESSION_TOKEN
+    availability: [RUNTIME]

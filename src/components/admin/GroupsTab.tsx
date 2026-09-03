@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Search, Users, Calendar, Plane, UserCheck, ChevronRight, History, Package } from 'lucide-react';
 import GroupDetailModal from './GroupDetailModal'; // Ще го създадем в следващата стъпка
@@ -31,7 +31,15 @@ export default function GroupsTab({ onOpenClient }: GroupsTabProps) {
     }
   };
 
-  useEffect(() => { fetchGroups(); }, []);
+  useEffect(() => {
+    // Чакаме Firebase Auth сесията реално да се възстанови, преди да стреляме Firestore заявката — без това,
+    // ако fetchGroups() стреля преди auth.currentUser да се попълни, request.auth е null за Firestore правилата
+    // (същият pattern като в AdminDashboardClient за tours/reviews/posts) — резултат: "Missing or insufficient permissions".
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      if (user) fetchGroups();
+    });
+    return () => unsubAuth();
+  }, []);
 
   const now = new Date();
   

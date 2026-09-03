@@ -68,7 +68,26 @@ export default function InquiryModal({ isOpen, onClose, tourId, tourTitle, tourP
             user_message: formData.user_message
         };
         await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
-        
+
+        // Проследяване на конверсия (лийд): GA4 generate_lead + Meta Pixel Lead.
+        // Guard-нати с typeof-проверка — ако gtag/fbq още не са заредени, просто се прескача.
+        if (typeof window !== 'undefined') {
+            const w = window as any;
+            if (w.gtag) {
+                w.gtag('event', 'generate_lead', {
+                    lead_type: 'tour_inquiry',
+                    tour_title: tourTitle,
+                    tour_id: tourId,
+                });
+            }
+            if (w.fbq) {
+                w.fbq('track', 'Lead', {
+                    content_name: tourTitle,
+                    content_ids: [tourId],
+                });
+            }
+        }
+
         setSubmitStatus('success');
         setTimeout(() => {
             onClose();

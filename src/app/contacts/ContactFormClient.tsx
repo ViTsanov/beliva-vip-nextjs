@@ -51,6 +51,25 @@ export default function ContactFormClient() {
             isRead: false
         });
 
+        // Проследяване на конверсия (лийд): GA4 generate_lead + Meta Pixel Lead.
+        // И двете са guard-нати с typeof-проверка, защото gtag/fbq може да не са заредени
+        // (напр. потребителят е отказал бисквитки, или Pixel скриптът още не е добавен) —
+        // в такъв случай просто прескачаме проследяването, без грешка.
+        if (typeof window !== 'undefined') {
+            const w = window as any;
+            if (w.gtag) {
+                w.gtag('event', 'generate_lead', {
+                    lead_type: selectedTour ? 'tour_inquiry' : 'general_contact',
+                    tour_title: selectedTour?.title || 'Общо запитване',
+                });
+            }
+            if (w.fbq) {
+                w.fbq('track', 'Lead', {
+                    content_name: selectedTour?.title || 'Общо запитване',
+                });
+            }
+        }
+
         setStatus('success');
         setFormData({ name: "", email: "", phone: "", message: "" });
         setSelectedTour(null);

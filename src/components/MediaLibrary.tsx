@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { storage, db } from '@/lib/firebase';
+import { storage, db, auth } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { Upload, Trash2, Search, X, Check, Loader2, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
@@ -35,13 +35,23 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
   // Състояния за Google Drive Picker
   const [pickerReady, setPickerReady] = useState(false);
 
-  // 1. Зареждане на Firebase снимки
+  // 1. Зареждане на Firebase снимки — чакаме Firebase Auth сесията реално да се възстанови (onAuthStateChanged), преди да
+  // стреляме onSnapshot към "media" колекцията — без това, ако заявката тръгне преди auth.currentUser да се
+  // попълни, request.auth е null за Firestore правилата — резултат: "Missing or insufficient permissions".
   useEffect(() => {
-    const q = query(collection(db, "media"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      setImages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    let unsubSnapshot: (() => void) | undefined;
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      if (user) {
+        const q = query(collection(db, "media"), orderBy("createdAt", "desc"));
+        unsubSnapshot = onSnapshot(q, (snap) => {
+          setImages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+      }
     });
-    return () => unsub();
+    return () => {
+      unsubAuth();
+      if (unsubSnapshot) unsubSnapshot();
+    };
   }, []);
 
   // 2. Зареждане на скриптовете за Google Drive Picker
