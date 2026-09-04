@@ -59,6 +59,14 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // AI чат въпроси — пишат се само от Cloud Function (Admin SDK, заобикаля всички правила), четат се само
+    // от admin API route-а (също чрез Admin SDK). Това правило е чисто за яснота/бъдеща поддръжка
+    // (ако някога се преминава към client SDK четене), не публично четимо — може да съдържа лична
+    // информация в текста на въпросите.
+    match /chatQuestions/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
     // 4. Catch-all — всичко останало изисква автентикация
     match /{document=**} {
       allow read, write: if request.auth != null;

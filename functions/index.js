@@ -23,6 +23,17 @@ exports.chatWithAI = onCall({
 
     const { message, history, context: tourContext } = request.data;
 
+    // Логваме въпроса за статистиката "най-често задавани въпроси" в admin панела — fire-and-forget,
+    // не блокираме/чупиме чата, ако логването гръмне по някаква причина.
+    if (message && typeof message === "string" && message.trim()) {
+        db.collection("chatQuestions").add({
+            message: message.trim(),
+            normalized: message.trim().toLowerCase(),
+            tourTitle: tourContext?.title || null,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }).catch((err) => console.error("[chatQuestions log]", err));
+    }
+
     try {
         // 1. Извличане на информация за компанията
         const companySnap = await db.doc("settings/company").get();

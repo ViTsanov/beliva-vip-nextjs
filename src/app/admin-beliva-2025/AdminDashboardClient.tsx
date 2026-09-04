@@ -10,7 +10,7 @@ import {
 import { 
   LayoutDashboard, Image as ImageIcon, Map, Archive, BookOpen, Star, Inbox, Users, LogOut, 
   Menu, X, Edit2, Copy, Trash2, CheckCircle2, FileText, UserCheck, Search, PhoneIncoming, BadgePercent, Save, Calendar, User, Mail, Phone, Globe, History, Plus, Settings, ChevronRight,
-  XCircle
+  XCircle, TrendingUp
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -28,6 +28,7 @@ import ReservationsTab from '@/components/admin/ReservationsTab';
 import GroupsTab from '@/components/admin/GroupsTab';
 import ClientDetailModal from '@/components/admin/ClientDetailModal';
 import SettingsTab from '@/components/admin/SettingsTab';
+import MarketingAnalytics from '@/components/admin/MarketingAnalytics';
 
 // Редизайн на Търсачката
 const SearchBar = ({ value, onChange, placeholder }: any) => (
@@ -680,6 +681,7 @@ export default function AdminDashboardClient() {
             <nav className="space-y-2">
                 {[
                     { id: 'dashboard', label: 'Табло', icon: LayoutDashboard },
+                    { id: 'marketing', label: 'Маркетинг', icon: TrendingUp },
                     { id: 'bookings', label: 'Резервации', icon: Inbox },
                     { id: 'customers', label: 'Клиенти', icon: UserCheck },
                     { id: 'tours', label: 'Оферти', icon: Map },
@@ -787,6 +789,8 @@ export default function AdminDashboardClient() {
         {activeTab === 'bookings' && (
             <ReservationsTab allTours={allTours} allCampaigns={campaigns} />
         )}
+
+        {activeTab === 'marketing' && <MarketingAnalytics />}
 
         {/* Останалите табове */}
         {/* ТАБ: АКТИВНИ ОФЕРТИ */}
