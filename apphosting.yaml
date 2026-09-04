@@ -30,3 +30,10 @@ env:
   - variable: ADMIN_SESSION_TOKEN
     secret: ADMIN_SESSION_TOKEN
     availability: [RUNTIME]
+  # Използва се в /api/ai-format-tour за GPT-4o — също така липсваше от apphosting.yaml, оттам 500 грешките при
+  # всеки опит за сканиране в продукция — заявката към OpenAI тръгваше с "Bearer undefined" и биваше
+  # отхвърлена. Това е плащен, чувствителен API ключ — задължително през Secret Manager, никога като
+  # plaintext в този файл (който се качва в git).
+  - variable: OPENAI_API_KEY
+    secret: OPENAI_API_KEY
+    availability: [RUNTIME]
