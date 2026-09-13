@@ -9,9 +9,8 @@ import {
 interface Props {
   inquiries: any[];
   tours: any[];
-  bookings: any[];
   clients: any[];
-  departures: any[];
+  groups: any[];
   subscribers: any[];
 }
 
@@ -45,20 +44,16 @@ const AXIS_TICK = { fontSize: 11, fill: '#9ca3af' };
 const GRID_H = { strokeDasharray: '3 3' as const, vertical: false, stroke: '#f0f0f0' };
 const GRID_V = { strokeDasharray: '3 3' as const, horizontal: false, stroke: '#f0f0f0' };
 
-const BOOKING_STATUS_LABELS: Record<string, string> = {
-  new_inquiry: 'Ново запитване',
-  offer_sent: 'Изпратена оферта',
-  deposit_paid: 'Платен депозит',
-  fully_paid: 'Напълно платено',
-  completed: 'Завършено',
+const INQUIRY_STATUS_LABELS: Record<string, string> = {
+  new: 'Ново',
+  processing: 'В процес',
+  paid: 'Платено',
   cancelled: 'Отказано',
 };
-const BOOKING_STATUS_COLORS: Record<string, string> = {
-  new_inquiry: '#d4af37',
-  offer_sent: '#3b82f6',
-  deposit_paid: '#8b5cf6',
-  fully_paid: '#10b981',
-  completed: '#0f172a',
+const INQUIRY_STATUS_COLORS: Record<string, string> = {
+  new: '#3b82f6',
+  processing: '#d4af37',
+  paid: '#10b981',
   cancelled: '#ef4444',
 };
 const PIE_COLORS = ['#c5a35d', '#0f172a', '#9ca3af', '#4b5563', '#d4d4d8'];
@@ -67,7 +62,7 @@ const EmptyState = ({ text = 'Няма данни' }: { text?: string }) => (
   <p className="text-gray-300 text-sm italic flex-1 flex items-center justify-center">{text}</p>
 );
 
-export default function DashboardCharts({ inquiries, tours, bookings, clients, departures, subscribers }: Props) {
+export default function DashboardCharts({ inquiries, tours, clients, groups, subscribers }: Props) {
   const months6  = useMemo(() => lastNMonths(6),  []);
   const months12 = useMemo(() => lastNMonths(12), []);
 
@@ -83,33 +78,40 @@ export default function DashboardCharts({ inquiries, tours, bookings, clients, d
     return months6.map(m => ({ name: m.label, Запитвания: counts[m.key] }));
   }, [inquiries, months6]);
 
-  // 2. Приходи по месеци
+  // 2. Приходи по месеци — сума от clients.tripHistory[].paidPrice (реалните плащания, както ги записва ReservationsTab.tsx),
+  // не от колекцията "bookings" — нищо никога не пише там, графиката беше винаги празна. addedAt е
+  // ISO стринг (new Date().toISOString()), не Firestore Timestamp — парсваме различно от останалите графики.
   const revenueData = useMemo(() => {
     const sums = Object.fromEntries(months6.map(m => [m.key, 0]));
-    bookings.forEach(b => {
-      if (b.createdAt?.seconds && b.totalPrice) {
-        const k = toMonthKey(b.createdAt.seconds);
-        if (k in sums) sums[k] += Number(b.totalPrice) || 0;
-      }
+    clients.forEach(c => {
+      (c.tripHistory || []).forEach((trip: any) => {
+        if (trip.addedAt && trip.paidPrice) {
+          const d = new Date(trip.addedAt);
+          const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          if (k in sums) sums[k] += Number(trip.paidPrice) || 0;
+        }
+      });
     });
     return months6.map(m => ({ name: m.label, Приходи: sums[m.key] }));
-  }, [bookings, months6]);
+  }, [clients, months6]);
 
-  // 3. Резервации по статус
+  // 3. Запитвания по статус — чете от inquiries.status (реалният вокабуляр: new/processing/paid/cancelled,
+  // виж ReservationsTab.tsx), не от никога непопълваната колекция "bookings" с различен, никога
+  // реално използван вокабуляр (new_inquiry/offer_sent/...).
   const statusData = useMemo(() => {
     const counts: Record<string, number> = {};
-    bookings.forEach(b => {
-      const s = b.status || 'new_inquiry';
+    inquiries.forEach(inq => {
+      const s = inq.status || 'new';
       counts[s] = (counts[s] || 0) + 1;
     });
     return Object.entries(counts)
       .map(([status, count]) => ({
         status,
-        name: BOOKING_STATUS_LABELS[status] || status,
+        name: INQUIRY_STATUS_LABELS[status] || status,
         count,
       }))
       .sort((a, b) => b.count - a.count);
-  }, [bookings]);
+  }, [inquiries]);
 
   // 4. Нови клиенти по месеци
   const clientsData = useMemo(() => {
@@ -172,18 +174,18 @@ export default function DashboardCharts({ inquiries, tours, bookings, clients, d
       .slice(0, 6);
   }, [tours]);
 
-  // 8. Запълненост на групите
-  const departuresData = useMemo(() => {
-    return departures
-      .filter(d => d.status !== 'cancelled' && (d.totalCapacity || 0) > 0)
-      .sort((a, b) => (b.currentBooked / b.totalCapacity) - (a.currentBooked / a.totalCapacity))
-      .slice(0, 8)
-      .map(d => ({
-        name: d.date || d.id || '—',
-        Записани: d.currentBooked || 0,
-        Свободни: Math.max(0, (d.totalCapacity || 0) - (d.currentBooked || 0)),
-      }));
-  }, [departures]);
+  // 8. Пътници по потвърдени групи — чете от реалната "groups" колекция (която ReservationsTab.tsx реално пълни
+  // при плащане). Преди тук имаше "Запълненост на заминаванията" (% спрямо капацитет) —
+  // махнахте, тъй като концепцията за "капацитет" на тур все още не съществува никъде в модела.
+  const groupsData = useMemo(() => {
+    return groups
+      .map(g => ({
+        name: g.tourTitle ? `${g.tourTitle}${g.startDate ? ` (${g.startDate})` : ''}` : (g.startDate || g.id || '—'),
+        Пътници: Array.isArray(g.tourists) ? g.tourists.length : 0,
+      }))
+      .sort((a, b) => b.Пътници - a.Пътници)
+      .slice(0, 8);
+  }, [groups]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
@@ -230,8 +232,8 @@ export default function DashboardCharts({ inquiries, tours, bookings, clients, d
 
       {/* 3. Резервации по статус */}
       <div className={CARD}>
-        <h3 className={TITLE}>Резервации по статус</h3>
-        {statusData.length === 0 ? <EmptyState text="Няма резервации" /> : (
+        <h3 className={TITLE}>Запитвания по статус</h3>
+        {statusData.length === 0 ? <EmptyState text="Няма запитвания" /> : (
           <div style={{ height: 220 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={statusData} layout="vertical"
@@ -243,7 +245,7 @@ export default function DashboardCharts({ inquiries, tours, bookings, clients, d
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Bar dataKey="count" name="Брой" radius={[0, 4, 4, 0]} maxBarSize={22}>
                   {statusData.map((entry, i) => (
-                    <Cell key={i} fill={BOOKING_STATUS_COLORS[entry.status] || '#9ca3af'} />
+                    <Cell key={i} fill={INQUIRY_STATUS_COLORS[entry.status] || '#9ca3af'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -318,22 +320,20 @@ export default function DashboardCharts({ inquiries, tours, bookings, clients, d
         )}
       </div>
 
-      {/* 7. Запълненост на групите */}
+      {/* 7. Пътници по групи */}
       <div className={CARD}>
-        <h3 className={TITLE}>Запълненост на заминаванията</h3>
-        {departuresData.length === 0 ? <EmptyState text="Няма активни заминавания" /> : (
+        <h3 className={TITLE}>Пътници по потвърдени групи</h3>
+        {groupsData.length === 0 ? <EmptyState text="Няма потвърдени групи" /> : (
           <div style={{ height: 220 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={departuresData} layout="vertical"
+              <BarChart data={groupsData} layout="vertical"
                 margin={{ top: 4, right: 24, left: 10, bottom: 0 }}>
                 <CartesianGrid {...GRID_V} />
                 <XAxis type="number" axisLine={false} tickLine={false} tick={AXIS_TICK} allowDecimals={false} />
                 <YAxis type="category" dataKey="name" axisLine={false} tickLine={false}
-                  tick={{ fontSize: 10, fill: '#9ca3af' }} width={80} />
+                  tick={{ fontSize: 10, fill: '#9ca3af' }} width={110} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
-                <Bar dataKey="Записани" stackId="a" fill="#c5a35d" maxBarSize={22} />
-                <Bar dataKey="Свободни" stackId="a" fill="#e5e7eb" radius={[0, 4, 4, 0]} maxBarSize={22} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+                <Bar dataKey="Пътници" fill="#c5a35d" radius={[0, 4, 4, 0]} maxBarSize={22} />
               </BarChart>
             </ResponsiveContainer>
           </div>

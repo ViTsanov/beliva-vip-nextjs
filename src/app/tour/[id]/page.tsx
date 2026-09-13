@@ -159,6 +159,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// Извлича реалните публикувани отзиви за конкретния тур — за aggregateRating/review в structured data (Google Search Console
+// флагна липсата им). ВАЖНО: ако няма реални отзиви за този конкретен тур, НЕ измисляме фалшив
+// рейтинг — Google изрично забранява фалшив/необосновани рейтинги в structured data.
+async function getTourReviews(tourId: string) {
+  try {
+    const q = query(
+      collection(db, "reviews"),
+      where("tourId", "==", tourId),
+      where("isPublished", "==", true)
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => d.data())
+      .filter(r => typeof r.rating === 'number' && r.rating > 0)
+      .map(r => ({
+        rating: r.rating,
+        comment: (r.comment || r.text || '').toString(),
+        customerName: r.customerName || 'Клиент',
+      }));
+  } catch (error) {
+    console.error("Грешка при извличане на отзиви за тур:", error);
+    return [];
+  }
+}
+
 // 2. ОСНОВНА СТРАНИЦА
 export default async function TourPage({ params }: Props) {
   const resolvedParams = await params;
@@ -173,11 +198,12 @@ export default async function TourPage({ params }: Props) {
   }
 
   const relatedPosts = tour.country ? await getRelatedPosts(tour.country, tour.continent) : [];
+  const tourReviews = await getTourReviews(tour.id);
   const tourForSchema = { ...tour, img: getRawImageUrl(tour) };
 
   return (
     <>
-      <TourSchema tour={tourForSchema} />
+      <TourSchema tour={tourForSchema} reviews={tourReviews} />
       <TourClient tourData={tour} relatedPostsData={relatedPosts} id={resolvedParams.id} />
     </>
   );

@@ -55,6 +55,9 @@ export default function AdminDashboardClient() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [departures, setDepartures] = useState<any[]>([]);
+  // За реалните графики в таблото (приходи/статус/пътници по група) — виж коментара в
+  // DashboardCharts.tsx за пълното обяснение защо тези три графики вече не четат bookings/departures.
+  const [groups, setGroups] = useState<any[]>([]);
 
   const [globalSelectedClient, setGlobalSelectedClient] = useState<any>(null);
 
@@ -110,6 +113,9 @@ export default function AdminDashboardClient() {
   const [automationCountries, setAutomationCountries] = useState<string[]>([]);
   const [automationCountryInput, setAutomationCountryInput] = useState('');
   const [automationLimit, setAutomationLimit] = useState<number | null>(3); // Ограничава броя турове на пускане; null = без лимит
+  // Колко нови тура е намерил последният "Провери за нови" за всяка държава отделно (групирано по
+  // countryMatched от data.newLinks) — undefined означава "още не е проверена", не 0.
+  const [scoutResults, setScoutResults] = useState<Record<string, number>>({});
 
   // Зареждаме запазените държави от localStorage при отваряне
   useEffect(() => {
@@ -180,6 +186,7 @@ export default function AdminDashboardClient() {
             onSnapshot(query(collection(db, "campaigns")),                                 (snap) => setCampaigns(snap.docs.map(d => ({ id: d.id, ...d.data() }))),    silent("campaigns"));
             onSnapshot(query(collection(db, "bookings"),    orderBy("createdAt", "desc")), (snap) => setBookings(snap.docs.map(d => ({ id: d.id, ...d.data() }))),     silent("bookings"));
             onSnapshot(query(collection(db, "departures")),                                (snap) => setDepartures(snap.docs.map(d => ({ id: d.id, ...d.data() }))),   silent("departures"));
+            onSnapshot(query(collection(db, "groups")),                                     (snap) => setGroups(snap.docs.map(d => ({ id: d.id, ...d.data() }))),       silent("groups"));
             setLoading(false);
         }
     });
@@ -347,6 +354,14 @@ export default function AdminDashboardClient() {
     totalCustomers: customers.length,
     totalSubscribers: subscribers.length,
   };
+
+  // Брой наши турове по държава (всички статуси — public/pending/archived/draft — това е общото инвентарно
+  // бройнико, за да знае Админът дали вече има достатъчно за тази държава, преди да скенира още).
+  const ourCountsByCountry = allTours.reduce((acc: Record<string, number>, t: any) => {
+    const countries: string[] = Array.isArray(t.country) ? t.country : [t.country].filter(Boolean);
+    countries.forEach(c => { if (c) acc[c] = (acc[c] || 0) + 1; });
+    return acc;
+  }, {});
 
   const handleSaveCampaign = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -776,9 +791,8 @@ export default function AdminDashboardClient() {
         {activeTab === 'dashboard' && <div className="space-y-8 animate-in fade-in duration-500"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><StatCard icon={Inbox} color="emerald" count={stats.newInquiries} label="Нови Запитвания" highlight /><StatCard icon={UserCheck} color="blue" count={stats.totalCustomers} label="Клиенти (CRM)" /><StatCard icon={Map} color="orange" count={stats.activeTours} label="Активни Оферти" /><StatCard icon={Users} color="purple" count={stats.totalSubscribers} label="Абонати" /></div><DashboardCharts
                     inquiries={inquiries}
                     tours={allTours}
-                    bookings={bookings}
                     clients={customers}
-                    departures={departures}
+                    groups={groups}
                     subscribers={subscribers}
                   /></div>}
 
@@ -844,14 +858,26 @@ export default function AdminDashboardClient() {
                       <p className="text-white/50 text-xs">Добави държави една по една и натисни Старт. Новите турове се появяват тук за одобрение.</p>
                     </div>
 
-                    {/* Избрани държави */}
+                    {/* Избрани държави — показва и колко тура вече имаме, и колко нови намери последната проверка — за да знаеш
+                    дали вече има достатъчно за тази държава, преди да скенираш още. */}
                     <div className="flex flex-wrap gap-2">
-                      {automationCountries.map(c => (
+                      {automationCountries.map(c => {
+                        const ourCount = ourCountsByCountry[c] || 0;
+                        const newCount = scoutResults[c]; // undefined = още не е проверена
+                        return (
                         <span key={c} className="bg-brand-gold/20 border border-brand-gold/40 text-brand-gold px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2">
                           {c}
+                          <span className="text-white/40 font-normal text-xs">
+                            Имаме: <span className="text-white/70 font-bold">{ourCount}</span>
+                            {' · '}
+                            Нови: {newCount === undefined
+                              ? <span className="text-white/40 italic">?</span>
+                              : <span className={newCount > 0 ? 'text-emerald-400 font-bold' : 'text-white/40'}>{newCount}</span>}
+                          </span>
                           <button onClick={() => setAutomationCountries(automationCountries.filter(x => x !== c))} className="hover:text-white transition-colors"><X size={14}/></button>
                         </span>
-                      ))}
+                        );
+                      })}
                       {automationCountries.length === 0 && <span className="text-white/30 text-sm italic">Няма избрани държави</span>}
                     </div>
 
@@ -898,6 +924,14 @@ export default function AdminDashboardClient() {
                             });
                             const data = await res.json();
                             const count = data.totalNewFound || 0;
+                            // Групираме data.newLinks по countryMatched, за да покажем отделна бройка във всеки чип държава,
+                            // не само общата бройка за всички. Инициализираме всяка проверена държава на 0 първо (дори
+                            // ако няма newLinks за нея), така че "?" да се смени на "0", не да остане неопределено.
+                            const freshCounts: Record<string, number> = Object.fromEntries(automationCountries.map(c => [c, 0]));
+                            (data.newLinks || []).forEach((l: any) => {
+                              if (l.countryMatched) freshCounts[l.countryMatched] = (freshCounts[l.countryMatched] || 0) + 1;
+                            });
+                            setScoutResults(prev => ({ ...prev, ...freshCounts }));
                             setAutoProcessStatus(count > 0
                               ? `Намерени ${count} нови екскурзии! Натисни "Стартирай сканиране" за да ги обработиш.`
                               : 'Няма нови екскурзии за избраните държави.');

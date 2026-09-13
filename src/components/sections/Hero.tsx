@@ -121,12 +121,25 @@ export default function Hero() {
     setCurrent(prev => (i === prev ? prev : i));
   }, []);
 
+  // JS-контролиран скрол вместо чист CSS anchor (scroll-behavior: smooth в globals.css) — на iOS/mobile Safari
+  // нативната hash-навигация инога влиза в конфликт със CSS smooth scroll (особено с scroll-mt-*
+  // отстъп на целта) — точно оттам идва видимото "бавно, после рязъв скок". scrollIntoView()
+  // изчислява позицията наново в момента на самия клик, заобикаля това взаимодействие изцяло.
+  const scrollToTours = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    document.getElementById('tours-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
   const slide = SLIDES[current];
 
   return (
     <section
       className="relative w-full overflow-hidden bg-brand-dark"
-      style={{ height: '100dvh', minHeight: 600 }}
+      style={{ height: '100svh', minHeight: 600 }}
+      // 100svh (small viewport height), не 100dvh (dynamic) — dvh се преизчислява в реално време, докато
+      // адресната линия на мобилния браузър се скрива/показва при скрол — точно това е видимото
+      // „разтягане“ на hero-то за момент при скрол. svh е фиксирана стойност (най-малката възможна,
+      // т.е. с видима адресна линия), не се преизчислява по време на скрол, никакво визуално „дърване“.
     >
 
       {/* ─── LAYER 0: images — pure CSS transition, no framer-motion flash ─── */}
@@ -296,6 +309,7 @@ export default function Hero() {
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <Link
               href="/#tours-grid"
+              onClick={scrollToTours}
               className="inline-flex items-center gap-2 bg-brand-gold text-brand-dark px-8 py-3.5 rounded-full font-black uppercase text-[11px] tracking-widest hover:bg-amber-400 active:scale-95 transition-all shadow-2xl shadow-brand-gold/30 group"
             >
               Разгледай оферти
