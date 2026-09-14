@@ -38,8 +38,13 @@ env:
     secret: OPENAI_API_KEY
     availability: [RUNTIME]
 
-  # ─── GA4 / OpenAI Usage / Meta ─── добавени като placeholder-и; не са зададени още като Secret Manager
-  # тайни — admin панелът просто ще показва "Не е конфигурирано", докато не са зададени.
+  # ─── GA4 / OpenAI Usage ─── вече зададени и работещи като Secret Manager тайни.
+  #
+  # ВАЖНО за бъдещи тайни тук: Firebase App Hosting ИЗИСКВА всяка реферирана тук тайна да СЪЩЕСТВУВА реално в
+  # Secret Manager, иначе ЦЕЛИЯт deployment гръмва с "Misconfigured secret" и нищо не стига до продукция —
+  # НЕ грациозно показва "Не е конфигурирано" като admin панела, а спира целия rollout. Затова
+  # META_ACCESS_TOKEN/META_AD_ACCOUNT_ID са махнати оттук — добавяй ги обратно тук САМО след като реално са зададени
+  # чрез `firebase apphosting:secrets:set` (когато пуснеш Meta реклами).
   - variable: GA4_PROPERTY_ID
     secret: GA4_PROPERTY_ID
     availability: [RUNTIME]
@@ -51,10 +56,4 @@ env:
     availability: [RUNTIME]
   - variable: OPENAI_ADMIN_KEY
     secret: OPENAI_ADMIN_KEY
-    availability: [RUNTIME]
-  - variable: META_ACCESS_TOKEN
-    secret: META_ACCESS_TOKEN
-    availability: [RUNTIME]
-  - variable: META_AD_ACCOUNT_ID
-    secret: META_AD_ACCOUNT_ID
     availability: [RUNTIME]
