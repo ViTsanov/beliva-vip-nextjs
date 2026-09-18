@@ -11,9 +11,10 @@ import ClientDetailModal from './ClientDetailModal';
 
 interface ClientsTabProps {
   onAddClient: () => void;
+  onOpenGroup?: (tourId: string, date?: string) => void;
 }
 
-export default function ClientsTab({ onAddClient }: ClientsTabProps) {
+export default function ClientsTab({ onAddClient, onOpenGroup }: ClientsTabProps) {
   const [clients, setClients] = useState<IClient[]>([]);
   const [filteredClients, setFilteredClients] = useState<IClient[]>([]);
   const [clientSearch, setClientSearch] = useState('');
@@ -190,9 +191,8 @@ export default function ClientsTab({ onAddClient }: ClientsTabProps) {
             setFilteredClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
             setSelectedClient(updatedClient);
           }}
-          onOpenGroup={(tourId) => {
-            // Временно съобщение, докато направим Стъпка 4
-            alert(`Скоро тук ще се отваря Картонът на групата с детайли за полети и гидове! (ID: ${tourId})`);
+          onOpenGroup={(tourId, date) => {
+            if (onOpenGroup) onOpenGroup(tourId, date);
           }}
         />
       )}

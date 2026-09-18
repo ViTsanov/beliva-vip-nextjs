@@ -7,36 +7,55 @@ runConfig:
 env:
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: "AIzaSyCzNrbw-Y3-_KWU1t9TxgSpe6r0Y3GjD6A"
-    availability: [BUILD, RUNTIME]
+    availability: [ BUILD, RUNTIME ]
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
     value: "belivavip.firebaseapp.com"
-    availability: [BUILD, RUNTIME]
+    availability: [ BUILD, RUNTIME ]
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     value: "belivavip"
-    availability: [BUILD, RUNTIME]
+    availability: [ BUILD, RUNTIME ]
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
     value: "belivavip.firebasestorage.app"
-    availability: [BUILD, RUNTIME]
+    availability: [ BUILD, RUNTIME ]
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
     value: "325544509262"
-    availability: [BUILD, RUNTIME]
+    availability: [ BUILD, RUNTIME ]
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
     value: "1:325544509262:web:3627cd2adda7cdcbc4281f"
-    availability: [BUILD, RUNTIME]
+    availability: [ BUILD, RUNTIME ]
+  # Тези три вече са използвани в ContactClient.tsx/InquiryModal.tsx, но липсваха оттук дотук — в продукция
+  # биха били undefined при build, оттам EmailJS извикванията биха гръмнали. Тези ID-та са изрично
+  # предназначени да са публични (клиентска страна, EmailJS сигурността е на ниво template, не тайност на
+  # тези ID-та) — безопасно са като plaintext, не като Secret Manager секрет.
+  - variable: NEXT_PUBLIC_EMAILJS_SERVICE_ID
+    value: "service_belivavip"
+    availability: [ BUILD, RUNTIME ]
+  - variable: NEXT_PUBLIC_EMAILJS_TEMPLATE_ID
+    value: "template_lg0q6wh"
+    availability: [ BUILD, RUNTIME ]
+  - variable: NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+    value: "t9uPLu_ahmh3PQbLU"
+    availability: [ BUILD, RUNTIME ]
+  # НОВ: за изпращане на checkout линкове/кореспонденция от админ панела (ReservationsTab.tsx) — трябва да
+  # създадеш НОВ template в EmailJS дашборда (с "To Email" настроено като {{to_email}}, не фиксиран адрес),
+  # после да попълниш реалното ID тук. Засега коментирано, защото още не съществува.
+  - variable: NEXT_PUBLIC_EMAILJS_CLIENT_TEMPLATE_ID
+    value: "template_4ahussf"
+    availability: [ BUILD, RUNTIME ]
   # Само на runtime, не и в build — този токен се чете само в Server Component/Server Action
   # (admin-beliva-2025/page.tsx, actions/auth.ts), никога не стига до client bundle-а.
   # ВАЖНО: самото добавяне на това линийка не е достатъчно — трябва реалната тайна стойност да се съхрани в
   # Google Secret Manager първо (виж инструкциите в чата).
   - variable: ADMIN_SESSION_TOKEN
     secret: ADMIN_SESSION_TOKEN
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   # Използва се в /api/ai-format-tour за GPT-4o — също така липсваше от apphosting.yaml, оттам 500 грешките при
   # всеки опит за сканиране в продукция — заявката към OpenAI тръгваше с "Bearer undefined" и биваше
   # отхвърлена. Това е плащен, чувствителен API ключ — задължително през Secret Manager, никога като
   # plaintext в този файл (който се качва в git).
   - variable: OPENAI_API_KEY
     secret: OPENAI_API_KEY
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
 
   # ─── GA4 / OpenAI Usage ─── вече зададени и работещи като Secret Manager тайни.
   #
@@ -47,13 +66,15 @@ env:
   # чрез `firebase apphosting:secrets:set` (когато пуснеш Meta реклами).
   - variable: GA4_PROPERTY_ID
     secret: GA4_PROPERTY_ID
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: GA4_CLIENT_EMAIL
     secret: GA4_CLIENT_EMAIL
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: GA4_PRIVATE_KEY
     secret: GA4_PRIVATE_KEY
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
   - variable: OPENAI_ADMIN_KEY
     secret: OPENAI_ADMIN_KEY
-    availability: [RUNTIME]
+    availability: [ RUNTIME ]
+  - variable: DATA_ENCRYPTION_KEY
+    secret: DATA_ENCRYPTION_KEY

@@ -7,10 +7,14 @@ import { Search, Users, Calendar, Plane, UserCheck, ChevronRight, History, Packa
 import GroupDetailModal from './GroupDetailModal'; // Ще го създадем в следващата стъпка
 
 interface GroupsTabProps {
-  onOpenClient: (id: string) => void;
+  onOpenClient: (id: string, fallbackName?: string) => void;
+  allTours: any[]; // За fallback търсене на туроператора при вече съществуващи групи, които още нямат tourOperator поле
+  pendingGroupOpenId?: string | null; // Задава се отвън — когато клиент кликне пътуване в историята си, тази група
+  // трябва да се отвори автоматично веднага щом табът се монтира.
+  onPendingGroupOpened?: () => void; // Изчиства pendingGroupOpenId обратно на null, след като вече сме го отворили
 }
 
-export default function GroupsTab({ onOpenClient }: GroupsTabProps) {
+export default function GroupsTab({ onOpenClient, allTours, pendingGroupOpenId, onPendingGroupOpened }: GroupsTabProps) {
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +44,17 @@ export default function GroupsTab({ onOpenClient }: GroupsTabProps) {
     });
     return () => unsubAuth();
   }, []);
+
+  // Автоматично отваря групата, към която стигаме от клик във tripHistory на клиент — изчаква groups да са вече
+  // заредени (след fetchGroups от-горе), иначе не би намерила съвпадението.
+  useEffect(() => {
+    if (!pendingGroupOpenId || groups.length === 0) return;
+    const match = groups.find(g => g.id === pendingGroupOpenId);
+    if (match) {
+      setSelectedGroup(match);
+      onPendingGroupOpened?.();
+    }
+  }, [pendingGroupOpenId, groups, onPendingGroupOpened]);
 
   const now = new Date();
   
@@ -87,7 +102,11 @@ export default function GroupsTab({ onOpenClient }: GroupsTabProps) {
 
       {/* GROUPS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredGroups.map(group => (
+        {filteredGroups.map(group => {
+          // Fallback — ако групата е създадена преди тази поправка и няма събствено tourOperator поле,
+          // търсим го в актуалните турове по tourId.
+          const operator = group.tourOperator || allTours.find(t => t.id === group.tourId)?.operator || 'Неизвестен';
+          return (
           <div 
             key={group.id} 
             onClick={() => setSelectedGroup(group)}
@@ -103,9 +122,10 @@ export default function GroupsTab({ onOpenClient }: GroupsTabProps) {
               </div>
             </div>
 
-            <h3 className="font-serif italic text-xl text-brand-dark mb-4 line-clamp-2 leading-tight">
+            <h3 className="font-serif italic text-xl text-brand-dark mb-1 line-clamp-2 leading-tight">
               {group.tourTitle}
             </h3>
+            <p className="text-[10px] font-black uppercase text-gray-300 tracking-widest mb-4">{operator}</p>
 
             <div className="space-y-3 border-t border-gray-50 pt-4">
               <div className="flex items-center justify-between text-xs">
@@ -131,7 +151,8 @@ export default function GroupsTab({ onOpenClient }: GroupsTabProps) {
                 <ChevronRight size={20} className="text-gray-300 group-hover:text-brand-gold group-hover:translate-x-1 transition-all" />
             </div>
           </div>
-        ))}
+          );
+        })}
 
         {filteredGroups.length === 0 && (
           <div className="col-span-full py-20 text-center bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-200">

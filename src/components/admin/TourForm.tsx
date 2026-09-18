@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { PlusCircle, Minus, X, Info, Globe, Tag, Bed, MapPin, FileText, ListChecks } from 'lucide-react';
 import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
 import { WORLD_COUNTRIES } from '@/lib/constants';
+import CountryMultiSelect from '@/components/admin/CountryMultiSelect';
 
 
 // ПОМОЩЕН КОМПОНЕНТ ЗА СПИСЪЦИ (Тагове)
@@ -45,66 +46,24 @@ const TagsInput = ({ tags, setTags, placeholder, label }: any) => {
     );
 };
 
-// НОВ КОМПОНЕНТ ЗА ДЪРЖАВИ С ТЪРСАЧКА
-const CountryMultiSelect = ({ selected, setSelected, label }: any) => {
-    const [search, setSearch] = useState('');
-    const [isOpen, setIsOpen] = useState(false);
-
-    // Филтрираме държавите, които съвпадат с търсенето и още не са избрани
-    const filtered = WORLD_COUNTRIES.filter(c => 
-        c.toLowerCase().includes(search.toLowerCase()) && !selected.includes(c)
-    );
-
-    const addCountry = (c: string) => {
-        setSelected([...selected, c]);
-        setSearch('');
-        setIsOpen(false);
-    };
-
-    const removeCountry = (idx: number) => {
-        setSelected(selected.filter((_: any, i: number) => i !== idx));
-    };
-
-    return (
-        <div className="relative">
-            <label className="text-[10px] font-black uppercase text-gray-400 tracking-[0.15em] ml-2 mb-2 block">{label}</label>
-            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-2 flex flex-wrap gap-2 items-center focus-within:bg-white focus-within:border-brand-gold transition-all relative z-10">
-                {selected.map((tag: string, idx: number) => (
-                    <span key={idx} className="bg-brand-dark text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
-                        {tag} <button type="button" onClick={() => removeCountry(idx)} className="text-gray-400 hover:text-white"><X size={12}/></button>
-                    </span>
-                ))}
-                <input 
-                    type="text" 
-                    value={search}
-                    onChange={e => { setSearch(e.target.value); setIsOpen(true); }}
-                    onFocus={() => setIsOpen(true)}
-                    onBlur={() => setTimeout(() => setIsOpen(false), 200)} // Изчакваме клика
-                    placeholder={selected.length === 0 ? "Търси държава..." : "Добави още..."} 
-                    className="flex-grow bg-transparent outline-none min-w-[150px] p-2 text-sm text-brand-dark"
-                />
-            </div>
-            
-            {/* ПАДАЩО МЕНЮ С РЕЗУЛТАТИ */}
-            {isOpen && filtered.length > 0 && (
-                <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 shadow-xl rounded-2xl max-h-48 overflow-y-auto">
-                    {filtered.map(c => (
-                        <button 
-                            key={c}
-                            type="button"
-                            onClick={() => addCountry(c)}
-                            className="w-full text-left px-4 py-3 hover:bg-brand-gold/10 text-sm text-brand-dark font-medium border-b border-gray-50 last:border-0 transition-colors"
-                        >
-                            {c}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
+// Фалбек ако settings/operators още не е зададен в базата въобще (първо зареждане на админ панела) —
+// включва "2МКО" ␴иректно, така че туровете от автоматизацията винаги да се показват коректно.
+const DEFAULT_OPERATORS = ['Beliva VIP', '2МКО', 'Abax', 'Equator', 'Tez Tour', 'Emerald', 'Other'].map(name => ({ name, email: '' }));
 
 export default function TourForm({ initialData, onClose, allTours, allCampaigns }: any) {
+  const [operators, setOperators] = useState<{ name: string; email: string }[]>(DEFAULT_OPERATORS);
+
+  // Зареждаме динамичния списък с туроператори от Settings — ако Админът е добавил нови, те трябва да се
+  // появят тук без нужда от кодова промяна.
+  useEffect(() => {
+    getDoc(doc(db, "settings", "operators")).then(snap => {
+      if (snap.exists() && Array.isArray(snap.data().list) && snap.data().list.length > 0) {
+        const raw = snap.data().list;
+        setOperators(raw.map((o: any) => typeof o === 'string' ? { name: o, email: '' } : o));
+      }
+    }).catch(() => {}); // ако гръмне, просто остава DEFAULT_OPERATORS
+  }, []);
+
   const [form, setForm] = useState({
     tourId: '', externalSourceLink: '', title: '', price: '', country: '', continent: 'Европа', cities: '', landmarks: '', 
     date: '', dates: [] as string[], img: '', duration: '', nights: '', route: '', 
@@ -403,12 +362,8 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                 <div>
                     <label className={labelStyle}>Туроператор / Партньор *</label>
                     <select className={inputStyle} value={form.operator} onChange={e => setForm({...form, operator: e.target.value})} required>
-                        <option value="Beliva VIP">Beliva VIP (Собствена)</option>
-                        <option value="Abax">Абакс</option>
-                        <option value="Equator">Екватор</option>
-                        <option value="Tez Tour">Тез Тур</option>
-                        <option value="Emerald">Емералд</option>
-                        <option value="Other">Друг</option>
+                        <option value="">-- Избери --</option>
+                        {operators.map(op => <option key={op.name} value={op.name}>{op.name}</option>)}
                     </select>
                 </div>
                 <div>
@@ -434,7 +389,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                         setTags={(newTags: string[]) => setForm({...form, visitedPlaces: newTags})} 
                     />
                 </div>
-                <div><label className={labelStyle}>Континент *</label><select className={inputStyle} value={form.continent} onChange={e => setForm({...form, continent: e.target.value})} required><option value="Европа">Европа</option><option value="Азия">Азия</option><option value="Африка">Африка</option><option value="Австралия">Австралия</option><option value="Северна Америка">Северна Америка</option><option value="Южна Америка">Южна Америка</option></select></div>
+                <div><label className={labelStyle}>Континент *</label><select className={inputStyle} value={form.continent} onChange={e => setForm({...form, continent: e.target.value})} required><option value="">-- Избери --</option><option value="Европа">Европа</option><option value="Азия">Азия</option><option value="Африка">Африка</option><option value="Австралия">Австралия</option><option value="Северна Америка">Северна Америка</option><option value="Южна Америка">Южна Америка</option></select></div>
                 <div><label className={labelStyle}>Нощувки (текст)</label><input className={inputStyle} placeholder="пр. 7 нощувки" value={form.nights} onChange={e => setForm({...form, nights: e.target.value})} /></div>
             </div>
             

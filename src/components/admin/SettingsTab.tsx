@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Save, Globe, List, Plus, Trash2, ImageIcon, Link as LinkIcon, Compass } from 'lucide-react';
+import { Save, Globe, List, Plus, Trash2, ImageIcon, Link as LinkIcon, Compass, Building2, Landmark } from 'lucide-react';
 import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
 import { WORLD_COUNTRIES } from '@/lib/constants'; // Твоят масив
@@ -13,6 +13,13 @@ export default function SettingsTab() {
   const [topDestinations, setTopDestinations] = useState<any[]>([]);
   const [footerLinks, setFooterLinks] = useState<any[]>([]);
   const [destinationsSectionCountries, setDestinationsSectionCountries] = useState<string[]>([]);
+  // Списъкът с турооператори живее в сепаратен Firestore документ (settings/operators), не в settings/homepage —
+  // това не е настройка за началната страница, а глобален списък, използван от TourForm.tsx.
+  // Всеки оператор сега пази и email — нужен за изпращане на данните на пътниците/договорите.
+  const [operators, setOperators] = useState<{ name: string; email: string }[]>([]);
+  // Банкови детайли за checkout страницата — живее в settings/payment, отделно от всичко друго, защото е
+  // финансова информация, не homepage настройка.
+  const [paymentInfo, setPaymentInfo] = useState({ iban: '', accountHolder: '', bankName: '' });
   
   // Состояние за галерията
   const [isMediaOpen, setIsMediaOpen] = useState(false);
@@ -27,6 +34,20 @@ export default function SettingsTab() {
           setFooterLinks(docSnap.data().footerLinks || []);
           setDestinationsSectionCountries(docSnap.data().destinationsSectionCountries || []);
         }
+        const opsSnap = await getDoc(doc(db, "settings", "operators"));
+        if (opsSnap.exists() && Array.isArray(opsSnap.data().list)) {
+          // Обратна съвместимост — ако старите данни са прост масив от имена (преди тази поправка), конвертираме
+          // във новия формат с празен email, вместо да гръмне/губим данни.
+          const raw = opsSnap.data().list;
+          setOperators(raw.map((o: any) => typeof o === 'string' ? { name: o, email: '' } : o));
+        } else {
+          // Първо зареждане — същият fallback като TourForm.tsx, вкл. 2МКО
+          setOperators(['Beliva VIP', '2МКО', 'Abax', 'Equator', 'Tez Tour', 'Emerald', 'Other'].map(name => ({ name, email: '' })));
+        }
+        const paymentSnap = await getDoc(doc(db, "settings", "payment"));
+        if (paymentSnap.exists()) {
+          setPaymentInfo(prev => ({ ...prev, ...paymentSnap.data() }));
+        }
       } catch (e) { console.error(e); }
       setLoading(false);
     };
@@ -40,6 +61,8 @@ export default function SettingsTab() {
         footerLinks,
         destinationsSectionCountries
       });
+      await setDoc(doc(db, "settings", "operators"), { list: operators.filter(o => o.name.trim()) });
+      await setDoc(doc(db, "settings", "payment"), paymentInfo);
       alert("Настройките са запазени успешно!");
     } catch (e) { alert("Грешка при запис"); }
   };
@@ -152,6 +175,101 @@ export default function SettingsTab() {
           >
             + Добави държава
           </button>
+        </div>
+      </section>
+
+      {/* СЕКЦИЯ: ТУРООПЕРАТОРИ */}
+      <section className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <h3 className="text-xl font-bold mb-2 flex items-center gap-2 text-brand-dark">
+            <Building2 className="text-brand-gold" /> Турооператори / Партньори
+        </h3>
+        <p className="text-xs text-gray-400 mb-6">
+          Този списък се показва в падащото меню „Турооператор / Партньор“ в формата за екскурзия. Имейлът е важен — на него ще
+          изпращаме данните на пътниците и договорите от таб Резервации. „2МКО“ е важен да си остане тук —
+          това е точното име, което автоматизацията записва за всеки тур, намерен от 2mko.
+        </p>
+        <div className="space-y-3">
+          {operators.map((op, idx) => (
+            <div key={idx} className="flex flex-col sm:flex-row items-center gap-3">
+              <input
+                type="text"
+                value={op.name}
+                onChange={e => {
+                  const next = [...operators];
+                  next[idx] = { ...next[idx], name: e.target.value };
+                  setOperators(next);
+                }}
+                placeholder="Име (напр. Abax, 2МКО, PeakView...)"
+                className="flex-1 w-full p-3.5 rounded-2xl border-none text-sm font-bold bg-gray-50 shadow-sm outline-none focus:ring-2 focus:ring-brand-gold/20"
+              />
+              <input
+                type="email"
+                value={op.email}
+                onChange={e => {
+                  const next = [...operators];
+                  next[idx] = { ...next[idx], email: e.target.value };
+                  setOperators(next);
+                }}
+                placeholder="Имейл за връзка (напр. office@abax.bg)"
+                className="flex-1 w-full p-3.5 rounded-2xl border-none text-sm bg-gray-50 shadow-sm outline-none focus:ring-2 focus:ring-brand-gold/20"
+              />
+              <button
+                onClick={() => setOperators(operators.filter((_, i) => i !== idx))}
+                className="bg-gray-50 text-red-400 p-3.5 rounded-2xl hover:text-red-600 transition-colors shrink-0"
+              >
+                <Trash2 size={18}/>
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => setOperators([...operators, { name: '', email: '' }])}
+            className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all font-bold text-xs uppercase tracking-widest"
+          >
+            + Добави турооператор
+          </button>
+        </div>
+      </section>
+
+      {/* СЕКЦИЯ: БАНКОВИ ДЕТАЙЛИ (ЗА CHECKOUT) */}
+      <section className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <h3 className="text-xl font-bold mb-2 flex items-center gap-2 text-brand-dark">
+            <Landmark className="text-brand-gold" /> Банкови детайли за плащане
+        </h3>
+        <p className="text-xs text-gray-400 mb-6">
+          Показват се на клиента в края на checkout страницата, след като попълни данните си. Ако оставиш полета
+          празни, клиентът ще види съобщение, че ще получи банковите детайли отделно от екипа, вместо празно/грешно поле.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2 mb-2 block">IBAN</label>
+            <input
+              type="text"
+              value={paymentInfo.iban}
+              onChange={e => setPaymentInfo({ ...paymentInfo, iban: e.target.value })}
+              placeholder="BG00 XXXX 0000 0000 0000 00"
+              className="w-full p-3.5 rounded-2xl border-none text-sm font-mono font-bold bg-gray-50 shadow-sm outline-none focus:ring-2 focus:ring-brand-gold/20"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2 mb-2 block">Титуляр на сметката</label>
+            <input
+              type="text"
+              value={paymentInfo.accountHolder}
+              onChange={e => setPaymentInfo({ ...paymentInfo, accountHolder: e.target.value })}
+              placeholder="напр. Beliva VIP Tour ЕООД"
+              className="w-full p-3.5 rounded-2xl border-none text-sm font-bold bg-gray-50 shadow-sm outline-none focus:ring-2 focus:ring-brand-gold/20"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2 mb-2 block">Банка (незадължително)</label>
+            <input
+              type="text"
+              value={paymentInfo.bankName}
+              onChange={e => setPaymentInfo({ ...paymentInfo, bankName: e.target.value })}
+              placeholder="напр. Обединена Българска Банка"
+              className="w-full p-3.5 rounded-2xl border-none text-sm font-bold bg-gray-50 shadow-sm outline-none focus:ring-2 focus:ring-brand-gold/20"
+            />
+          </div>
         </div>
       </section>
 

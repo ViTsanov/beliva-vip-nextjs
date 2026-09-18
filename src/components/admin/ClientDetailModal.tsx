@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { X, Phone, Mail, Award, History, FileText, User, CreditCard, Star, Save, Calendar, MessageSquare, ExternalLink, Eye, EyeOff } from 'lucide-react';
+import { X, Phone, Mail, Award, History, FileText, User, CreditCard, Star, Save, Calendar, MessageSquare, ExternalLink, Eye, EyeOff, Users, Lock } from 'lucide-react';
 import { IClient } from '@/types';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -10,7 +10,7 @@ interface ClientDetailModalProps {
   client: IClient;
   onClose: () => void;
   onUpdate: (updatedClient: IClient) => void; 
-  onOpenGroup?: (tourId: string) => void;
+  onOpenGroup?: (tourId: string, date?: string) => void;
 }
 
 export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGroup }: ClientDetailModalProps) {
@@ -19,10 +19,6 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
     lastName: client.lastName || '',
     phone: client.phone || '',
     email: client.email || '',
-    latinName: client.latinName || '',
-    egn: client.egn || '',
-    passportNumber: client.passportNumber || '',
-    passportValidity: client.passportValidity || '',
     iban: client.iban || '',
     notes: client.notes || '',
     discountPercentage: client.discountPercentage || 0,
@@ -30,6 +26,93 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
   });
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // "Защитен" модал за ЕГН/паспорт на самия клиент — НЕ се показва автоматично с отварянето на картона —
+  // изисква отделен клик + декриптиране, същият pattern като пътниците на checkout флоуа.
+  // null = в процес на декриптиране, обект = готово за преглед/редакция, false = затворен.
+  const [sensitiveModalOpen, setSensitiveModalOpen] = useState(false);
+  const [sensitiveData, setSensitiveData] = useState<{ latinName: string; egn: string; passportNumber: string; passportValidity: string } | null>(null);
+  const [isSavingSensitive, setIsSavingSensitive] = useState(false);
+
+  const handleOpenSensitiveData = async () => {
+    setSensitiveModalOpen(true);
+    setSensitiveData(null);
+    try {
+      const res = await fetch('/api/admin/decrypt-travelers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          travelers: [{
+            latinName: client.latinName || '',
+            egn: client.egn || '',
+            passportNumber: client.passportNumber || '',
+            passportValidity: client.passportValidity || '',
+          }]
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSensitiveData(data.travelers[0]);
+      } else {
+        alert(data.error || 'Грешка при извличане на данните.');
+        setSensitiveModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Грешка при декриптиране:', error);
+      alert('Грешка при връзка със сървъра.');
+      setSensitiveModalOpen(false);
+    }
+  };
+
+  const handleSaveSensitiveData = async () => {
+    if (!sensitiveData || !client.id) return;
+    setIsSavingSensitive(true);
+    try {
+      const res = await fetch('/api/admin/save-client-sensitive-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: client.id, ...sensitiveData })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSensitiveModalOpen(false);
+        alert('Личните данни са запазени (криптирани) успешно!');
+      } else {
+        alert(data.error || 'Грешка при запазване.');
+      }
+    } catch (error) {
+      console.error('Грешка при запазване на лични данни:', error);
+      alert('Грешка при връзка със сървъра.');
+    } finally {
+      setIsSavingSensitive(false);
+    }
+  };
+
+  // Модал за преглед на данните на пътниците, попълнени през checkout страницата за конкретно пътуване —
+  // същият pattern като в ReservationsTab.tsx.
+  const [viewingTravelers, setViewingTravelers] = useState<{ trip: any; travelers: any[] | null } | null>(null);
+
+  const handleViewTravelers = async (trip: any) => {
+    setViewingTravelers({ trip, travelers: null });
+    try {
+      const res = await fetch('/api/admin/decrypt-travelers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ travelers: trip.travelers || [] })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setViewingTravelers({ trip, travelers: data.travelers });
+      } else {
+        alert(data.error || 'Грешка при извличане на данните.');
+        setViewingTravelers(null);
+      }
+    } catch (error) {
+      console.error("Грешка при декриптиране:", error);
+      alert('Грешка при връзка със сървъра.');
+      setViewingTravelers(null);
+    }
+  };
   
   // State за ревютата
   const [reviews, setReviews] = useState<any[]>([]);
@@ -189,29 +272,20 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
             </div>
           </div>
 
-          {/* Секция 2: Документи */}
+          {/* Секция 2: Документи — ЗАЩИТЕНИ (ЕГН/паспорт), не се показват автоматично при отваряне на картона */}
           <div className="space-y-4 pt-6 border-t border-gray-100">
             <h3 className="text-sm font-black uppercase text-gray-400 flex items-center gap-2">
               <FileText size={14} /> Данни по Паспорт
             </h3>
-            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-5 rounded-2xl border border-gray-100">
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Имена на Латиница</p>
-                <input type="text" name="latinName" value={formData.latinName} onChange={handleChange} className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-sm font-medium focus:outline-none focus:border-brand-gold" placeholder="IVAN IVANOV" />
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">ЕГН / Дата на раждане</p>
-                <input type="text" name="egn" value={formData.egn} onChange={handleChange} className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-sm font-medium focus:outline-none focus:border-brand-gold" placeholder="Въведи ЕГН..." />
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Международен Паспорт №</p>
-                <input type="text" name="passportNumber" value={formData.passportNumber} onChange={handleChange} className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-sm font-medium focus:outline-none focus:border-brand-gold" placeholder="№ Паспорт..." />
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Валидност до</p>
-                <input type="text" name="passportValidity" value={formData.passportValidity} onChange={handleChange} className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-sm font-medium focus:outline-none focus:border-brand-gold" placeholder="ДД.ММ.ГГГГ" />
-              </div>
-            </div>
+            <button
+              onClick={handleOpenSensitiveData}
+              className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 p-5 rounded-2xl border border-gray-100 transition-colors group"
+            >
+              <span className="text-sm font-bold text-gray-600 flex items-center gap-2">
+                <Lock size={16} className="text-gray-400" /> ЕГН, номер на паспорт и валидност
+              </span>
+              <span className="text-[10px] font-black uppercase text-brand-gold group-hover:text-brand-dark transition-colors">Виж/Редактирай</span>
+            </button>
           </div>
 
           {/* Секция 3: IBAN */}
@@ -248,7 +322,7 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
                         <button 
                           onClick={(e) => {
                             e.preventDefault();
-                            if(onOpenGroup) onOpenGroup(trip.tourId);
+                            if(onOpenGroup) onOpenGroup(trip.tourId, trip.date);
                           }} 
                           className="font-bold text-gray-800 text-sm hover:text-brand-gold transition-colors flex items-center gap-1 group text-left cursor-pointer"
                         >
@@ -272,6 +346,15 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
                       <span className="text-[10px] font-bold uppercase px-2 py-1 bg-white border border-gray-200 text-gray-500 rounded-lg shadow-sm">
                         {trip.tourOperator || 'Неизвестен'}
                       </span>
+                      {trip.travelers && trip.travelers.length > 0 && (
+                        <button
+                          onClick={() => handleViewTravelers(trip)}
+                          title="Виж данните на пътниците"
+                          className="flex items-center gap-1 mt-2 ml-auto text-[10px] font-bold text-emerald-600 hover:text-emerald-800 transition-colors"
+                        >
+                          <Users size={12} /> {trip.travelers.length} пътник{trip.travelers.length > 1 ? 'а' : ''}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -341,6 +424,95 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
           </button>
         </div>
       </div>
+
+      {/* МОДАЛ: ПРЕГЛЕД НА ПЪТНИЦИТЕ ЗА КОНКРЕТНО ПЪТУВАНЕ (от checkout страницата) */}
+      {viewingTravelers && (
+        <div className="fixed inset-0 z-[170] flex items-center justify-center bg-brand-dark/90 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[85vh] flex flex-col">
+            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
+              <div>
+                <h3 className="font-serif italic text-xl text-brand-dark">Данни на пътниците</h3>
+                <p className="text-xs text-gray-400 mt-1">{viewingTravelers.trip.tourTitle}</p>
+              </div>
+              <button onClick={() => setViewingTravelers(null)} className="p-2 text-gray-300 hover:text-red-500"><X size={24} /></button>
+            </div>
+            <div className="p-8 space-y-4 overflow-y-auto">
+              {viewingTravelers.travelers === null ? (
+                <p className="text-center text-gray-400 py-8">Декриптиране...</p>
+              ) : (
+                viewingTravelers.travelers.map((t: any, idx: number) => (
+                  <div key={idx} className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Пътник {idx + 1}</p>
+                    <p className="font-bold text-brand-dark text-sm mb-2">{t.latinName}</p>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-gray-400 block">ЕГН</span>
+                        <span className="font-mono font-bold text-brand-dark">{t.egn}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block">Паспорт</span>
+                        <span className="font-mono font-bold text-brand-dark">{t.passportNumber}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-gray-400 block">Валидност на паспорта</span>
+                        <span className="font-bold text-brand-dark">{t.passportValidity}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* МОДАЛ: ЗАЩИТЕНИ ЛИЧНИ ДАННИ НА САМИЯ КЛИЕНТ (ЕГН/паспорт) — изисква отделен клик, не се показва
+          автоматично с отварянето на картона. */}
+      {sensitiveModalOpen && (
+        <div className="fixed inset-0 z-[170] flex items-center justify-center bg-brand-dark/90 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[85vh] flex flex-col">
+            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
+              <div>
+                <h3 className="font-serif italic text-xl text-brand-dark flex items-center gap-2"><Lock size={18} className="text-gray-400" /> Данни по паспорт</h3>
+                <p className="text-xs text-gray-400 mt-1">{formData.firstName} {formData.lastName}</p>
+              </div>
+              <button onClick={() => setSensitiveModalOpen(false)} className="p-2 text-gray-300 hover:text-red-500"><X size={24} /></button>
+            </div>
+            <div className="p-8 space-y-4 overflow-y-auto">
+              {sensitiveData === null ? (
+                <p className="text-center text-gray-400 py-8">Декриптиране...</p>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Имена на Латиница</p>
+                    <input type="text" value={sensitiveData.latinName} onChange={e => setSensitiveData(prev => prev ? { ...prev, latinName: e.target.value } : prev)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-gold" placeholder="IVAN IVANOV" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">ЕГН / Дата на раждане</p>
+                    <input type="text" value={sensitiveData.egn} onChange={e => setSensitiveData(prev => prev ? { ...prev, egn: e.target.value } : prev)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono font-medium focus:outline-none focus:border-brand-gold" placeholder="Въведи ЕГН..." />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Международен Паспорт №</p>
+                    <input type="text" value={sensitiveData.passportNumber} onChange={e => setSensitiveData(prev => prev ? { ...prev, passportNumber: e.target.value } : prev)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono font-medium focus:outline-none focus:border-brand-gold" placeholder="№ Паспорт..." />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Валидност до</p>
+                    <input type="text" value={sensitiveData.passportValidity} onChange={e => setSensitiveData(prev => prev ? { ...prev, passportValidity: e.target.value } : prev)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-gold" placeholder="ДД.ММ.ГГГГ" />
+                  </div>
+                  <p className="text-[10px] text-gray-400 pt-2">Тези данни се пазят криптирани в базата — виждат се в чист вид само тук, след изрично декриптиране.</p>
+                  <button
+                    onClick={handleSaveSensitiveData}
+                    disabled={isSavingSensitive}
+                    className="w-full bg-brand-dark text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-gold transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSavingSensitive ? 'Запазване...' : <><Save size={16}/> Запази (криптирано)</>}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

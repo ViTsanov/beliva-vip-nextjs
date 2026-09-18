@@ -5,7 +5,7 @@ import { X, Plane, UserCheck, Users, Save, Phone, Clock, ExternalLink, MapPin, C
 import { db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
-export default function GroupDetailModal({ group, onClose, onOpenClient }: { group: any, onClose: () => void, onOpenClient?: (id: string) => void }) {
+export default function GroupDetailModal({ group, onClose, onOpenClient }: { group: any, onClose: () => void, onOpenClient?: (id: string, fallbackName?: string) => void }) {
   const [activeTab, setActiveTab] = useState<'logistics' | 'tourists'>('logistics');
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -134,7 +134,7 @@ export default function GroupDetailModal({ group, onClose, onOpenClient }: { gro
                                 <tr key={idx} className="group/row">
                                     <td className="py-4">
                                         <button 
-                                            onClick={() => onOpenClient?.(tourist.customerId)}
+                                            onClick={() => onOpenClient?.(tourist.customerId, tourist.name)}
                                             className="text-sm font-bold text-brand-dark hover:text-brand-gold transition-colors text-left"
                                         >
                                             {tourist.name}
@@ -145,7 +145,11 @@ export default function GroupDetailModal({ group, onClose, onOpenClient }: { gro
                                         <span className="text-sm font-black text-emerald-600">{tourist.paidPrice} €</span>
                                     </td>
                                     <td className="py-4 text-right">
-                                        <button className="p-2 text-gray-300 hover:text-brand-gold transition-colors">
+                                        <button
+                                            onClick={() => onOpenClient?.(tourist.customerId, tourist.name)}
+                                            className="p-2 text-gray-300 hover:text-brand-gold transition-colors"
+                                            title="Отвори картона на клиента"
+                                        >
                                             <ExternalLink size={18} />
                                         </button>
                                     </td>

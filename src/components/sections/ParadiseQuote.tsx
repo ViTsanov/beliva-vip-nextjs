@@ -1,22 +1,50 @@
 "use client";
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 // Пълноекранен editorial момент — прекъсва утилитарния ритъм на страницата (Hero → Топ турове → Оферти)
 // с емоционална пауза, преди потребителят да влезе в "пазаруващия" режим на цялата решетка с оферти.
 export default function ParadiseQuote() {
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+
   return (
     <section className="relative h-[70vh] min-h-[440px] max-h-[640px] w-full overflow-hidden bg-brand-dark">
-      <video
-        src="/videos/sunset.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: 'center 0%' }}
+      {/* Винаги видима снимка отдолу — ако видеото гръмне/забави (напр. ERR_QUIC_PROTOCOL_ERROR от Firebase
+          Hosting CDN — мрежов/протоколен проблем, не бъг в кода), остава видима вместо черен/„замръзнал“ екран. */}
+      <Image
+        src="/hero/hero-bg.webp"
+        alt=""
+        fill
+        className="object-cover"
+        style={{ objectPosition: 'center 40%' }}
+        sizes="100vw"
+        quality={80}
       />
+
+      {!videoFailed && (
+        <video
+          key="/videos/sunset.mp4"
+          src="/videos/sunset.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{
+            objectPosition: 'center 0%',
+            opacity: videoReady ? 1 : 0,
+            transition: 'opacity 0.8s ease-in-out',
+          }}
+          onPlaying={() => setVideoReady(true)}
+          onError={() => setVideoFailed(true)}
+          onStalled={() => setVideoFailed(true)}
+        />
+      )}
+
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/70" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/40" />
 

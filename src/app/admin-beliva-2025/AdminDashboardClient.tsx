@@ -10,7 +10,7 @@ import {
 import { 
   LayoutDashboard, Image as ImageIcon, Map, Archive, BookOpen, Star, Inbox, Users, LogOut, 
   Menu, X, Edit2, Copy, Trash2, CheckCircle2, FileText, UserCheck, Search, PhoneIncoming, BadgePercent, Save, Calendar, User, Mail, Phone, Globe, History, Plus, Settings, ChevronRight,
-  XCircle, TrendingUp
+  XCircle, TrendingUp, AlertTriangle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -29,6 +29,7 @@ import GroupsTab from '@/components/admin/GroupsTab';
 import ClientDetailModal from '@/components/admin/ClientDetailModal';
 import SettingsTab from '@/components/admin/SettingsTab';
 import MarketingAnalytics from '@/components/admin/MarketingAnalytics';
+import CountryMultiSelect from '@/components/admin/CountryMultiSelect';
 
 // Редизайн на Търсачката
 const SearchBar = ({ value, onChange, placeholder }: any) => (
@@ -60,6 +61,10 @@ export default function AdminDashboardClient() {
   const [groups, setGroups] = useState<any[]>([]);
 
   const [globalSelectedClient, setGlobalSelectedClient] = useState<any>(null);
+  // За навигация "Клиенти → Групи" — когато кликнеш пътуване в историята на клиент, трябва да се
+  // отвори точно тази група в Групи таба (не просто alert "скоро"). GroupsTab чете това и само
+  // отваря съответната група, след което го изчиства обратно на null, за да не се отваря пак при всяко re-render.
+  const [pendingGroupOpenId, setPendingGroupOpenId] = useState<string | null>(null);
 
   const [archivedSubTab, setArchivedSubTab] = useState('drafts'); // 'drafts' или 'archived'
   const [reviewsSubTab, setReviewsSubTab] = useState('auto'); // 'auto' или 'manual'
@@ -332,6 +337,19 @@ export default function AdminDashboardClient() {
 
   const handleLogout = async () => { await signOut(auth); await logoutAction(); router.push('/'); };
   const openModal = (item: any = null) => { setEditingItem(item); setIsModalOpen(true); };
+
+  // Отваря групата, към която принадлежи дадено пътуване (от tripHistory на клиент) — вика се от ClientDetailModal.
+  // Съвпада със същата (tourId + date) query, която ReservationsTab.tsx ползва за да намери/създаде групата,
+  // така че да съвпада точно с правилната група, не просто първата със този tourId (ако турът е тръгвал няколко пъти).
+  const handleOpenGroup = (tourId: string, date?: string) => {
+    const match = groups.find(g => g.tourId === tourId && (!date || g.startDate === date));
+    if (!match) {
+      alert('Не намерихме група за това пътуване — възможно е била създадена преди въвеждането на тази функционалност.');
+      return;
+    }
+    setActiveTab('groups');
+    setPendingGroupOpenId(match.id);
+  };
 
   // Филтри
   const filteredCustomers = customers.filter(c => c.name?.toLowerCase().includes(searchCustomer.toLowerCase()) || c.phone?.includes(searchCustomer));
@@ -797,11 +815,11 @@ export default function AdminDashboardClient() {
                   /></div>}
 
         {activeTab === 'customers' && (
-            <ClientsTab onAddClient={() => setIsAddCustomerModalOpen(true)} />
+            <ClientsTab onAddClient={() => setIsAddCustomerModalOpen(true)} onOpenGroup={handleOpenGroup} />
         )}
 
         {activeTab === 'bookings' && (
-            <ReservationsTab allTours={allTours} allCampaigns={campaigns} />
+            <ReservationsTab allTours={allTours} allCampaigns={campaigns} customers={customers} />
         )}
 
         {activeTab === 'marketing' && <MarketingAnalytics />}
@@ -858,59 +876,31 @@ export default function AdminDashboardClient() {
                       <p className="text-white/50 text-xs">Добави държави една по една и натисни Старт. Новите турове се появяват тук за одобрение.</p>
                     </div>
 
-                    {/* Избрани държави — показва и колко тура вече имаме, и колко нови намери последната проверка — за да знаеш
-                    дали вече има достатъчно за тази държава, преди да скенираш още. */}
-                    <div className="flex flex-wrap gap-2">
-                      {automationCountries.map(c => {
+                    {/* Избрани държави — търсачка срещу реалните имена на държави (WORLD_COUNTRIES), вместо свободен текст — намалява
+                    риска да не съвпадне с това, което /api/scout реално търси. Запазва и показва колко тура вече имаме,
+                    и колко нови намери последната проверка, директно във чипа на всяка държава. */}
+                    <CountryMultiSelect
+                      variant="dark"
+                      label="Избрани държави за скениране"
+                      selected={automationCountries}
+                      setSelected={setAutomationCountries}
+                      renderExtra={(c) => {
                         const ourCount = ourCountsByCountry[c] || 0;
-                        const newCount = scoutResults[c]; // undefined = още не е проверена
+                        const newCount = scoutResults[c];
                         return (
-                        <span key={c} className="bg-brand-gold/20 border border-brand-gold/40 text-brand-gold px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2">
-                          {c}
-                          <span className="text-white/40 font-normal text-xs">
-                            Имаме: <span className="text-white/70 font-bold">{ourCount}</span>
+                          <span className="text-white/40 font-normal text-[11px]">
+                            (Имаме: <span className="text-white/70 font-bold">{ourCount}</span>
                             {' · '}
                             Нови: {newCount === undefined
                               ? <span className="text-white/40 italic">?</span>
-                              : <span className={newCount > 0 ? 'text-emerald-400 font-bold' : 'text-white/40'}>{newCount}</span>}
+                              : <span className={newCount > 0 ? 'text-emerald-400 font-bold' : 'text-white/40'}>{newCount}</span>})
                           </span>
-                          <button onClick={() => setAutomationCountries(automationCountries.filter(x => x !== c))} className="hover:text-white transition-colors"><X size={14}/></button>
-                        </span>
                         );
-                      })}
-                      {automationCountries.length === 0 && <span className="text-white/30 text-sm italic">Няма избрани държави</span>}
-                    </div>
+                      }}
+                    />
 
-                    {/* Добавяне на държава + старт */}
+                    {/* Провери за нови / Стартирай сканиране */}
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <input
-                        type="text"
-                        placeholder="Държава на български (напр. Япония)"
-                        value={automationCountryInput}
-                        onChange={e => setAutomationCountryInput(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && automationCountryInput.trim()) {
-                            const c = automationCountryInput.trim();
-                            if (!automationCountries.includes(c)) setAutomationCountries([...automationCountries, c]);
-                            setAutomationCountryInput('');
-                          }
-                        }}
-                        className="flex-1 bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-white placeholder:text-white/30 outline-none focus:border-brand-gold transition-colors"
-                        disabled={isAutoProcessing}
-                      />
-                      <button
-                        onClick={() => {
-                          const c = automationCountryInput.trim();
-                          if (c && !automationCountries.includes(c)) {
-                            setAutomationCountries([...automationCountries, c]);
-                            setAutomationCountryInput('');
-                          }
-                        }}
-                        disabled={isAutoProcessing}
-                        className="bg-white/10 border border-white/20 text-white px-6 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all disabled:opacity-40"
-                      >
-                        + Добави
-                      </button>
                       <button
                         onClick={async () => {
                           if (automationCountries.length === 0) { alert('Добави поне една държава.'); return; }
@@ -1018,9 +1008,25 @@ export default function AdminDashboardClient() {
         {activeTab === 'blog' && <><SearchBar value={searchBlog} onChange={setSearchBlog} placeholder="Търси статия..." /><div className="space-y-4 animate-in fade-in">{posts.filter(p => p.title?.toLowerCase().includes(searchBlog.toLowerCase())).map(post => (<div key={post.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-brand-gold/5 flex items-center gap-6 hover:shadow-md transition-shadow"><img src={post.coverImg || post.img} className="w-20 h-20 rounded-2xl object-cover" alt="" /><div className="flex-grow"><h3 className="font-bold text-brand-dark">{post.title}</h3></div><div className="flex gap-2"><ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(post)} /><ActionBtn icon={Trash2} color="text-red-500 bg-red-50" onClick={async () => { if(confirm('Изтриване?')) await deleteDoc(doc(db, "posts", post.id)) }} /></div></div>))}</div></>}
         {activeTab === 'subscribers' && <div className="bg-white rounded-[3rem] shadow-xl overflow-hidden border-0"><div className="p-10 bg-gray-50 flex justify-between items-center border-b"><h3 className="text-2xl font-serif italic text-brand-dark">Абонати на бюлетина</h3><button onClick={() => { const csv = subscribers.map(s => s.email).join('\n'); navigator.clipboard.writeText(csv); alert('Копирано!'); }} className="bg-brand-gold text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-dark transition-all shadow-lg shadow-brand-gold/20">Експортирай списъка</button></div><table className="w-full text-left text-sm"><thead className="bg-white text-[10px] uppercase font-black text-gray-400 border-b tracking-widest"><tr><th className="p-10">Имейл Адрес</th><th className="p-10">Дата на записване</th><th className="p-10 text-right">Действие</th></tr></thead><tbody className="divide-y divide-gray-50">{subscribers.map((sub: any) => (<tr key={sub.id} className="hover:bg-gray-50/50 transition-colors"><td className="p-10 font-bold text-brand-dark">{sub.email}</td><td className="p-10 text-gray-400">{sub.createdAt?.seconds ? new Date(sub.createdAt.seconds * 1000).toLocaleDateString('bg-BG') : 'Сега'}</td><td className="p-10 text-right"><button onClick={async () => await deleteDoc(doc(db, "subscribers", sub.id))} className="text-red-400 p-3 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>}
         {activeTab === 'groups' && (
-          <GroupsTab onOpenClient={(clientId: string) => { // <--- Добавяме : string
-              const client = customers.find(c => c.id === clientId);
-              if(client) setGlobalSelectedClient(client);
+          <GroupsTab
+            allTours={allTours}
+            pendingGroupOpenId={pendingGroupOpenId}
+            onPendingGroupOpened={() => setPendingGroupOpenId(null)}
+            onOpenClient={(clientId: string, fallbackName?: string) => {
+              let client = customers.find(c => c.id === clientId);
+              // Fallback за вече съществуващи групи, създадени преди поправката на ReservationsTab.tsx — те все още имат
+              // буквалния placeholder customerId: "new" записан, вместо реално ID — търсим по име като резервен вариант.
+              if (!client && fallbackName) {
+                client = customers.find(c =>
+                  c.name === fallbackName ||
+                  `${c.firstName || ''} ${c.lastName || ''}`.trim() === fallbackName
+                );
+              }
+              if (client) {
+                setGlobalSelectedClient(client);
+              } else {
+                alert(`Не намерихме клиентски картон за "${fallbackName || clientId}" — възможно е бил изтрит или името не съвпада точно.`);
+              }
           }} />
         )}
 
@@ -1389,6 +1395,7 @@ export default function AdminDashboardClient() {
                 setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c));
                 setGlobalSelectedClient(updated);
             }}
+            onOpenGroup={handleOpenGroup}
         />
         )}
     </div>

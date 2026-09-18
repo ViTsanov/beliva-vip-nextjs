@@ -15,8 +15,9 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     window.scrollTo(0, 0);
   }, [pathname]); // 👈 Добавихме 'pathname' като зависимост
 
-  // Списък с пътища, където НЕ искаме навигация и футър
-  const isHidden = pathname.startsWith("/login-vip") || pathname.startsWith("/admin-beliva-2025");
+  // Списък с пътища, където НЕ искаме навигация и футър. "/checkout" е добавен — тази страница е изцяло
+  // самостоятелна (клиентът попълва данни и плаща, навигацията би била само разсейваща вниманието).
+  const isHidden = pathname.startsWith("/login-vip") || pathname.startsWith("/admin-beliva-2025") || pathname.startsWith("/checkout") || pathname.startsWith("/operator-view");
 
   if (isHidden) {
     return <>{children}</>;
