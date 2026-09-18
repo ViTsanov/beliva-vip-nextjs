@@ -23,6 +23,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin-beliva-2025', request.url))
   }
 
+  
   return NextResponse.next()
 }
 
