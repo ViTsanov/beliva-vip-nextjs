@@ -5,7 +5,7 @@ import { db, auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { 
   collection, onSnapshot, query, orderBy, deleteDoc, doc, 
-  updateDoc, addDoc, serverTimestamp, where, getDocs 
+  updateDoc, addDoc, serverTimestamp, where, getDocs, setDoc 
 } from 'firebase/firestore';
 import { 
   LayoutDashboard, Image as ImageIcon, Map, Archive, BookOpen, Star, Inbox, Users, LogOut, 
@@ -19,7 +19,7 @@ import MediaLibrary from '@/components/MediaLibrary';
 import DashboardCharts from '@/components/DashboardCharts'; 
 import TourForm from '@/components/admin/TourForm'; 
 import BlogForm from '@/components/admin/BlogForm'; 
-import { performAutoMaintenance, slugify } from '@/lib/admin-helpers';
+import { performAutoMaintenance, slugify, normalizeUrl } from '@/lib/admin-helpers';
 import { formatPrice } from '@/lib/formatPrice';
 import { IClient } from '@/types';
 
@@ -118,15 +118,21 @@ export default function AdminDashboardClient() {
   const [automationCountries, setAutomationCountries] = useState<string[]>([]);
   const [automationCountryInput, setAutomationCountryInput] = useState('');
   const [automationLimit, setAutomationLimit] = useState<number | null>(3); // Ограничава броя турове на пускане; null = без лимит
+  // Ако е зададена (ISO формат, напр. "2027-01-01") — турове, чиито всичкки скрейпнати дати са преди тази
+  // стойност, се прескачат цялостно (не стигат до AI-format, не се записват). Не влияе на турове без
+  // общо никакви скрейпнати дати (те си минават, както и досега — датите се добавят ръчно при одобрение тогава).
+  const [automationMinDate, setAutomationMinDate] = useState<string>('');
   // Колко нови тура е намерил последният "Провери за нови" за всяка държава отделно (групирано по
   // countryMatched от data.newLinks) — undefined означава "още не е проверена", не 0.
   const [scoutResults, setScoutResults] = useState<Record<string, number>>({});
 
-  // Зареждаме запазените държави от localStorage при отваряне
+  // Зареждаме запазените държави и минималната дата от localStorage при отваряне
   useEffect(() => {
     try {
       const saved = localStorage.getItem('automationCountries');
       if (saved) setAutomationCountries(JSON.parse(saved));
+      const savedMinDate = localStorage.getItem('automationMinDate');
+      if (savedMinDate) setAutomationMinDate(savedMinDate);
     } catch {}
   }, []);
 
@@ -136,6 +142,12 @@ export default function AdminDashboardClient() {
       localStorage.setItem('automationCountries', JSON.stringify(automationCountries));
     } catch {}
   }, [automationCountries]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('automationMinDate', automationMinDate);
+    } catch {}
+  }, [automationMinDate]);
 
   useEffect(() => {
     const unsubAuth = auth.onAuthStateChanged((user) => {
@@ -338,6 +350,53 @@ export default function AdminDashboardClient() {
   const handleLogout = async () => { await signOut(auth); await logoutAction(); router.push('/'); };
   const openModal = (item: any = null) => { setEditingItem(item); setIsModalOpen(true); };
 
+  // Модално показва избор при триене на тур, който има оригинален линк (дошъл от автоматизацията) —
+  // постоянно (блокира линка завинаги) или за повторно скейпване (само трие документа, без блокиране,
+  // така че следващото сканиране да го намери пак и AI-format-не от нула). Турове без оригинален
+  // линк (ръчно създадени) нямат тази дилема — трият се просто, както досега.
+  const [deleteChoiceTour, setDeleteChoiceTour] = useState<any>(null);
+
+  const handleDeleteTourClick = (tour: any) => {
+    const url = tour.originalUrl || tour.externalSourceLink;
+    if (url) {
+      setDeleteChoiceTour(tour);
+    } else if (confirm('Изтриване завинаги?')) {
+      deleteDoc(doc(db, "tours", tour.id));
+    }
+  };
+
+  const handleDeletePermanently = async (tour: any) => {
+    try {
+      const url = tour.originalUrl || tour.externalSourceLink;
+      if (url) {
+        const normalized = normalizeUrl(url);
+        await setDoc(doc(db, "ignoredTourUrls", encodeURIComponent(normalized)), {
+          url,
+          rejectedTitle: tour.title || '',
+          rejectedAt: serverTimestamp()
+        });
+      }
+      await deleteDoc(doc(db, "tours", tour.id));
+    } catch (e) {
+      console.error("Грешка при постоянно триене:", e);
+      alert("Грешка при изтриване.");
+    } finally {
+      setDeleteChoiceTour(null);
+    }
+  };
+
+  const handleDeleteForRescrape = async (tour: any) => {
+    try {
+      // Само трием документа — НЕ добавяме в ignoredTourUrls, за да може следващото сканиране да го намери пак.
+      await deleteDoc(doc(db, "tours", tour.id));
+    } catch (e) {
+      console.error("Грешка при триене за повторно скейпване:", e);
+      alert("Грешка при изтриване.");
+    } finally {
+      setDeleteChoiceTour(null);
+    }
+  };
+
   // Отваря групата, към която принадлежи дадено пътуване (от tripHistory на клиент) — вика се от ClientDetailModal.
   // Съвпада със същата (tourId + date) query, която ReservationsTab.tsx ползва за да намери/създаде групата,
   // така че да съвпада точно с правилната група, не просто първата със този tourId (ако турът е тръгвал няколко пъти).
@@ -412,6 +471,26 @@ export default function AdminDashboardClient() {
 // ==========================================
   // АВТОМАТИЧНА МАШИНА ЗА ЕКСКУРЗИИ
   // ==========================================
+  // Помощна функция — извлича препоръчаното изчакване от съобщение за OpenAI rate limit
+  // (напр. "Please try again in 17.87s"), в милисекунди + малък буфер за сигурност.
+  // Ако не успеем да parse-нем точното число, връщаме разумен fallback от 20 секунди.
+  const parseRetryDelayMs = (errorMsg: string): number => {
+    const match = errorMsg?.match(/try again in ([\d.]+)s/i);
+    if (match) return Math.ceil(parseFloat(match[1]) * 1000) + 1500;
+    return 20000;
+  };
+
+  // Конвертира дата от различни формати (BG: DD.MM.YYYY, ISO: YYYY-MM-DD) към чист ISO стринг — споделена
+  // между ранната проверка за automationMinDate и финалното записване във tourDoc по-долу.
+  const toISO = (d: string): string => {
+    const s = String(d).trim();
+    let m = s.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+    if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+    m = s.match(/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})/);
+    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    return '';
+  };
+
   const runTourAutomation = async () => {
     if (automationCountries.length === 0) {
       alert('Първо добави поне една държава за сканиране.');
@@ -439,22 +518,22 @@ export default function AdminDashboardClient() {
       }
 
       // Ограничаваме броя турове, ако е зададен automationLimit (за безопасен тест)
-      const linksToProcess = automationLimit
-        ? scoutData.newLinks.slice(0, automationLimit)
-        : scoutData.newLinks;
+      const allLinks = scoutData.newLinks;
 
       // 2. Взимаме всички снимки от библиотеката веднъж, за да не правим заявки за всяка екскурзия
       const mediaSnap = await getDocs(collection(db, "media"));
       const allMedia = mediaSnap.docs.map(doc => doc.data());
 
-      // 3. Обработваме всяка нова екскурзия ЕДНА ПО ЕДНА (ограничена до linksToProcess)
+      // 3. Обработваме всяка нова екскурзия ЕДНА ПО ЕДНА, докато достигнем automationLimit РЕАЛНО ОБРАБОТЕНИ (минали датовия филтър) турове
       let successCount = 0;
+      let attemptedCount = 0; // турове, минали датовия филтър (независимо от успех на AI-format/запис) — това брои към лимита.
       // ФИКС ЗА ДУБЛИРАНИ ID-та: allTours е снимка ОТПРЕДИ старта и НЕ вижда току-що записаните в същия цикъл турове.
       // Затова пазим генерираните в ТОЗИ цикъл ID-та тук и ги броим заедно с тези от базата.
       const generatedIdsThisRun = new Set<string>();
-      for (let i = 0; i < linksToProcess.length; i++) {
-        const linkObj = linksToProcess[i];
-        setAutoProcessStatus(`Обработка ${i + 1} от ${linksToProcess.length}: ${linkObj.title}...`);
+      for (let i = 0; i < allLinks.length; i++) {
+        if (automationLimit && attemptedCount >= automationLimit) break;
+        const linkObj = allLinks[i];
+        setAutoProcessStatus(`Проверка ${i + 1} от ${allLinks.length}: ${linkObj.title}...`);
 
         try {
           // А) Извличаме суровия текст
@@ -465,15 +544,54 @@ export default function AdminDashboardClient() {
           });
           const scrapedData = await scrapeRes.json();
 
-          // Б) Пращаме на GPT-4o за пренаписване
+          // ФИЛТЪР ПО НАЧАЛНА ДАТА: ако Viktor е задал automationMinDate и този тур ИМА скрейпнати дати,
+          // но ВСИЧКИ са преди тази стойност — прескачаме този тур цялостно (без AI-format, без запис
+          // в базата) — спестява и време, и OpenAI токени за нещо, което ведното ще се отхвърли. Турове
+          // БЕЗ общо никакви скрейпнати дати (custom/on-request турове) НЕ се филтрират — няма с какво да ги сравним.
+          if (automationMinDate && scrapedData.dates && scrapedData.dates.length > 0) {
+            const isoDatesForFilter = scrapedData.dates.map(toISO).filter(Boolean);
+            const hasQualifyingDate = isoDatesForFilter.some((d: string) => d >= automationMinDate);
+            if (isoDatesForFilter.length > 0 && !hasQualifyingDate) {
+              console.log(`[ФИЛТЪР ДАТА] Прескачен "${linkObj.title}" — всичкки дати (${isoDatesForFilter.join(', ')}) са преди ${automationMinDate}`);
+              // Важно: този линк НЕ влиза в ignoredTourUrls — прескачаме го САМО за ТОЗИ пусна, ако
+              // вдигне добави нови дати на 2mko след януари, следващото сканиране трябва да го намери пак.
+              continue;
+            }
+          }
+
+          // От тук нататък реално обработваме този тур — брои се към automationLimit оттук нататък, независимо от изхода (успех/грешка).
+          attemptedCount++;
+          setAutoProcessStatus(`Обработка ${attemptedCount}${automationLimit ? `/${automationLimit}` : ''}: ${linkObj.title}...`);
+
+          // Б) Пращаме на GPT-4o за пренаписване — с автоматичен retry, ако ударим на OpenAI rate limit (големи
+          // много-дестинационни турове като този могат лесно да изчерпат 30 000 токена/минута в едно
+          // единствено извикване). OpenAI само ни казва точно колко да изчакаме в самото съобщение за грешка.
           setAutoProcessStatus(`GPT-4o пише текст за: ${linkObj.countryMatched}...`);
-          const aiRes = await fetch('/api/ai-format-tour', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scrapedData })
-          });
-          const aiData = await aiRes.json();
-          if (!aiData.success) throw new Error("AI грешка");
+          let aiData: any;
+          let aiAttempts = 0;
+          const maxAiAttempts = 2; // до 2 повторни опита след първоначалния, при rate limit
+          while (true) {
+            const aiRes = await fetch('/api/ai-format-tour', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ scrapedData })
+            });
+            aiData = await aiRes.json();
+            if (aiData.success) break;
+
+            const isRateLimit = typeof aiData.error === 'string' && aiData.error.toLowerCase().includes('rate limit');
+            if (isRateLimit && aiAttempts < maxAiAttempts) {
+              const waitMs = parseRetryDelayMs(aiData.error);
+              aiAttempts++;
+              setAutoProcessStatus(`OpenAI лимит достигнат — изчакваме ${Math.ceil(waitMs / 1000)}с преди повторен опит (${aiAttempts}/${maxAiAttempts})...`);
+              await new Promise(resolve => setTimeout(resolve, waitMs));
+              continue;
+            }
+            // ВАЖНО: преди тук хвърляхме винаги generic "AI грешка" — реалната причина (от aiData.error,
+            // връщана от сървъра) се губеше, затова всяка грешка (permission, JSON parse, rate limit...)
+            // изглежда еднакво в конзолата, налагайки диагностиката всеки път.
+            throw new Error(aiData.error || "AI грешка (няма подробности от сървъра)");
+          }
 
           let finalTour = aiData.tour;
 
@@ -660,14 +778,6 @@ export default function AdminDashboardClient() {
           // Скрейпърът ги връща като "27.11.2026" (с точки), а целият сайт филтрира/сортира по ISO —
           // без конверсия турът се брои "без валидни дати" и НЕ се показва на началната страница!
           if (scrapedData.dates && scrapedData.dates.length > 0) {
-            const toISO = (d: string) => {
-              const s = String(d).trim();
-              let m = s.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
-              if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
-              m = s.match(/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})/);
-              if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-              return '';
-            };
             const isoDates = scrapedData.dates.map(toISO).filter(Boolean);
             if (isoDates.length > 0) {
               tourDoc.dates = isoDates;
@@ -683,6 +793,14 @@ export default function AdminDashboardClient() {
         } catch (err) {
           console.error("Грешка при обработка на", linkObj.url, err);
           // Продължаваме със следващата, ако тази гръмне
+        }
+
+        // Малка пауза между всеки тур (дори и след успех) — намалява шанса да ударим на OpenAI rate limit
+        // при следващите турове в цикъла, особено ако някои от тях са големи/много-дестинационни. Ако този конкретен
+        // линк беше прескочен от датовия филтър (НЕ стигна до OpenAI), паузата е много по-кратка —
+        // няма смисъл да чакаме пълните 3с само за да проверим следващия кандидат.
+        if (i < allLinks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, reachedProcessing ? 3000 : 400));
         }
       }
 
@@ -847,7 +965,7 @@ export default function AdminDashboardClient() {
                                 <ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(tour)} />
                                 <ActionBtn icon={Copy} color="text-purple-500 bg-purple-50" onClick={() => handleCopyTour(tour)} />
                                 <ActionBtn icon={Archive} color="text-orange-500 bg-orange-50" onClick={async () => await updateDoc(doc(db, "tours", tour.id), { status: 'archived' })} />
-                                <ActionBtn icon={Trash2} color="text-red-500 bg-red-50" onClick={async () => { if(confirm('Изтриване?')) await deleteDoc(doc(db, "tours", tour.id)) }} />
+                                <ActionBtn icon={Trash2} color="text-red-500 bg-red-50" onClick={() => handleDeleteTourClick(tour)} />
                             </div>
                         </div>
                     ))}
@@ -898,6 +1016,22 @@ export default function AdminDashboardClient() {
                         );
                       }}
                     />
+
+                    {/* Минимална дата на отпътуване — турове с ВСИЧКИ дати преди това се прескачат цялостно, без AI-format,
+                    спестявайки време/токени за нещо, което веднага ще се отхвърли. Празно поле = без филтър. */}
+                    <div className="flex items-center gap-3">
+                      <label className="text-white/40 text-[10px] font-black uppercase tracking-widest shrink-0">Само турове с дата от:</label>
+                      <input
+                        type="date"
+                        value={automationMinDate}
+                        onChange={e => setAutomationMinDate(e.target.value)}
+                        disabled={isAutoProcessing}
+                        className="bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-brand-gold transition-colors disabled:opacity-40"
+                      />
+                      {automationMinDate && (
+                        <button onClick={() => setAutomationMinDate('')} className="text-white/40 hover:text-white text-xs font-bold">Махни</button>
+                      )}
+                    </div>
 
                     {/* Провери за нови / Стартирай сканиране */}
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -997,7 +1131,11 @@ export default function AdminDashboardClient() {
                             <div className="flex gap-2">
                                 <ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(tour)} />
                                 <ActionBtn icon={CheckCircle2} color="text-emerald-600 bg-emerald-50" onClick={async () => await updateDoc(doc(db, "tours", tour.id), { status: 'public' })} />
-                                <ActionBtn icon={Trash2} color="text-red-500 bg-red-50" onClick={async () => { if(confirm('Изтриване завинаги?')) await deleteDoc(doc(db, "tours", tour.id)) }} />
+                                <ActionBtn
+                                    icon={Trash2}
+                                    color="text-red-500 bg-red-50"
+                                    onClick={() => handleDeleteTourClick(tour)}
+                                />
                             </div>
                         </div>
                     ))}
@@ -1398,6 +1536,38 @@ export default function AdminDashboardClient() {
             onOpenGroup={handleOpenGroup}
         />
         )}
+
+      {/* МОДАЛ: ИЗБОР ПРИ ТРИЕНЕ НА ТУР С ОРИГИНАЛЕН ЛИНК */}
+      {deleteChoiceTour && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-brand-dark/95 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in duration-200">
+                <h3 className="font-serif italic text-2xl text-brand-dark mb-2">Как да изтрия?</h3>
+                <p className="text-sm text-gray-400 mb-8">„{deleteChoiceTour.title}“ има оригинален линк от автоматизацията — избери как да постъпиш.</p>
+                <div className="space-y-3">
+                    <button
+                        onClick={() => handleDeletePermanently(deleteChoiceTour)}
+                        className="w-full bg-red-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-600 transition-all shadow-lg"
+                    >
+                        Триене за постоянно
+                    </button>
+                    <p className="text-[10px] text-gray-400 text-center -mt-1">Линкът се блокира завинаги — никога повече няма да се предложи от сканиране</p>
+                    <button
+                        onClick={() => handleDeleteForRescrape(deleteChoiceTour)}
+                        className="w-full bg-brand-gold text-brand-dark py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-dark hover:text-white transition-all shadow-lg mt-2"
+                    >
+                        Триене за повторно скейпване
+                    </button>
+                    <p className="text-[10px] text-gray-400 text-center -mt-1">Следващото сканиране ще го намери пак и ще мине през AI-format от нула</p>
+                    <button
+                        onClick={() => setDeleteChoiceTour(null)}
+                        className="w-full text-gray-400 hover:text-brand-dark py-3 font-bold text-xs uppercase tracking-widest transition-all mt-2"
+                    >
+                        Отказ
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -67,6 +67,16 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // Постоянен черен списък с отхвърлени тур линкове (/api/scout ги чете, за да не ги предлага пак
+    // като "нови") — нарочно СЕПАРАТНА от самите турове документи, така че изтриването на тур да не махва
+    // и решението да го игнорираме. Публично четима като tours — /api/scout е сървърен route, който чете
+    // с клиентския SDK БЕЗ логнат сесия (request.auth винаги е null там) — ако това поле изисква auth,
+    // всяко сканиране би гръмнало с permission denied.
+    match /ignoredTourUrls/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
     // 4. Catch-all — всичко останало изисква автентикация
     match /{document=**} {
       allow read, write: if request.auth != null;

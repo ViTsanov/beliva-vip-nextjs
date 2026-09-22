@@ -460,12 +460,11 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                       <select
                         className={inputStyle}
                         value={form.roomCombo || ''}
-                        onChange={e => setForm({...form, roomCombo: e.target.value || undefined})}
+                        onChange={e => setForm({...form, roomCombo: e.target.value})}
                       >
                         <option value="">— Без етикет</option>
-                        <option value="Мъж/Жена">Мъж/Жена</option>
-                        <option value="Само жени">Само жени</option>
-                        <option value="Само мъже">Само мъже</option>
+                        <option value="Търсим мъж за комбинация">Търсим мъж за комбинация</option>
+                        <option value="Търсим жена за комбинация">Търсим жена за комбинация</option>
                         <option value="2+2 (семейства)">2+2 (семейства)</option>
                         <option value="Двойна стая">Двойна стая</option>
                         <option value="Едноместна стая">Едноместна стая</option>

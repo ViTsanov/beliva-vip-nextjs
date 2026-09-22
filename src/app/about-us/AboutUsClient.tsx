@@ -18,6 +18,7 @@ const DIARY_STRIP = [
   { src: '/guides/poly-4.jpg', pos: 'center 42%', alt: 'Поли с кенгуру в Австралия', place: 'Австралия' },
   { src: '/guides/poly-7.jpg', pos: 'center 58%', alt: 'Поли на Великата китайска стена', place: 'Китай' },
   { src: '/guides/poly-8.jpg', pos: 'center 55%', alt: 'Поли на Великденски остров, пред статуите моаи', place: 'Великденски остров' },
+  { src: '/guides/poly-3.jpg', pos: 'center 55%', alt: 'Поли в Сингапур', place: 'Сингапур' },
 ];
 
 const fadeUp = {
@@ -34,8 +35,8 @@ export default function AboutUsClient() {
       {/* ── МАСТХЕД HERO — истинска снимка на Поли, не стокова, диагонален долен ръб ── */}
       <section className="relative h-[88vh] min-h-[560px] w-full overflow-hidden bg-brand-dark">
         <Image
-          src="/guides/poly-1.jpg"
-          alt="Поли в Боливия по залез слънце"
+          src="/guides/poly-9.jpg"
+          alt="Поли на Мачу Пикчу"
           fill
           priority
           className="object-cover"
@@ -161,18 +162,18 @@ export default function AboutUsClient() {
       {/* ── ПАРАДАЙЗ ЦИТАТ — истинска снимка от пътуванията на Поли, не стокова ── */}
       <section className="relative h-[65vh] min-h-[420px] max-h-[600px] w-full overflow-hidden bg-brand-dark">
         <Image
-          src="/guides/poly-6.jpg"
-          alt="Поли на плаж в Карибите"
+          src="/guides/poly-10.jpg"
+          alt="Поли в Камбоджа"
           fill
           className="object-cover"
-          style={{ objectPosition: '70% 50%' }}
+          style={{ objectPosition: '80% 60%' }}
           sizes="100vw"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/30 to-black/65" />
-        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
+        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6 md:items-start md:text-left md:pl-12 lg:pl-24 md:pr-6">
           <motion.div {...fadeUp}>
             <blockquote
-              className="font-serif italic text-white leading-[1.15] max-w-3xl mx-auto"
+              className="font-serif italic text-white leading-[1.15] max-w-3xl mx-auto md:mx-0"
               style={{ fontSize: 'clamp(1.8rem, 4.5vw, 3.5rem)', textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
             >
               &quot;Не търсете най-евтината екскурзия.<br className="hidden md:block" />
@@ -206,7 +207,7 @@ export default function AboutUsClient() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.08 }}
-              className="relative shrink-0 w-[240px] md:w-[300px] h-[320px] md:h-[400px] rounded-[1.75rem] overflow-hidden shadow-xl snap-center"
+              className="relative shrink-0 w-[240px] md:w-[290px] h-[320px] md:h-[400px] rounded-[1.75rem] overflow-hidden shadow-xl snap-center"
               style={{ transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)` }}
             >
               <Image src={p.src} alt={p.alt} fill className="object-cover" style={{ objectPosition: p.pos }} sizes="300px" />

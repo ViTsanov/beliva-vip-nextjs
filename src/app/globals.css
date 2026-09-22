@@ -134,6 +134,19 @@ a, button, [role="button"], input, select, textarea {
   border: 1px solid rgba(255, 255, 255, 0.16);
 }
 
+/* Специален modifier само за Hero.tsx-овия glass-panel — на мобилно махва самия blur ефект (закриваше повече от
+   главната снимка/видео на тесния екран, отколкото е ограничено на телефон), заменя с тъмен,
+   полупрозрачен фон за четимост на текста без да размазва снимката зад него. Нарочно с собствен
+   клас, не промяна във базовия .glass-panel — той може да се използва и на други места в сайта,
+   където блур-ът трябва да остане. */
+@media (max-width: 639px) {
+  .glass-panel-hero-clear {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(15, 23, 42, 0.42) !important;
+  }
+}
+
 .glass-panel-light {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(20px) saturate(180%);

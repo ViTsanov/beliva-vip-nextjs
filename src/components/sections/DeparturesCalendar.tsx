@@ -87,16 +87,20 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
                 ref={(el) => { cardRefs.current[m.value] = el; }}
                 onClick={() => !isEmpty && onSelectMonth(isSelected ? '' : m.value)}
                 disabled={isEmpty}
-                className={`shrink-0 w-[136px] text-left p-4 rounded-2xl border transition-all duration-200 active:scale-95 ${
+                className={`relative overflow-hidden shrink-0 w-[150px] text-left p-5 rounded-[1.75rem] border transition-all duration-300 active:scale-95 ${
                   isSelected
-                    ? 'bg-brand-dark border-brand-dark text-white shadow-lg scale-[1.03] ring-2 ring-brand-gold/40 ring-offset-2'
+                    ? 'bg-gradient-to-br from-brand-dark to-[#1a2540] border-brand-gold text-white shadow-xl scale-[1.04] ring-2 ring-brand-gold/40 ring-offset-2'
                     : isEmpty
                     ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-                    : 'bg-white border-gray-200 hover:border-brand-gold/50 hover:shadow-md'
+                    : 'bg-gradient-to-br from-white to-brand-gold/[0.05] border-gray-200 hover:border-brand-gold/50 hover:shadow-lg hover:-translate-y-0.5'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`font-serif italic text-lg ${isSelected ? 'text-brand-gold' : 'text-brand-dark'}`}>
+                {/* Златна лента отгоре — само когато месецът е избран, добавя малко визуално "тегло" без да е само рамка */}
+                {isSelected && (
+                  <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-gold via-amber-300 to-brand-gold" />
+                )}
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className={`font-serif italic text-xl ${isSelected ? 'text-brand-gold' : 'text-brand-dark'}`}>
                     {m.label}
                   </span>
                   {idx === 0 && !isEmpty && (
@@ -107,6 +111,9 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
                     </span>
                   )}
                 </div>
+
+                {/* Малка златна разделителна линия между заглавието и броя — добавя визуална структура вместо просто стек текст */}
+                <div className={`h-px w-8 mb-2.5 ${isSelected ? 'bg-brand-gold/40' : isEmpty ? 'bg-gray-200' : 'bg-brand-gold/25'}`} />
 
                 <p className={`text-xs font-bold mb-1.5 ${
                   isSelected ? 'text-white/90' : isEmpty ? 'text-gray-300' : 'text-gray-500'

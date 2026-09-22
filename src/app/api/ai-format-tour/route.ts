@@ -52,6 +52,10 @@ export async function POST(req: Request) {
             body: JSON.stringify({
                 model: "gpt-4o",
                 response_format: { type: "json_object" }, // Принуждава GPT да върне 100% валиден JSON
+                // Изричен, висок max_tokens — без това моделът разчита на вътрешен default, който за големи,
+                // много-дестинационни турове може да не стига за пълната, детайлна програма (причина
+                // моделът да съкрати отговора по-рано, отколкото дене от програмата са кратки).
+                max_tokens: 8000,
                 messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: JSON.stringify(scrapedData) }

@@ -2,6 +2,21 @@
 import { db } from "./firebase";
 import { updateDoc, doc } from "firebase/firestore";
 
+// Нормализира URL за стабилна дедупликация — маха http/https разлики, www, trailing slash, query
+// params, ловъркейс. Споделена между /api/scout и AdminDashboardClient.tsx (черен черния списък
+// ignoredTourUrls) — така че двете страни винаги съвпадат идентично един и същ линк.
+export function normalizeUrl(url: string): string {
+    try {
+        let u = url.trim().toLowerCase();
+        u = u.replace(/^https?:\/\//, '').replace(/^www\./, '');
+        u = u.split('?')[0].split('#')[0];
+        u = u.replace(/\/+$/, '');
+        return u;
+    } catch {
+        return url;
+    }
+}
+
 // Slugify функция
 export const slugify = (text: string | string[]) => {
   if (!text || text.length === 0) return '';

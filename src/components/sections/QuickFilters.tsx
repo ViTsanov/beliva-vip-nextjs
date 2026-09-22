@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Image from 'next/image';
-import { Star, Palmtree, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, Palmtree } from 'lucide-react';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
 interface ContinentTile {
@@ -40,10 +40,6 @@ export default function QuickFilters({
 }: QuickFiltersProps) {
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const continentScrollerRef = useRef<HTMLDivElement>(null);
-
-  const scrollContinents = (dir: 1 | -1) => {
-    continentScrollerRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' });
-  };
 
   if (categories.length === 0 && continents.length === 0) return null;
 
@@ -97,35 +93,16 @@ export default function QuickFilters({
         </div>
       )}
 
-      {/* Континенти — визуален избор със снимки */}
+      {/* Континенти — визуален избор със снимки. На мобилно: фиксирана ширина + хоризонтален скрол/swipe (естествен жест там).
+      На десктоп: плочките се разтягат равномерно да запълнят целия ред (flex-grow), без скрол — преди това
+      фиксираните 150px изглеждаха дребни/свити на широк екран, с много свободно място отстрани. */}
       {continents.length > 0 && (
         <div className="relative">
-        {/* Стрелки за скрол — само desktop/mouse, на мобилно жестът за swipe е естествен */}
-        {continents.length > 4 && (
-          <div className="hidden md:flex items-center gap-2 absolute -top-9 right-0">
-            <button
-              type="button"
-              onClick={() => scrollContinents(-1)}
-              aria-label="Предишни континенти"
-              className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 flex items-center justify-center hover:border-brand-gold hover:text-brand-gold active:scale-90 transition-all"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollContinents(1)}
-              aria-label="Следващи континенти"
-              className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 flex items-center justify-center hover:border-brand-gold hover:text-brand-gold active:scale-90 transition-all"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
         {/* pt-2/pb-3 дават резервно място за ring-а и scale трансформацията при избран елемент —
         без тях overflow-x-auto кара браузъра имплицитно да отреже overflow-y и златният border отгоре се реже.
         px-3 (вместо px-1) дава реален хоризонтален буфер (нетно ~8px след -mx-1) — без него ring-ът на
         първата/последната плочка (които нямат съсед от тази страна, от който да вземе място) се реже. */}
-        <div ref={continentScrollerRef} className="snap-carousel flex gap-3 overflow-x-auto pt-2 pb-3 -mx-1 px-3 scrollbar-hide">
+        <div ref={continentScrollerRef} className="snap-carousel flex gap-3 md:grid md:grid-cols-3 md:gap-4 overflow-x-auto md:overflow-visible pt-2 pb-3 -mx-1 px-3 scrollbar-hide">
           {continents.map(c => {
             const isSelected = activeContinent === c.slug;
             const hasError = imgErrors[c.slug];
@@ -133,7 +110,7 @@ export default function QuickFilters({
               <button
                 key={c.slug}
                 onClick={() => onSelectContinent(isSelected ? '' : c.slug)}
-                className={`relative shrink-0 w-[150px] h-[100px] rounded-2xl overflow-hidden group transition-all duration-200 active:scale-95 ${
+                className={`relative shrink-0 w-[150px] h-[100px] md:w-full md:h-[150px] rounded-2xl overflow-hidden group transition-all duration-200 active:scale-95 ${
                   isSelected
                     ? 'ring-[3px] ring-brand-gold scale-[1.05] shadow-[0_8px_24px_rgba(197,163,93,0.45)]'
                     : 'hover:shadow-md hover:-translate-y-0.5'
@@ -146,7 +123,7 @@ export default function QuickFilters({
                     fill
                     placeholder="blur"
                     blurDataURL={BLUR_PLACEHOLDER}
-                    sizes="150px"
+                    sizes="(max-width: 768px) 150px, 20vw"
                     className="object-cover transition-transform duration-500 group-hover:scale-110"
                     onError={() => setImgErrors(prev => ({ ...prev, [c.slug]: true }))}
                   />
@@ -160,8 +137,8 @@ export default function QuickFilters({
                     : 'bg-black/35 group-hover:bg-black/45'
                 }`} />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
-                  <span className="font-serif italic text-white text-base leading-tight drop-shadow-md">{c.name}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white/80 mt-0.5">
+                  <span className="font-serif italic text-white text-base md:text-lg leading-tight drop-shadow-md">{c.name}</span>
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white/80 mt-0.5">
                     {c.count} {c.count === 1 ? 'екскурзия' : 'екскурзии'}
                   </span>
                 </div>

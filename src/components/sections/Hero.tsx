@@ -62,8 +62,22 @@ export default function Hero() {
   const [renderedCurrent, setRenderedCurrent] = useState(0);
   const [showVideoEl, setShowVideoEl] = useState(false); // след PHOTO_DURATION: дали <video> елементът вече е монтиран
   const [videoVisible, setVideoVisible] = useState(false); // дали видеото реално свири и трябва да е видимо (насложено върху снимката)
-  // Индекс на слайда, чието видео все още трябва да остане монтирано, докато външният crossfade не завърши.
-  const [lingeringIndex, setLingeringIndex] = useState<number | null>(null);
+  // Индекс на слайда, чието видео все още трябва да остане монтирано, докато външният crossfade не завърши. Пазим
+  // И дали видеото му реално е било потвърдено като играещо (wasVideoVisible) преди смяната — без това, ако
+  // потребителят смени слайда РЪЧНО (клик в менюто отдолу), докато старият слайд все още беше в 3s
+  // photo-only фазата (видеото му НИКОГА не е играло), lingering логиката безусловно го показваше при смяна,
+  // дори това видео да не беше потвърдено като играещо нито веднъж — точно това е било "проблясването"
+  // на видеото на стария слайд, описано от Viktor.
+  const [lingeringSlide, setLingeringSlide] = useState<{ index: number; wasVideoVisible: boolean } | null>(null);
+
+  // Менюто с thumbnail-и отдолу се появява с кратък fade-in след 1.5s — дотогава време тези 5 малки
+  // снимки да са се заредили във фона (браузърът вече ги е започнал да тегли), вместо да се вижда
+  // видимо "по-етапно" зареждане на необработените thumbnail-и веднага при отваряне на сайта.
+  const [showThumbnails, setShowThumbnails] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShowThumbnails(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   // СИНХРОННО по време на render (НЕ useEffect!) — засича смяна на current в СЪЩИЯ render цикъл, преди браузърът
   // изобщо да нарисува нещо. Точно тук беше бъгът от преди: useEffect винаги изпълнява един render кадър по-късно,
@@ -72,7 +86,7 @@ export default function Hero() {
   // започне. С тази синхронна проверка React прихваща новото състояние и пре-рендва веднага, преди да нарисува
   // каквото и да е — така че бъгливият междинен кадър никога не се вижда.
   if (current !== renderedCurrent) {
-    setLingeringIndex(renderedCurrent);
+    setLingeringSlide({ index: renderedCurrent, wasVideoVisible: videoVisible });
     setShowVideoEl(false);
     setVideoVisible(false);
     setRenderedCurrent(current);
@@ -81,7 +95,7 @@ export default function Hero() {
   // Таймерите остават в useEffect — setTimeout е неизбежен side effect, не може да се случи по време на render.
   useEffect(() => {
     const startVideoTimer = setTimeout(() => setShowVideoEl(true), PHOTO_DURATION);
-    const lingerTimer = setTimeout(() => setLingeringIndex(null), CROSSFADE_DURATION);
+    const lingerTimer = setTimeout(() => setLingeringSlide(null), CROSSFADE_DURATION);
     // Fallback — само ако onEnded никога не стреля (грешка, видео липсва за този слайд, браузърът блокира автоплей).
     // За работещо видео никога не трябва да се стига дотук — handleVideoEnded винаги ще стреля първо и ще го анулира.
     const fallbackTimer = setTimeout(() => {
@@ -146,14 +160,16 @@ export default function Hero() {
       <div className="absolute inset-0 z-0">
         {SLIDES.map((s, i) => {
           const isCurrent = i === current;
-          const isLingering = i === lingeringIndex;
+          const isLingering = lingeringSlide?.index === i;
           // Видеото се монтира: (а) за активния слайд, след PHOTO_DURATION, или (б) за слайда, който тъкмо
-          // престана да е активен, докато crossfade-ът му не завърши (isLingering) — за да не изчезне рязко.
-          const shouldMountVideo = (isCurrent && showVideoEl) || isLingering;
-          // За lingering слайда видеото просто остава на пълна видимост (вече беше видимо) — целият div
-          // (снимка+видео) избледнява заедно чрез външния opacity transition. За активния слайд видимостта
-          // зависи от реалния playback статус.
-          const isVideoVisible = isLingering || (isCurrent && videoVisible);
+          // престана да е активен, докато crossfade-ът му не завърши — НО само ако това видео реално е било
+          // потвърдено като играещо преди смяната (wasVideoVisible) — ако потребителят смени слайда ръчно,
+          // докато старият все още беше в 3s photo-only фазата (видеото му НИКОГА не е играло), снимката просто
+          // изчезва без да се опитва да покаже видео което никога не е играло.
+          const lingeringWasPlaying = isLingering && !!lingeringSlide?.wasVideoVisible;
+          const shouldMountVideo = (isCurrent && showVideoEl) || lingeringWasPlaying;
+          // За lingering слайда, видимостта зависи само от това дали видеото му реално беше потвърдено преди смяната.
+          const isVideoVisible = lingeringWasPlaying || (isCurrent && videoVisible);
 
           return (
           <div
@@ -303,8 +319,8 @@ export default function Hero() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.35 }}
-          className="glass-panel flex flex-col items-center gap-6 rounded-[2rem] px-6 py-6 sm:px-10 sm:py-7"
+          transition={{ duration: 0.6, delay: 0.15 }}
+          className="glass-panel glass-panel-hero-clear flex flex-col items-center gap-6 rounded-[2rem] px-6 py-6 sm:px-10 sm:py-7"
         >
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <Link
@@ -326,8 +342,9 @@ export default function Hero() {
             </Link>
           </div>
 
-          {/* Trust pills */}
-          <div className="flex items-center gap-6">
+          {/* Trust pills — скрити на мобилно (hidden), видими от sm нагоре — на малък екран това е допълнителен ред в замъгленото glass-panel,
+          който заедно с бутоните закрива повече от главната снимка/видео, отколкото ограничено място на телефон. */}
+          <div className="hidden sm:flex items-center gap-6">
             {[
               { v: '60+', l: 'Дестинации' },
               { v: '150+', l: 'Водени групи' },
@@ -346,7 +363,10 @@ export default function Hero() {
       </div>
 
       {/* ─── LAYER 3: destination slider at the bottom ─── */}
-      <div className="absolute bottom-0 left-0 right-0 z-30">
+      <div
+        className="absolute bottom-0 left-0 right-0 z-30"
+        style={{ opacity: showThumbnails ? 1 : 0, transition: 'opacity 0.6s ease-in-out' }}
+      >
         {/* Global progress bar — обновяван на всеки анимационен кадър (requestAnimationFrame) спрямо реалния
             прогрес на текущото видео. При смяна на слайда се нулира автоматично (key={current}). По време на
             PHOTO_DURATION (само снимка) остава празна. */}

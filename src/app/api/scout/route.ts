@@ -3,21 +3,7 @@ import * as cheerio from 'cheerio';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { requireAdmin } from '@/lib/adminAuth';
-
-// Нормализира URL за стабилна дедупликация:
-// - маха http/https разлики, www, trailing slash, query params, ловъркейс
-// Така https://www.2mko.com/ekskurzia/yaponia/2036/ и http://2mko.com/ekskurzia/yaponia/2036?x=1 са ЕДНО и също
-export function normalizeUrl(url: string): string {
-    try {
-        let u = url.trim().toLowerCase();
-        u = u.replace(/^https?:\/\//, '').replace(/^www\./, '');
-        u = u.split('?')[0].split('#')[0];
-        u = u.replace(/\/+$/, ''); // маха trailing slashes
-        return u;
-    } catch {
-        return url;
-    }
-}
+import { normalizeUrl } from '@/lib/admin-helpers';
 
 // Помощна функция: тегли страница и връща cheerio обект (с windows-1251 fallback за кирилица)
 async function fetchPage(url: string) {
@@ -69,6 +55,16 @@ export async function POST(req: Request) {
                 .filter(Boolean)
                 .map((u: string) => normalizeUrl(u))
         );
+
+        // Важно: ако Админът изтрие тур, това махва и записа му в existingUrls (той еше част от тази колекция) —
+        // без допълнителна защита, следващото сканиране би го намерило като "ново" пак. Тази колекция
+        // живее ОТДЕЛНО от туровете и НЕ се трие заедно с тях — виж handleRejectPendingTour в
+        // AdminDashboardClient.tsx за където се попълва.
+        const ignoredSnapshot = await getDocs(collection(db, "ignoredTourUrls"));
+        ignoredSnapshot.docs.forEach(doc => {
+            const url = doc.data().url;
+            if (url) existingUrls.add(normalizeUrl(url));
+        });
 
         const newLinksFound: { url: string; title: string; countryMatched: string }[] = [];
         const visitedUrls = new Set<string>(); // За да не добавяме един и същ линк два пъти

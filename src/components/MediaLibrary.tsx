@@ -35,6 +35,94 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
   // Състояния за Google Drive Picker
   const [pickerReady, setPickerReady] = useState(false);
 
+  // Масово преобработване на вече качени снимки, които са по-големи от нужното (от преди convertToWebP
+  // да почне да смалява при ново качване). Вика първия опит (canvas в браузъра) гръмна със CORS
+  // грешка — Firebase Storage download URL-ите не изпращат Access-Control-Allow-Origin по дефаулт.
+  // Сега викаме сървърния route (/api/admin/optimize-media), който чете чрез Admin SDK — напълно
+  // заобикаля проблема. Викаме на партиди, за да не рискуваме timeout на едно голямо извикване.
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizeStatus, setOptimizeStatus] = useState('');
+  const [optimizeResults, setOptimizeResults] = useState<{ processed: number; skipped: number; failed: number } | null>(null);
+
+  // Следи кои конкретни снимки се оптимизират в даден момент — за да покажем spinner САМО върху
+  // тази конкретна картинка, не върху цялата библиотека като при масовото оптимизиране.
+  const [optimizingIds, setOptimizingIds] = useState<Set<string>>(new Set());
+
+  const handleOptimizeSingleImage = async (img: any) => {
+    setOptimizingIds(prev => new Set(prev).add(img.id));
+    try {
+      const res = await fetch('/api/admin/optimize-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mediaId: img.id })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Грешка при оптимизация.');
+      } else if (data.result === 'skipped') {
+        alert(`"${img.name}" вече е достатъчно малка — няма нужда от смаляване.`);
+      } else if (data.result === 'processed') {
+        alert(`"${img.name}" е смалена успешно!`);
+      } else {
+        alert(`Грешка при оптимизиране на "${img.name}": ${data.error || 'няма повече детайли от сървъра'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Грешка при връзка със сървъра.');
+    } finally {
+      setOptimizingIds(prev => {
+        const next = new Set(prev);
+        next.delete(img.id);
+        return next;
+      });
+    }
+  };
+
+  const handleOptimizeOldImages = async () => {
+    if (!confirm('Това ще прегледа всички директно качени снимки (не Drive/линк) и ще смали тези над 2000px. Може да отнеме няколко минути при много снимки. Продължаваме ли?')) return;
+    setIsOptimizing(true);
+    setOptimizeResults(null);
+
+    let totalProcessed = 0, totalSkipped = 0, totalFailed = 0;
+    let skipIds: string[] = [];
+    let round = 1;
+
+    try {
+      while (true) {
+        setOptimizeStatus(`Обработвам партида ${round}...`);
+        const res = await fetch('/api/admin/optimize-media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skipIds })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Грешка на сървъра');
+        }
+
+        totalProcessed += data.processed;
+        totalSkipped += data.skipped;
+        totalFailed += data.failed;
+        skipIds = [...skipIds, ...data.processedIds];
+
+        setOptimizeStatus(`Партида ${round}: смалени ${totalProcessed}, остават ~${data.remaining}...`);
+
+        if (data.done) break;
+        round++;
+      }
+
+      setOptimizeStatus('');
+      setOptimizeResults({ processed: totalProcessed, skipped: totalSkipped, failed: totalFailed });
+    } catch (e) {
+      console.error(e);
+      alert('Грешка при масовото оптимизиране.');
+      setOptimizeStatus('');
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
   // 1. Зареждане на Firebase снимки — чакаме Firebase Auth сесията реално да се възстанови (onAuthStateChanged), преди да
   // стреляме onSnapshot към "media" колекцията — без това, ако заявката тръгне преди auth.currentUser да се
   // попълни, request.auth е null за Firestore правилата — резултат: "Missing or insufficient permissions".
@@ -239,6 +327,32 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
         
         {/* ЛЯВА ЧАСТ: СПИСЪК СЪС СНИМКИ */}
         <div className="flex-grow p-6 overflow-y-auto bg-white">
+            {/* Масово преобработване на вече качени големи снимки (от преди convertToWebP да почне да смалява) */}
+            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="text-xs font-bold text-amber-800">Стари снимки могат да са по-големи от нужното и да забавят зареждането на сайта.</p>
+                  <p className="text-[10px] text-amber-600 mt-0.5">Смалява всички директно качени снимки над 2000px и обновява всички турове, които ги използват.</p>
+                </div>
+                <button
+                  onClick={handleOptimizeOldImages}
+                  disabled={isOptimizing}
+                  className="bg-amber-500 text-white px-5 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-amber-600 transition-all disabled:opacity-50 flex items-center gap-2 shrink-0"
+                >
+                  {isOptimizing ? <Loader2 size={14} className="animate-spin" /> : null}
+                  {isOptimizing ? 'Работи...' : 'Оптимизирай стари снимки'}
+                </button>
+              </div>
+              {optimizeStatus && (
+                <p className="text-[11px] text-amber-700 mt-3 font-medium">{optimizeStatus}</p>
+              )}
+              {optimizeResults && (
+                <p className="text-[11px] text-emerald-700 mt-3 font-bold">
+                  Готово! Смалени: {optimizeResults.processed} · Вече добри: {optimizeResults.skipped} · Грешки: {optimizeResults.failed}
+                </p>
+              )}
+            </div>
+
             <div className="relative mb-6">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
                 <input 
@@ -274,6 +388,16 @@ export default function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
                                 {onSelect && (
                                     <button onClick={() => onSelect(img.url)} className="bg-brand-gold p-2 rounded-full hover:scale-110 text-brand-dark" title="Избери">
                                         <Check size={16} />
+                                    </button>
+                                )}
+                                {img.path && img.path !== 'external' && img.path !== 'google_drive' && (
+                                    <button
+                                        onClick={() => handleOptimizeSingleImage(img)}
+                                        disabled={optimizingIds.has(img.id)}
+                                        className="bg-amber-500 p-2 rounded-full hover:scale-110 disabled:opacity-50 disabled:hover:scale-100"
+                                        title="Оптимизирай тази снимка (смали, ако е над 2000px)"
+                                    >
+                                        {optimizingIds.has(img.id) ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />}
                                     </button>
                                 )}
                                 <button onClick={() => handleDelete(img.id, img.path, img.url)} className="bg-red-500 p-2 rounded-full hover:scale-110" title="Изтрий">
