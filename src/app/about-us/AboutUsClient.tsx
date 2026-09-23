@@ -170,7 +170,7 @@ export default function AboutUsClient() {
           sizes="100vw"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/30 to-black/65" />
-        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6 md:items-start md:text-left md:pl-12 lg:pl-24 md:pr-6">
+        <div className="relative z-10 h-full flex flex-col items-center justify-start pt-14 text-center px-6 md:items-start md:justify-center md:pt-0 md:text-left md:pl-12 lg:pl-24 md:pr-6">
           <motion.div {...fadeUp}>
             <blockquote
               className="font-serif italic text-white leading-[1.15] max-w-3xl mx-auto md:mx-0"

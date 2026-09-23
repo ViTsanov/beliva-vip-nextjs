@@ -535,6 +535,13 @@ export default function AdminDashboardClient() {
         const linkObj = allLinks[i];
         setAutoProcessStatus(`Проверка ${i + 1} от ${allLinks.length}: ${linkObj.title}...`);
 
+        // Следим дали ТОЗИ линк реално стига до етапа "реална обработка" (минал датовия филтър), за
+        // да решим колка пауза трябва по-долу — няма смисъл да чакаме 3с между бързо-прескачани кандидати,
+        // които никога не стигат до OpenAI. ДЕКЛАРИРАНА ТУК — трябва да е видима И ВЪТРЕ трай-а
+        // (за да я маркираме true), И ОТВЪН от него (за да я проверим в паузата след catch-а) —
+        // беше декларирана вътре в try-а, което гръмваше build-а с "Cannot find name 'reachedProcessing'".
+        let reachedProcessing = false;
+
         try {
           // А) Извличаме суровия текст
           const scrapeRes = await fetch('/api/scrape', {
@@ -560,6 +567,7 @@ export default function AdminDashboardClient() {
           }
 
           // От тук нататък реално обработваме този тур — брои се към automationLimit оттук нататък, независимо от изхода (успех/грешка).
+          reachedProcessing = true;
           attemptedCount++;
           setAutoProcessStatus(`Обработка ${attemptedCount}${automationLimit ? `/${automationLimit}` : ''}: ${linkObj.title}...`);
 
