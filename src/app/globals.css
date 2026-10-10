@@ -147,11 +147,34 @@ a, button, [role="button"], input, select, textarea {
   }
 }
 
+/* Блокът за Поли в hero-то на мобилни е светъл (hero-то се стопява в крем/бяло); на desktop остава тъмно стъкло върху снимката.
+   Стои СЛЕД .glass-panel-hero-clear, за да го надделее при еднаква специфичност. */
+@media (max-width: 1023px) {
+  .hero-card-light {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 20px 40px -20px rgba(15, 23, 42, 0.25);
+  }
+}
+
 .glass-panel-light {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Hero entrance - pure CSS, so it runs on the very first paint without waiting for JS hydration.
+   Before, framer-motion kept the hero text at opacity 0 in the server HTML until React hydrated,
+   so on slower phones the photo appeared first and the text "jumped" in 1-2s later. */
+@keyframes hero-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+.hero-enter {
+  animation: hero-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Cursor-reactive tilt for bento/tour cards — JS sets --rx/--ry via pointer move */
@@ -163,6 +186,7 @@ a, button, [role="button"], input, select, textarea {
 @media (prefers-reduced-motion: reduce) {
   .aurora-mesh { animation: none; background-position: 50% 50%; }
   .tilt-card { transform: none !important; transition: none; }
+  .hero-enter { animation: none; }
 
   /* Промо ефектите по-долу всички са infinite loop анимации (пулсиране, трептене, светване) —
      точно типа движение, което prefers-reduced-motion е предназначено да спира заради вестибуларна

@@ -55,8 +55,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // Публично четима като tours — само URL-и към снимки, не чувствителни данни. Нужно за сървърните страници
+    // (DestinationsSection.tsx, /destinations/[държава]), които четат с клиентския SDK БЕЗ логната сесия.
     match /media/{document=**} {
-      allow read, write: if request.auth != null;
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
     // AI чат въпроси — пишат се само от Cloud Function (Admin SDK, заобикаля всички правила), четат се само

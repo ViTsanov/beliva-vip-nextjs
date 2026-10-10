@@ -129,7 +129,7 @@ export default function Navbar() {
   return (
     <>
       {/* NAVBAR BAR */}
-      <nav className={`fixed top-0 w-full z-[100] transition-all duration-500 ${
+      <nav data-site-navbar className={`fixed top-0 w-full z-[100] transition-all duration-500 ${
         scrolled || !isHome ? 'bg-white/95 backdrop-blur-md py-2 md:py-3 shadow-lg' : 'bg-transparent py-4 md:py-6'
       }`}>
         <div className="container mx-auto px-6 flex justify-between items-center">
@@ -143,11 +143,13 @@ export default function Navbar() {
             }`}
           >
             <img
-              src="/beliva_logo.png"
+              src="/beliva_logo_nav.webp"
+              width={96}
+              height={96}
               alt="Beliva VIP Logo"
               className="h-8 md:h-10 lg:h-12 w-auto object-contain shrink-0"
             />
-            <span className="whitespace-nowrap text-lg md:text-2xl lg:text-3xl">
+            <span className="whitespace-nowrap text-lg max-[360px]:text-base md:text-2xl lg:text-3xl">
               Beliva <span className="text-brand-gold">VIP</span> Tour
             </span>
           </Link>
@@ -192,7 +194,8 @@ export default function Navbar() {
           </div>
 
           {/* MOBILE ACTIONS */}
-          <div className="md:hidden flex items-center gap-2 z-[110]">
+          <div className="md:hidden flex items-center gap-0.5 z-[110]">
+            <NavbarSearch iconOnly isScrolled={scrolled || !isHome} />
             <Link
               href="/favorites"
               onClick={handleNavClick}
@@ -238,7 +241,7 @@ export default function Navbar() {
           >
             <div className="flex justify-between items-center p-6 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2">
-                <img src="/beliva_logo.png" alt="Beliva VIP Tour лого" className="h-8 w-auto" />
+                <img src="/beliva_logo_nav.webp" width={96} height={96} alt="Beliva VIP Tour лого" className="h-8 w-auto" />
                 <span className="text-2xl font-serif italic font-bold text-brand-dark">
                   Beliva <span className="text-brand-gold">VIP</span> Tour
                 </span>
@@ -263,10 +266,6 @@ export default function Navbar() {
                 <LayoutGrid size={24} /> Всички страници
               </Link>
               <div className="h-[1px] w-12 bg-gray-200 my-4" aria-hidden="true" />
-
-              <div className="flex items-center gap-2 w-full justify-center">
-                <NavbarSearch isMobile onCloseParent={() => setIsOpen(false)} />
-              </div>
 
               <Link href="/favorites" onClick={() => setIsOpen(false)} className="flex items-center gap-2 text-lg font-medium text-gray-600">
                 <Heart size={20} aria-hidden="true" /> Любими ({favCount})

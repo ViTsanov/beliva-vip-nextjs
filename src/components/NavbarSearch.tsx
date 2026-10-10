@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, MapPin, FileText, Globe, ArrowRight, ChevronRight, Layout, Filter } from 'lucide-react'; 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Трябва ни за навигацията към филтъра
+import { useRouter, usePathname } from 'next/navigation'; // Трябва ни за навигацията към филтъра
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -23,15 +23,17 @@ const STATIC_PAGES = [
 interface NavbarSearchProps {
     isScrolled?: boolean;
     isMobile?: boolean;
+    iconOnly?: boolean;
     onCloseParent?: () => void;
 }
 
-export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: NavbarSearchProps) {
+export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onCloseParent }: NavbarSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [queryText, setQueryText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   // ДАННИ
   const [allTours, setAllTours] = useState<any[]>([]);
@@ -46,8 +48,12 @@ export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: Na
 
   useEffect(() => { setMounted(true); }, []);
 
-  // 1. Зареждаме ВСИЧКИ данни веднъж
+  // 1. Зареждаме данните веднъж – при първото отваряне на търсачката
+  const [dataRequested, setDataRequested] = useState(false);
   useEffect(() => {
+    if (!isOpen || dataRequested) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDataRequested(true);
     const fetchData = async () => {
       try {
         const toursQuery = query(collection(db, "tours"), where("status", "==", "public"));
@@ -68,7 +74,7 @@ export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: Na
       }
     };
     fetchData();
-  }, []);
+  }, [isOpen, dataRequested]);
 
   // 2. Логика за Търсене
   useEffect(() => {
@@ -142,21 +148,39 @@ export default function NavbarSearch({ isScrolled, isMobile, onCloseParent }: Na
   // Функция за прилагане на филтър по държава
   const applyCountryFilter = (country: string) => {
       const countrySlug = slugify(country);
-      // Навигираме към Home с параметър country
-      router.push(`/?country=${encodeURIComponent(countrySlug)}`);
+      const url = `/?country=${encodeURIComponent(countrySlug)}`;
       handleClose();
-      
-      // Допълнително скролване до грида
-      setTimeout(() => {
-          const grid = document.getElementById('tours-grid');
-          if (grid) grid.scrollIntoView({ behavior: 'smooth' });
-      }, 500);
+
+      if (pathname === '/') {
+          // Вече сме на началната страница: ToursGrid е монтиран и "дълбокият линк" скрол там се изпълнява само
+          // при първоначално зареждане, а Next.js по подразбиране връща страницата най-горе при смяна на URL-а.
+          // Затова спираме автоматичния скрол и скролваме ръчно до грида (-100px заради менюто).
+          router.push(url, { scroll: false });
+          setTimeout(() => {
+              const grid = document.getElementById('tours-grid');
+              if (grid) {
+                  const y = grid.getBoundingClientRect().top + window.scrollY - 100;
+                  window.scrollTo({ top: y, behavior: 'smooth' });
+              }
+          }, 100);
+      } else {
+          // От друга страница: началната се монтира наново и самата тя скролва до грида заради ?country=
+          router.push(`${url}#tours-grid`);
+      }
   };
 
   const hasResults = foundTours.length > 0 || foundPosts.length > 0 || foundPages.length > 0 || foundCountries.length > 0;
 
   // Бутон за отваряне
-  const TriggerButton = isMobile ? (
+  const TriggerButton = iconOnly ? (
+      <button
+        onClick={() => setIsOpen(true)}
+        aria-label="Търсене"
+        className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center"
+      >
+        <Search size={24} className={isScrolled ? 'text-brand-dark' : 'text-white'} />
+      </button>
+  ) : isMobile ? (
       <div onClick={() => setIsOpen(true)} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 w-full max-w-xs cursor-text">
         <span className="text-brand-dark text-sm font-bold flex-grow text-left opacity-50">Търсене...</span>
         <Search size={18} className="text-brand-gold"/>

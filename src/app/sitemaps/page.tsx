@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Home, FileText, Map, Compass, Globe, Info, MessageCircle, Heart, Phone, ShieldCheck, Loader2, MapPin, ArrowRight } from 'lucide-react';
 import { slugify } from '@/lib/admin-helpers';
+import { COUNTRY_TO_CONTINENT } from '@/lib/constants';
 
 // 🗺️ КАРТА НА СНИМКИТЕ ЗА КОНТИНЕНТИТЕ
 const continentImageMap: Record<string, string> = {
@@ -60,8 +61,11 @@ export default function SitemapPage() {
 
     if (!acc[cont]) acc[cont] = {}; 
 
-    // Добавяме тура към всяка държава, която съдържа
+    // Добавяме тура към всяка държава, която съдържа — НО САМО ако тя КАНОНИЧНО принадлежи към този
+    // континент — без това, много-дестинационни турове като "Австралия + Сингапур" (continent: "Австралия")
+    // биха показвали Сингапур и под Австралия, дори той да е в Азия.
     countries.forEach(country => {
+      if (COUNTRY_TO_CONTINENT[country] !== cont) return;
       if (!acc[cont][country]) acc[cont][country] = []; 
       acc[cont][country].push(tour);
     });

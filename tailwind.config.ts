@@ -12,6 +12,7 @@ const config: Config = {
         brand: {
           dark: "#0f172a", // Тъмносиньо
           gold: "#d4af37", // Златисто
+          goldDeep: "#7f620e", // По-тъмно злато за ТЕКСТ върху светъл фон (контраст ≥ 4.5:1)
         },
       },
       fontFamily: {

@@ -54,7 +54,7 @@ export default function ConditionalAnalytics() {
       <GoogleAnalytics gaId={GA_ID} />
 
       {/* Meta Pixel — зарежда се само след изрично "Приемам всички" в CookieConsent, аналогично на GA4 */}
-      <Script id="meta-pixel" strategy="afterInteractive">
+      <Script id="meta-pixel" strategy="lazyOnload">
         {`
           !function(f,b,e,v,n,t,s)
           {if(f.fbq)return;n=f.fbq=function(){n.callMethod?

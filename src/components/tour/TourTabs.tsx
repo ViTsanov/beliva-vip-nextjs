@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { ITour } from "@/types";
 import { Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -27,6 +27,11 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
   const dayPillsRef = useRef<HTMLDivElement>(null);
   const introRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
+  // Хоризонталната лента с дните и самите бутони — за да центрираме активния ден и да местим лентата със стрелки
+  const pillsScrollerRef = useRef<HTMLDivElement>(null);
+  const pillRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const scrollToTopOf = (ref: React.RefObject<HTMLDivElement | null>, offset = 90) => {
     requestAnimationFrame(() => {
@@ -95,6 +100,40 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
     // При всяка смяна на ден скролваме плавно до началото на панела за деня — новият текст може да е
     // по-къс или по-дълъг, а четецът трябва винаги да започва от началото, а не от където е скролнал за предишния.
     scrollToTopOf(dayPillsRef);
+  };
+
+  // Обновява дали има скрити дни вляво/вдясно — от това зависи дали се показват стрелките.
+  const updatePillsScrollState = useCallback(() => {
+    const el = pillsScrollerRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    updatePillsScrollState();
+    window.addEventListener('resize', updatePillsScrollState);
+    return () => window.removeEventListener('resize', updatePillsScrollState);
+  }, [updatePillsScrollState, programData.length]);
+
+  // При всяка смяна на ден (клик върху ден, Следващ/Предишен) центрираме активния бутон в лентата,
+  // за да не остава скрит извън екрана. Скролваме САМО лентата хоризонтално (не scrollIntoView),
+  // защото той би скролнал и страницата вертикално и би се бил със scrollToTopOf().
+  useEffect(() => {
+    const scroller = pillsScrollerRef.current;
+    const pill = pillRefs.current[activeDay];
+    if (!scroller || !pill) return;
+    const scrollerRect = scroller.getBoundingClientRect();
+    const pillRect = pill.getBoundingClientRect();
+    const delta = (pillRect.left - scrollerRect.left) - (scrollerRect.width - pillRect.width) / 2;
+    scroller.scrollBy({ left: delta, behavior: 'smooth' });
+  }, [activeDay]);
+
+  // Стрелките отстрани на лентата я местят с ~70% от видимата ширина.
+  const scrollPills = (dir: 1 | -1) => {
+    const el = pillsScrollerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.7, behavior: 'smooth' });
   };
 
   const goNext = () => { if (activeDay < programData.length - 1) goToDay(activeDay + 1); };
@@ -243,12 +282,43 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
           </div>
 
           {/* Day pills selector */}
-          <div className="px-3 sm:px-8 md:px-12 py-4 border-b border-gray-100 bg-gray-50/60 overflow-x-auto scrollbar-hide" ref={dayPillsRef}>
-            <div className="flex gap-2 min-w-max">
+          <div className="relative border-b border-gray-100 bg-gray-50/60" ref={dayPillsRef}>
+            {canScrollLeft && (
+              <button
+                type="button"
+                onClick={() => scrollPills(-1)}
+                aria-label="Предишни дни"
+                className="absolute left-0 top-0 bottom-0 z-10 w-12 flex items-center justify-start pl-2 bg-gradient-to-r from-gray-50 via-gray-50/90 to-transparent text-brand-dark hover:text-brand-gold transition-colors"
+              >
+                <span className="w-8 h-8 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center">
+                  <ChevronLeft size={16} aria-hidden="true" />
+                </span>
+              </button>
+            )}
+            {canScrollRight && (
+              <button
+                type="button"
+                onClick={() => scrollPills(1)}
+                aria-label="Следващи дни"
+                className="absolute right-0 top-0 bottom-0 z-10 w-12 flex items-center justify-end pr-2 bg-gradient-to-l from-gray-50 via-gray-50/90 to-transparent text-brand-dark hover:text-brand-gold transition-colors"
+              >
+                <span className="w-8 h-8 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center">
+                  <ChevronRight size={16} aria-hidden="true" />
+                </span>
+              </button>
+            )}
+          <div
+            ref={pillsScrollerRef}
+            onScroll={updatePillsScrollState}
+            className="px-3 sm:px-8 md:px-12 py-4 overflow-x-auto scrollbar-hide scroll-smooth"
+          >
+            <div className="flex gap-2 min-w-max px-1">
               {programData.map((_: any, i: number) => (
                 <button
                   key={i}
+                  ref={el => { pillRefs.current[i] = el; }}
                   onClick={() => goToDay(i)}
+                  aria-current={activeDay === i ? 'step' : undefined}
                   className={`flex flex-col items-center gap-0.5 px-4 py-2.5 rounded-2xl font-black text-xs transition-all duration-200 border ${
                     activeDay === i
                       ? 'bg-brand-dark text-brand-gold border-brand-dark shadow-md scale-105'
@@ -262,6 +332,7 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
                 </button>
               ))}
             </div>
+          </div>
           </div>
 
           {/* Day content panel */}

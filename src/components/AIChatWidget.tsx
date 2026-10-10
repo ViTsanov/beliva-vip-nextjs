@@ -8,6 +8,7 @@ import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firesto
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendMessageToAI } from '@/lib/aiService';
+import { useBackToClose } from '@/lib/hooks/useBackToClose';
 
 export default function AIChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -78,6 +79,10 @@ export default function AIChatWidget() {
     }
     return () => { document.body.style.overflow = 'auto'; };
   }, [isOpen]);
+
+  // Бутонът Назад на телефона затваря чата. Само за мобилни — там чатът е на цял екран
+  // и се възприема като отделен "екран"; на десктоп е малък плаващ прозорец.
+  useBackToClose(isOpen, () => setIsOpen(false), { mobileOnly: true });
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;

@@ -3,10 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Save, Globe, List, Plus, Trash2, ImageIcon, Link as LinkIcon, Compass, Building2, Landmark } from 'lucide-react';
+import { Save, Globe, List, Plus, Trash2, ImageIcon, Link as LinkIcon, Compass, Building2, Landmark, Map } from 'lucide-react';
 import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
 import { WORLD_COUNTRIES } from '@/lib/constants'; // Твоят масив
+
+// Шестте фиксирани континентални етикета, същите като в TourForm.tsx — "Австралия" представя целия
+// Австралия/Океания регион.
+const CONTINENT_NAMES = ['Европа', 'Азия', 'Африка', 'Австралия', 'Северна Америка', 'Южна Америка'];
 
 export default function SettingsTab() {
   const [loading, setLoading] = useState(true);
@@ -20,10 +24,16 @@ export default function SettingsTab() {
   // Банкови детайли за checkout страницата — живее в settings/payment, отделно от всичко друго, защото е
   // финансова информация, не homepage настройка.
   const [paymentInfo, setPaymentInfo] = useState({ iban: '', accountHolder: '', bankName: '' });
-  
-  // Состояние за галерията
+  // Фиксирани снимки за всеки континент — живее в settings/continentImages. Преди това снимката на всяка
+  // континентална плочка на началната страница се вземаше динамично от първия намерен тур за този
+  // континент — това правеше снимката да скача всеки път, когато се сменят други филтри (държава/месец).
+  // Сега е фиксирана, избрана веднъж тук.
+  const [continentImages, setContinentImages] = useState<Record<string, string>>({});
+
+  // Състояние за галерията — разширено да поддържа и топ-дестинации (по index), и континенти (по име),
+  // в едно и също състояние, вместо две отделни модални имплементации.
   const [isMediaOpen, setIsMediaOpen] = useState(false);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingTarget, setEditingTarget] = useState<{ type: 'topDestination'; index: number } | { type: 'continent'; name: string } | null>(null);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -48,6 +58,10 @@ export default function SettingsTab() {
         if (paymentSnap.exists()) {
           setPaymentInfo(prev => ({ ...prev, ...paymentSnap.data() }));
         }
+        const continentImagesSnap = await getDoc(doc(db, "settings", "continentImages"));
+        if (continentImagesSnap.exists()) {
+          setContinentImages(continentImagesSnap.data() as Record<string, string>);
+        }
       } catch (e) { console.error(e); }
       setLoading(false);
     };
@@ -63,18 +77,21 @@ export default function SettingsTab() {
       });
       await setDoc(doc(db, "settings", "operators"), { list: operators.filter(o => o.name.trim()) });
       await setDoc(doc(db, "settings", "payment"), paymentInfo);
+      await setDoc(doc(db, "settings", "continentImages"), continentImages);
       alert("Настройките са запазени успешно!");
     } catch (e) { alert("Грешка при запис"); }
   };
 
   const handleImageSelect = (url: string) => {
-    if (editingIndex !== null) {
+    if (editingTarget?.type === 'topDestination') {
       const newDest = [...topDestinations];
-      newDest[editingIndex].image = url;
+      newDest[editingTarget.index].image = url;
       setTopDestinations(newDest);
+    } else if (editingTarget?.type === 'continent') {
+      setContinentImages(prev => ({ ...prev, [editingTarget.name]: url }));
     }
     setIsMediaOpen(false);
-    setEditingIndex(null);
+    setEditingTarget(null);
   };
 
   if (loading) return <div className="p-10 text-center text-gray-400">Зареждане...</div>;
@@ -106,7 +123,7 @@ export default function SettingsTab() {
               </div>
 
               <div 
-                onClick={() => { setEditingIndex(idx); setIsMediaOpen(true); }}
+                onClick={() => { setEditingTarget({ type: 'topDestination', index: idx }); setIsMediaOpen(true); }}
                 className="relative h-40 bg-gray-200 rounded-2xl overflow-hidden cursor-pointer group/img shadow-inner"
               >
                 {dest.image ? (
@@ -133,6 +150,41 @@ export default function SettingsTab() {
           >
             <Plus size={32} /> <span className="text-[10px] font-black uppercase tracking-widest">Добави дестинация</span>
           </button>
+        </div>
+      </section>
+
+      {/* СЕКЦИЯ: СНИМКИ ЗА КОНТИНЕНТИ */}
+      <section className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <h3 className="text-xl font-bold mb-2 flex items-center gap-2 text-brand-dark">
+            <Map className="text-brand-gold" /> Снимки за континентите (бързи филтри, начална страница)
+        </h3>
+        <p className="text-xs text-gray-400 mb-6">
+          Тези снимки се показват на плочките за континенти в бързите филтри на началната страница. Преди тази
+          настройка, снимката се вземаше автоматично от първия намерен тур за съответния континент — това
+          правеше снимката да "скача" при смяна на други филтри (държава/месец). Сега е фиксирана — избираш веднъж тук.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {CONTINENT_NAMES.map(continent => (
+            <div key={continent} className="p-5 bg-gray-50 rounded-[2rem] border border-gray-100 space-y-3">
+              <p className="text-sm font-black text-brand-dark ml-1">{continent}</p>
+              <div
+                onClick={() => { setEditingTarget({ type: 'continent', name: continent }); setIsMediaOpen(true); }}
+                className="relative h-40 bg-gray-200 rounded-2xl overflow-hidden cursor-pointer group/img shadow-inner"
+              >
+                {continentImages[continent] ? (
+                  <img src={continentImages[continent]} className="w-full h-full object-cover transition-transform group-hover/img:scale-110 duration-500" alt={continent} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                    <ImageIcon size={32} strokeWidth={1.5} />
+                    <span className="text-[10px] font-black mt-2">ИЗБЕРИ СНИМКА</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-brand-dark/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                   <span className="bg-white text-brand-dark px-4 py-2 rounded-xl text-xs font-black shadow-xl">СМЕНИ СНИМКА</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

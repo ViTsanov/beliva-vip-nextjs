@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'; 
 import emailjs from '@emailjs/browser';
 import { Globe, Send, CheckCircle2, AlertCircle, X, CalendarDays } from 'lucide-react';
+import { useBackToClose } from '@/lib/hooks/useBackToClose';
 
 const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || "";
 const TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || "";
@@ -21,6 +22,8 @@ interface InquiryModalProps {
 }
 
 export default function InquiryModal({ isOpen, onClose, tourId, tourTitle, tourPrice, tourDates }: InquiryModalProps) {
+  // Бутонът Назад затваря формата за запитване, а не връща страницата
+  useBackToClose(isOpen, onClose);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [selectedDate, setSelectedDate] = useState(''); 
   const [formData, setFormData] = useState({

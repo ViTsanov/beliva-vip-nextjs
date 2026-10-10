@@ -17,7 +17,12 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'i.ibb.co' },
       { protocol: 'https', hostname: '**' },
     ],
-    formats: ['image/avif', 'image/webp'],
+    // Only WebP: AVIF encoding is several times slower on the server (sharp, 512MiB instance), so the
+    // first visitor of every image/size waited seconds for it to be generated. WebP is nearly as small.
+    formats: ['image/webp'],
+    // Keep optimized images cached for 31 days (default is much shorter). The Cache-Control header
+    // also lets the App Hosting CDN serve them from the edge instead of re-optimizing on each instance.
+    minimumCacheTTL: 2678400,
     // All quality values used across the app
     qualities: [40, 75, 80, 85, 90],
     // Allow larger images for hero/gallery quality

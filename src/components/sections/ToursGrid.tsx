@@ -1,16 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Filter, Globe2, Check, X } from 'lucide-react';
+import { Filter, Globe2, Check, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { CATEGORY_OPTIONS, ALL_MONTHS } from '@/components/FiltersBar';
 import DeparturesCalendar from './DeparturesCalendar';
 import QuickFilters from './QuickFilters';
 import TourCard from '@/components/tours/TourCard';
 import { ITour } from '@/types';
 import { slugify } from '@/lib/admin-helpers';
-import { WORLD_COUNTRIES } from '@/lib/constants';
+import { WORLD_COUNTRIES, COUNTRY_TO_CONTINENT } from '@/lib/constants';
 import { useMounted } from '@/lib/hooks/useMounted';
+import { useScrollLock } from '@/lib/hooks/useScrollLock';
+import { useBackToClose } from '@/lib/hooks/useBackToClose';
 
 interface ToursGridProps {
   initialTours?: ITour[];
@@ -43,10 +47,79 @@ const getEarliestDate = (tour: ITour) => {
   return allDates.length > 0 ? allDates[0] : "9999-99-99";
 };
 
+// Държавите на тура като масив — полето country може да е низ "А, Б" или масив.
+const getTourCountries = (tour: ITour): string[] =>
+  typeof tour.country === 'string'
+    ? tour.country.split(',').map(c => c.trim()).filter(Boolean)
+    : (Array.isArray(tour.country) ? tour.country.filter(Boolean) : []);
+
+// Континентите на тура се извличат от ДЪРЖАВИТЕ му чрез фиксираното COUNTRY_TO_CONTINENT, а не само от
+// единичното поле tour.continent. Така тур "Сингапур + Австралия" принадлежи и на Азия, и на Австралия —
+// показва се и при двата континента, а Сингапур остава канонично само в Азия.
+// tour.continent се ползва като резерва, ако някоя държава липсва в мапинга.
+const getTourContinents = (tour: ITour): string[] => {
+  const result = new Set<string>();
+  let hasUnmapped = false;
+  getTourCountries(tour).forEach(c => {
+    const continent = COUNTRY_TO_CONTINENT[c];
+    if (continent) result.add(continent);
+    else hasUnmapped = true;
+  });
+  if ((hasUnmapped || result.size === 0) && tour.continent) result.add(tour.continent);
+  return Array.from(result);
+};
+
 export default function ToursGrid({ initialTours = [], hideFilters = false, todayStr }: ToursGridProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resultsRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLDivElement>(null);
+
+  // Панелът с филтри е затворен по подразбиране — над първата екскурзия има бутон „Филтри“, който го отваря.
+  // filtersEverOpened: съдържанието се монтира едва при първото отваряне (календарът центрира избрания месец със
+  // scrollIntoView, което не бива да върти страницата, докато панелът е сгънат), а после остава монтирано,
+  // за да може затварянето да се анимира плавно.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersEverOpened, setFiltersEverOpened] = useState(false);
+  // Състоянието на филтрите в момента на отваряне на панела — при затваряне сравняваме с него, за да решим дали да
+  // върнем клиента към първата екскурзия (само ако нещо е променено). closeFiltersRef позволява на Escape
+  // слушателя (регистриран по-рано от closeFilters) винаги да вика най-новата версия на функцията.
+  const filtersKeyAtOpenRef = useRef('');
+  const closeFiltersRef = useRef<() => void>(() => {});
+  const filtersButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Бутонът Назад (телефон/браузър) затваря отворения панел с филтри, а не сменя страницата.
+  useBackToClose(filtersOpen, () => closeFiltersRef.current());
+
+  // Докато панелът е отворен, страницата зад него не се скролва — скролва се само панелът.
+  useScrollLock(filtersOpen);
+
+  // Височина на фиксираното меню — лентата с бутона „Филтри“ се залепя точно под него, без процеп.
+  // Мери се с ResizeObserver, защото менюто променя височината си (padding при скрол, мобилно/десктоп).
+  const [navHeight, setNavHeight] = useState(60);
+  useEffect(() => {
+    const nav = document.querySelector<HTMLElement>('[data-site-navbar]');
+    if (!nav) return;
+    const update = () => setNavHeight(Math.round(nav.getBoundingClientRect().height));
+    const observer = new ResizeObserver(update);
+    // border-box е важно: при скрол менюто сменя само padding-а си (py-6 → py-3), а това НЕ променя content-box и
+    // обикновеният ResizeObserver не би се задействал — лентата би останала на стара височина (видим процеп).
+    observer.observe(nav, { box: 'border-box' });
+    return () => observer.disconnect();
+  }, []);
+
+  // Escape затваря панела с филтри и връща фокуса на бутона
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeFiltersRef.current();
+        filtersButtonRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [filtersOpen]);
 
   const searchQuery = searchParams.get('q') || '';
   const filterContinent = searchParams.get('continent') || '';
@@ -59,6 +132,16 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
   const [allTours] = useState<ITour[]>(initialTours);
   
   const [favorites, setFavorites] = useState<any[]>([]);
+
+  // Фиксирани снимки за всеки континент, задавани в admin панела (Settings → Снимки за континентите). Заменява
+  // по-ранната динамична логика (първата намерена снимка от тур за този континент), която правеше
+  // снимката да скача всеки път, когато се сменят другите филтри (държава/месец).
+  const [continentImages, setContinentImages] = useState<Record<string, string>>({});
+  useEffect(() => {
+    getDoc(doc(db, "settings", "continentImages")).then(snap => {
+      if (snap.exists()) setContinentImages(snap.data() as Record<string, string>);
+    }).catch(() => {});
+  }, []);
 
   // За календара по месеци: изчислението му зависи от "днешна дата", която е различна между сървърния
   // рендър и клиентската хидратация и гърми хидратационна грешка — затова календарът
@@ -123,7 +206,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     }
 
     if (!opts.skipContinent && filterContinent) {
-      if (slugify(tour.continent || "") !== filterContinent) return false;
+      if (!getTourContinents(tour).some(c => slugify(c) === filterContinent)) return false;
     }
 
     if (!opts.skipCategory && filterCategory) {
@@ -252,16 +335,22 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
   // които реално имат заминавания точно този месец.
   const continentTiles = useMemo(() => {
     const CONTINENT_LIST = ['Азия', 'Европа', 'Африка', 'Северна Америка', 'Южна Америка', 'Австралия'];
+    // Ако е избрана държава, показваме САМО нейния канонален континент (Сингапур → само Азия),
+    // вместо всички континенти на многодестинационните турове, в които участва.
+    const selectedCountryName = filterCountry
+      ? Object.keys(COUNTRY_TO_CONTINENT).find(c => slugify(c) === filterCountry)
+      : undefined;
+    const selectedCountryContinent = selectedCountryName ? COUNTRY_TO_CONTINENT[selectedCountryName] : undefined;
     return CONTINENT_LIST.map(continent => {
-      const toursForContinent = toursForContinentFacet.filter(t => t.continent === continent);
+      const toursForContinent = toursForContinentFacet.filter(t => getTourContinents(t).includes(continent));
       return {
         name: continent,
         slug: slugify(continent),
         count: toursForContinent.length,
-        img: toursForContinent.find(t => t.img)?.img || '',
+        img: continentImages[continent] || toursForContinent.find(t => t.img)?.img || '',
       };
-    }).filter(c => c.count > 0);
-  }, [toursForContinentFacet]);
+    }).filter(c => c.count > 0 && (!selectedCountryContinent || c.name === selectedCountryContinent));
+  }, [toursForContinentFacet, continentImages, filterCountry]);
 
   // Само категориите, които реално имат екскурзии (напр. в избрания месец) — крие останалите вместо да ги сиви.
   const availableCategories = useMemo(() => {
@@ -312,18 +401,50 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     if (key === 'continent') params.delete('country');
     // Без #tours-grid тук — наличието му в URL-а караше браузъра/Next.js да скача мигновено към този елемент,
     // което се биеше със плавния scrollToResults() по-долу и правеше видимото „долу-горе“ подскачане.
-    router.push(`/?${params.toString()}`, { scroll: false });
+    // Докато панелът с филтри е отворен, смяната на филтър ЗАМЕСТВА записа в историята (replace), вместо да добавя
+    // нов — иначе бутонът Назад би връщал филтъра, вместо да затвори панела.
+    if (filtersOpen) router.replace(`/?${params.toString()}`, { scroll: false });
+    else router.push(`/?${params.toString()}`, { scroll: false });
   };
 
   const clearFilters = () => router.replace('/#tours-grid', { scroll: false });
 
+  // Скролва до заглавието на секцията („Оферти за …“ / „Екскурзии в …“), така че да е точно под менюто — клиентът
+  // вижда кой филтър е приложен и под него идват резултатите. Ако заглавието го няма (hideFilters) — до резултатите.
   const scrollToResults = () => {
-    if (resultsRef.current) {
-      const yOffset = -100;
-      const y = resultsRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
+    const target = headingRef.current ?? resultsRef.current;
+    if (target) {
+      const y = target.getBoundingClientRect().top + window.pageYOffset - (navHeight + 16);
       window.scrollTo({ top: y, behavior: 'smooth' });
     }
   };
+
+  // Отваряне/затваряне на панела с филтри.
+  //  - Отваряне: запомняме текущите филтри. Панелът е центриран на екрана (position: fixed), затова се вижда от
+  //    всяка позиция на скрола и страницата не се мести.
+  //  - Затваряне: ако филтрите са същите като при отваряне — оставаме точно където сме. Ако са променени — плавен скрол
+  //    до първата екскурзия (списъкът е нов, затова е смислено да се започне от началото му). forceScroll е за
+  //    бутона „Виж намерените“, който скролва винаги.
+  const filtersKey = [filterCountry, filterContinent, filterCategory, filterMonth].join('|');
+  const filtersKeyRef = useRef(filtersKey);
+  useEffect(() => {
+    filtersKeyRef.current = filtersKey;
+  });
+  const openFilters = () => {
+    filtersKeyAtOpenRef.current = filtersKey;
+    setFiltersEverOpened(true);
+    setFiltersOpen(true);
+  };
+  const closeFilters = (opts: { forceScroll?: boolean } = {}) => {
+    setFiltersOpen(false);
+    if (opts.forceScroll || filtersKeyRef.current !== filtersKeyAtOpenRef.current) {
+      // малко изчакване, за да се освободи заключеният скрол на страницата преди плавното превъртане
+      window.setTimeout(scrollToResults, 60);
+    }
+  };
+  useEffect(() => {
+    closeFiltersRef.current = () => closeFilters();
+  });
 
   const handleSelectMonth = (value: string) => {
     updateParam('month', filterMonth === value ? '' : value);
@@ -365,12 +486,15 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
 
     const countryMap = new Map<string, number>();
     toursForCountryFacet.forEach(t => {
-      if (t.continent !== continentName) return;
-      const countries = typeof t.country === 'string'
-        ? t.country.split(',').map(c => c.trim())
-        : (Array.isArray(t.country) ? t.country : []);
+      if (!getTourContinents(t).includes(continentName)) return;
+      const countries = getTourCountries(t);
+      // ВАЖНО: добавяме държавата САМО ако тя КАНОНИЧНО принадлежи към този континент — без
+      // това, много-дестинационни турове като "Австралия + Сингапур" (continent: "Австралия")
+      // биха показали Сингапур и под Австралия, дори той да е в Азия.
       countries.forEach(c => {
-        if (c) countryMap.set(c, (countryMap.get(c) || 0) + 1);
+        if (c && COUNTRY_TO_CONTINENT[c] === continentName) {
+          countryMap.set(c, (countryMap.get(c) || 0) + 1);
+        }
       });
     });
 
@@ -396,6 +520,8 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     : '';
 
   const hasActiveFilters = !!(searchQuery || filterCountry || filterContinent || filterCategory || filterMonth);
+  // Брой филтри от панела (без търсенето) — показва се като значка на бутона „Филтри“
+  const panelFilterCount = [filterCountry, filterContinent, filterCategory, filterMonth].filter(Boolean).length;
 
   // Малка "чипка" за активен филтър — със собствен бутон за премахване, за да не се налага
   // на потребителя да скролва обратно до пикъра само за да изчисти един филтър.
@@ -418,7 +544,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
   return (
 
     <div
-      className="w-full py-16 relative overflow-hidden bg-[#f7f0e4]"
+      className="w-full py-16 relative overflow-clip bg-[#f7f0e4]"
     >
 
     <section
@@ -431,18 +557,18 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
           не върху тъмно синьото (то е видимо само в празните полета отстрани, извън контейнера). */}
       {!hideFilters &&
         <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-6 mb-6 md:mb-12 relative z-20 border-b border-brand-gold/10 pb-6">
-            <div className="text-center md:text-left w-full md:w-auto">
+            <div ref={headingRef} className="text-center md:text-left w-full md:w-auto">
                 <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                     <Globe2 size={18} className="text-brand-gold"/>
-                    <span className="text-brand-gold text-xs font-black uppercase tracking-[0.2em]">Пътешествия</span>
+                    <span className="text-brand-goldDeep text-xs font-black uppercase tracking-[0.2em]">Пътешествия</span>
                 </div>
                 <h2 className="text-4xl md:text-5xl font-serif text-brand-dark leading-tight">
                   {filterCountry ? (
-                    <>Екскурзии в <span className="italic text-brand-gold">{displayCountryName}</span></>
+                    <>Екскурзии в <span className="italic text-[#a37d0d]">{displayCountryName}</span></>
                   ) : filterContinent ? (
-                    <>Оферти за <span className="italic text-brand-gold">{displayContinentName}</span></>
+                    <>Оферти за <span className="italic text-[#a37d0d]">{displayContinentName}</span></>
                   ) : (
-                    <>Всички <span className="italic text-brand-gold">Предложения</span></>
+                    <>Всички <span className="italic text-[#a37d0d]">Предложения</span></>
                   )}
                 </h2>
                 {filterCategory && (
@@ -486,33 +612,115 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
         </div>
       )}
 
-      {!hideFilters && mounted && (
-        <>
-          <DeparturesCalendar months={calendarMonths} activeMonth={filterMonth} onSelectMonth={handleSelectMonth} />
-          <QuickFilters
-            categories={availableCategories}
-            activeCategory={filterCategory}
-            onSelectCategory={handleSelectCategory}
-            slugify={slugify}
-            continents={continentTiles}
-            activeContinent={filterContinent}
-            onSelectContinent={handleSelectContinent}
-            countries={countryOptionsForContinent}
-            activeCountry={filterCountry}
-            onSelectCountry={handleSelectCountry}
-            scopedMonthLabel={selectedMonthLabel}
-          />
-          {/* Единствено действие, което скролва надолу — докато клиентът избира филтри, страницата остава отгоре,
-              докато той не реши да види резултатите. */}
-          <div className="flex justify-center mb-10 md:mb-12">
-            <button
-              onClick={scrollToResults}
-              className="flex items-center justify-center gap-2 px-10 py-4 rounded-full font-black uppercase text-xs tracking-widest bg-brand-dark text-white border border-brand-dark hover:bg-brand-gold hover:text-brand-dark hover:border-brand-gold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-            >
-              <Check size={16} /> Виж намерените {filteredTours.length} екскурзии
-            </button>
+      {/* Затъмнение зад отворения панел — клик извън панела го затваря. Винаги е в DOM (само избледнява), за да има анимация. */}
+      {!hideFilters && (
+        <div
+          onClick={() => closeFilters()}
+          aria-hidden="true"
+          className={`fixed inset-0 z-[40] touch-none bg-brand-dark/40 backdrop-blur-[2px] transition-opacity duration-300 ${
+            filtersOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        />
+      )}
+
+      {/* Лента с бутона „Филтри“ — точно над първата екскурзия. sticky: след като клиентът стигне до грида, лентата
+          се залепя ТОЧНО под менюто (top = измерената му височина, -1px за да няма процеп от закръгляне) и следва
+          скрола. Панелът с филтрите е центриран на екрана (fixed), затова се вижда от всяка позиция и не измества
+          екскурзиите. Външната обвивка е с overflow-clip (не overflow-hidden), защото hidden създава
+          скрол контейнер и чупи sticky. Лек градиент под лентата (after:) мае съдържанието, което минава отдолу. */}
+      {!hideFilters && (
+        <div
+          style={{ top: navHeight - 1 }}
+          className="sticky z-30 -mx-6 mb-3 flex items-center justify-between gap-3 bg-[#f7f0e4] px-6 pb-2 pt-0.5 md:pb-3 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-3 before:bg-[#f7f0e4] after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-[#f7f0e4] after:to-transparent"
+        >
+          <button
+            ref={filtersButtonRef}
+            type="button"
+            onClick={() => (filtersOpen ? closeFilters() : openFilters())}
+            aria-expanded={filtersOpen}
+            aria-controls="tours-filters-panel"
+            className={`group flex items-center gap-2.5 rounded-full border px-5 py-3 text-xs font-black uppercase tracking-widest shadow-sm transition-all active:scale-95 ${
+              filtersOpen
+                ? 'border-brand-dark bg-brand-dark text-white'
+                : 'border-brand-gold/40 bg-white text-brand-dark hover:border-brand-gold hover:shadow-md'
+            }`}
+          >
+            <SlidersHorizontal size={16} className={filtersOpen ? 'text-brand-gold' : 'text-brand-goldDeep'} aria-hidden="true" />
+            Филтри
+            {panelFilterCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold px-1 text-[11px] font-black text-brand-dark">
+                {panelFilterCount}
+              </span>
+            )}
+            <ChevronDown size={16} className={`transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+          <p className="text-sm font-semibold text-brand-dark/60">
+            {filteredTours.length} {filteredTours.length === 1 ? 'екскурзия' : 'екскурзии'}
+          </p>
+        </div>
+      )}
+
+      {/* Панелът с филтри е ИЗВЪН лентата: лентата (z-30) е под затъмнението (z-40) и потъмнява заедно със страницата, а панелът (z-50) е над затъмнението.
+          Панел с филтри — центриран на екрана (position: fixed, в средата на видимата област под менюто), затова
+          се вижда от всяка позиция на скрола. Височината му е ограничена до екрана и се скролва вътре в себе си
+          (overscroll-contain — скролът не „изтича“ към страницата). `inert` вади скритите контроли от tab-реда
+          и от екранните четци, докато е затворен. * */}
+      {!hideFilters && (
+          <div
+            id="tours-filters-panel"
+            role="dialog"
+            aria-label="Филтри"
+            inert={!filtersOpen}
+            style={{
+              top: `calc(${navHeight}px + (100svh - ${navHeight}px) / 2)`,
+              maxHeight: `calc(100svh - ${navHeight}px - 2rem)`,
+            }}
+            className={`fixed left-1/2 z-[50] w-[calc(100%-1.5rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-[2rem] border border-brand-gold/20 bg-[#fcf9f2] px-6 shadow-2xl transition-[opacity,transform,visibility] duration-300 ease-out ${
+              filtersOpen ? 'visible scale-100 opacity-100' : 'pointer-events-none invisible scale-95 opacity-0'
+            }`}
+          >
+            {/* Заглавие + затваряне — лепкаво най-горе в панела. Панелът няма padding-top: sticky се измерва от съдържанието
+                (вътре в padding-а), което иначе би избутало заглавието 24px надолу и би го наложило върху календара. */}
+            <div className="sticky top-0 z-10 -mx-6 mb-5 flex items-center justify-between border-b border-brand-gold/15 bg-[#fcf9f2] px-6 py-4">
+              <span className="font-serif text-2xl italic text-brand-dark">Филтри</span>
+              <button
+                type="button"
+                onClick={() => closeFilters()}
+                aria-label="Затвори филтрите"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600 shadow-sm transition-colors hover:bg-brand-gold hover:text-white"
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </div>
+            {mounted && filtersEverOpened && (
+              <>
+                <DeparturesCalendar months={calendarMonths} activeMonth={filterMonth} onSelectMonth={handleSelectMonth} />
+                <QuickFilters
+                  categories={availableCategories}
+                  activeCategory={filterCategory}
+                  onSelectCategory={handleSelectCategory}
+                  slugify={slugify}
+                  continents={continentTiles}
+                  activeContinent={filterContinent}
+                  onSelectContinent={handleSelectContinent}
+                  countries={countryOptionsForContinent}
+                  activeCountry={filterCountry}
+                  onSelectCountry={handleSelectCountry}
+                  scopedMonthLabel={selectedMonthLabel}
+                />
+                {/* Лепкав бутон най-долу в панела — винаги достъпен, дори панелът да е по-висок от екрана.
+                    Затваря панела и скролва до резултатите. */}
+                <div className="sticky bottom-0 -mx-6 flex justify-center bg-gradient-to-t from-[#fcf9f2] via-[#fcf9f2] to-transparent px-6 pb-5 pt-6">
+                  <button
+                    onClick={() => closeFilters({ forceScroll: true })}
+                    className="flex items-center justify-center gap-2 px-10 py-4 rounded-full font-black uppercase text-xs tracking-widest bg-brand-dark text-white border border-brand-dark hover:bg-brand-gold hover:text-brand-dark hover:border-brand-gold transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <Check size={16} /> Виж намерените {filteredTours.length} екскурзии
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-        </>
       )}
 
       {/* РЕЗУЛТАТИ — без отделен фон вече — цялата container зона вече е кремава от външния градиент (платото му). */}
@@ -539,7 +747,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
                 <React.Fragment key={tour.id}>
                     {showYearHeader && (
                     <div className="col-span-full text-left mb-4 mt-8 flex items-center gap-4 animate-in fade-in duration-700">
-                        <h3 className="text-5xl md:text-6xl font-serif italic text-brand-dark/15 select-none">{tourYear}</h3>
+                        <h3 className="text-5xl md:text-6xl font-serif italic text-brand-dark/50 select-none">{tourYear}</h3>
                         <div className="h-[1px] flex-grow bg-brand-dark/10"></div>
                     </div>
                     )}

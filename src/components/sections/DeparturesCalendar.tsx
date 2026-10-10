@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarRange, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 
 interface MonthData {
   value: string;        // "YYYY-MM", напр. "2026-08"
@@ -43,7 +43,7 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
       <div className="flex items-center justify-between gap-2 mb-4 px-1">
         <div className="flex items-center gap-2">
           <CalendarRange size={16} className="text-brand-gold" />
-          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">Разгледай по месеци</span>
+          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-500">Разгледай по месеци</span>
         </div>
         {/* Стрелки за скрол — само desktop/mouse, на мобилно жестът за swipe е естествен */}
         <div className="hidden md:flex items-center gap-2">
@@ -78,7 +78,7 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
               {/* Годишен разделител — показва се пред първия месец от всяка нова година */}
               {m.isFirstOfYear && (
                 <div className="shrink-0 flex flex-col items-center gap-1.5 py-1">
-                  <span className="text-[10px] font-black text-gray-400 tracking-wide whitespace-nowrap">{m.year}</span>
+                  <span className="text-[10px] font-black text-gray-500 tracking-wide whitespace-nowrap">{m.year}</span>
                   <div className="w-px flex-1 bg-gray-200 rounded-full min-h-[50px]" />
                 </div>
               )}
@@ -91,8 +91,8 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
                   isSelected
                     ? 'bg-gradient-to-br from-brand-dark to-[#1a2540] border-brand-gold text-white shadow-xl scale-[1.04] ring-2 ring-brand-gold/40 ring-offset-2'
                     : isEmpty
-                    ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-                    : 'bg-gradient-to-br from-white to-brand-gold/[0.05] border-gray-200 hover:border-brand-gold/50 hover:shadow-lg hover:-translate-y-0.5'
+                    ? 'bg-gray-100/80 border-dashed border-gray-300 text-gray-400 cursor-not-allowed'
+                    : 'bg-white border-emerald-200 shadow-sm shadow-emerald-900/5 hover:border-emerald-400 hover:shadow-lg hover:-translate-y-0.5'
                 }`}
               >
                 {/* Златна лента отгоре — само когато месецът е избран, добавя малко визуално "тегло" без да е само рамка */}
@@ -100,7 +100,7 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
                   <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-gold via-amber-300 to-brand-gold" />
                 )}
                 <div className="flex items-center justify-between mb-2.5">
-                  <span className={`font-serif italic text-xl ${isSelected ? 'text-brand-gold' : 'text-brand-dark'}`}>
+                  <span className={`font-serif italic text-xl ${isSelected ? 'text-brand-gold' : isEmpty ? 'text-gray-400' : 'text-brand-dark'}`}>
                     {m.label}
                   </span>
                   {idx === 0 && !isEmpty && (
@@ -113,16 +113,26 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
                 </div>
 
                 {/* Малка златна разделителна линия между заглавието и броя — добавя визуална структура вместо просто стек текст */}
-                <div className={`h-px w-8 mb-2.5 ${isSelected ? 'bg-brand-gold/40' : isEmpty ? 'bg-gray-200' : 'bg-brand-gold/25'}`} />
+                <div className={`h-px w-8 mb-2.5 ${isSelected ? 'bg-brand-gold/40' : isEmpty ? 'bg-gray-300' : 'bg-emerald-200'}`} />
 
-                <p className={`text-xs font-bold mb-1.5 ${
-                  isSelected ? 'text-white/90' : isEmpty ? 'text-gray-300' : 'text-gray-500'
+                <p className={`flex items-center gap-1.5 text-xs font-bold mb-1.5 ${
+                  isSelected ? 'text-white/90' : isEmpty ? 'text-gray-500' : 'text-gray-600'
                 }`}>
+                  {/* Статус: зелено тикче = има дати, червено хикче = няма дати (не разчитаме само на цвят — текстът също се различава) */}
+                  {isEmpty ? (
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600" aria-hidden="true">
+                      <X size={10} strokeWidth={3.5} />
+                    </span>
+                  ) : (
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden="true">
+                      <Check size={10} strokeWidth={3.5} />
+                    </span>
+                  )}
                   {isEmpty ? 'Няма дати' : `${m.count} ${m.count === 1 ? 'екскурзия' : 'екскурзии'}`}
                 </p>
 
                 {!isEmpty && m.countries.length > 0 && (
-                  <p className={`text-[10px] leading-snug ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                  <p className={`text-[10px] leading-snug ${isSelected ? 'text-white/70' : 'text-gray-500'}`}>
                     {m.countries.slice(0, 2).join(', ')}
                     {m.countries.length > 2 ? ` +${m.countries.length - 2}` : ''}
                   </p>

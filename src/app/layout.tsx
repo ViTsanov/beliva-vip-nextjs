@@ -3,7 +3,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import ConditionalAnalytics from '@/components/ConditionalAnalytics';
-import AIChatWidget from '@/components/AIChatWidget';
+import { LazyAIChatWidget } from '@/components/LazyClient';
 
 // 1. ШРИФТОВЕ
 const inter = Inter({ 
@@ -137,7 +137,7 @@ export default function RootLayout({
 
         <LayoutWrapper>
           {children}
-          <AIChatWidget />
+          <LazyAIChatWidget />
         </LayoutWrapper>
         <ConditionalAnalytics /> {/* GA се зарежда само след изрично съгласие в CookieConsent */}
       </body>

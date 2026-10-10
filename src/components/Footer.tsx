@@ -97,7 +97,7 @@ export default function Footer() {
               (без заглавие, чрез условието по-долу). */}
           {footerLinks.length > 0 && (
           <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Дестинации</h4>
+            <h3 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Дестинации</h3>
             <ul className="space-y-3 text-sm text-gray-400">
               {footerLinks.map((link, idx) => (
                 <li key={idx}>
@@ -110,7 +110,7 @@ export default function Footer() {
 
           {/* Информация */}
           <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Информация</h4>
+            <h3 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Информация</h3>
             <ul className="space-y-3 text-sm text-gray-400">
               <li><Link href="/about-us"  className="hover:text-white transition-colors">За нас</Link></li>
               <li><Link href="/blog"      className="hover:text-white transition-colors">Блог & Пътеводител</Link></li>
@@ -130,7 +130,7 @@ export default function Footer() {
 
                 <div className="flex items-center gap-2 mb-3">
                     <Sparkles size={16} className="text-brand-dark" />
-                    <h4 className="font-black uppercase tracking-widest text-xs text-brand-dark">Нашият Бюлетин</h4>
+                    <h3 className="font-black uppercase tracking-widest text-xs text-brand-dark">Нашият Бюлетин</h3>
                 </div>
                 
                 <p className="text-brand-dark/80 text-xs mb-5 font-medium leading-relaxed">

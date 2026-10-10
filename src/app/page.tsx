@@ -3,7 +3,7 @@ import ToursGrid from "@/components/sections/ToursGrid";
 import ParadiseQuote from "@/components/sections/ParadiseQuote";
 import FeaturedTours from "@/components/FeaturedTours";
 import MeetGuides from "@/components/MeetGuides";
-import Testimonials from "@/components/Testimonials";
+import { LazyTestimonials } from "@/components/LazyClient";
 import CTASection from "@/components/sections/CTASection";
 import DestinationsSection from "@/components/sections/DestinationsSection";
 import { Suspense } from "react";
@@ -69,7 +69,7 @@ export default async function HomePage() {
       <MeetGuides />
 
       {/* 6. Ревюта */}
-      <Testimonials />
+      <LazyTestimonials />
 
       {/* 7. CTA — покана за запитване */}
       <CTASection />

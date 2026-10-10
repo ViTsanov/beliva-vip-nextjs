@@ -6,6 +6,8 @@ import { X, CheckCircle2, AlertCircle, User, UserRound, UsersRound, Ban } from '
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase'; // 👈 Next.js import
 
+import { useBackToClose } from '@/lib/hooks/useBackToClose';
+
 interface ReviewModalProps {
   onClose: () => void;
 }
@@ -18,6 +20,8 @@ const AVATARS = [
 ];
 
 export default function ReviewModal({ onClose }: ReviewModalProps) {
+  // Компонентът се монтира само докато е отворен → винаги активен. Назад го затваря.
+  useBackToClose(true, onClose);
   const [formData, setFormData] = useState({
     name: '',
     destination: '', 

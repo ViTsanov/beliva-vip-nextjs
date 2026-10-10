@@ -8,6 +8,7 @@ import { Compass, Clock as ClockIcon, X, CheckCircle2, XCircle, Star, Send, Euro
 import { ITour, IPost } from "@/types";
 import TopDestinations from "@/components/TopDestinations";
 import ImageModal from '@/components/ImageModal';
+import { useBackToClose } from '@/lib/hooks/useBackToClose';
 
 // Импортираме новите компоненти
 import TourHero from './tour/TourHero';
@@ -30,6 +31,10 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
   const [showInclusions, setShowInclusions] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
   const [showMobileBar, setShowMobileBar] = useState(false);
+
+  // Бутонът Назад затваря модалите "Пакетни услуги" и "Документи", вместо да връща страницата
+  useBackToClose(showInclusions, () => setShowInclusions(false));
+  useBackToClose(showDocuments, () => setShowDocuments(false));
 
   // Show sticky bar after user scrolls past hero (~300px)
   useEffect(() => {

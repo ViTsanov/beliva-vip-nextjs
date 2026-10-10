@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { useBackToClose } from '@/lib/hooks/useBackToClose';
 
 interface ImageModalProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ export default function ImageModal({
   isOpen, image, caption, currentIndex = 0, totalCount,
   onClose, onNext, onPrev, hasNext, hasPrev 
 }: ImageModalProps) {
+  // Бутонът Назад затваря снимката, а не връща страницата
+  useBackToClose(isOpen, onClose);
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

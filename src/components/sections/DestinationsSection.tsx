@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ITour } from '@/types';
 import { slugify } from '@/lib/admin-helpers';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
+import { fetchAllMedia, findCountryHeroImage } from '@/lib/media-helpers';
 
 // Резервни градиентни цветове когато няма снимка от базата
 const FALLBACK_COLORS: Record<string, [string, string]> = {
@@ -37,7 +38,12 @@ interface Props {
   // вместо автоматичното „топ 8 по брой турове“ поведение.
 }
 
-export default function DestinationsSection({ tours, adminCountries = [] }: Props) {
+export default async function DestinationsSection({ tours, adminCountries = [] }: Props) {
+  // Опитваме първо специална "<държава> hero" снимка от Media Library (същия pattern като в
+  // автоматизацията) — фиксирана, не зависи от кой тур случайно е първи в списъка. Ако няма такава,
+  // fallback към първата валидна снимка от тур, както досега.
+  const allMedia = await fetchAllMedia();
+
   // Строим map: country → { count, img }
   // За снимка взимаме първия тур за тази дестинация с валиден img
   const destMap: Record<string, { count: number; img: string | null }> = {};
@@ -74,7 +80,7 @@ export default function DestinationsSection({ tours, adminCountries = [] }: Prop
       <div className="container mx-auto px-6">
         <div className="mb-9 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[.3em] text-orange-500">
+            <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[.3em] text-orange-700">
               Открий
             </span>
             <h2
@@ -87,7 +93,7 @@ export default function DestinationsSection({ tours, adminCountries = [] }: Prop
           </div>
           <Link
             href="/destinations"
-            className="flex items-center gap-1.5 border-b border-brand-gold pb-0.5 text-[9px] font-black uppercase tracking-[.2em] text-slate-500 transition hover:text-brand-gold"
+            className="flex items-center gap-1.5 border-b border-brand-gold pb-0.5 text-[9px] font-black uppercase tracking-[.2em] text-slate-600 transition hover:text-brand-goldDeep"
           >
             Всички дестинации →
           </Link>

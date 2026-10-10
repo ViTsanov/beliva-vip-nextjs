@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 
@@ -10,8 +10,35 @@ export default function ParadiseQuote() {
   const [videoReady, setVideoReady] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
 
+  // Видеото се теглеше веднага при отваряне на страницата (дори 76 MB оригинал), макар секцията да е далеч под
+  // първия екран. Сега се зарежда едва когато секцията се доближи до viewport-а, и само на широк екран, при нормална
+  // връзка и без „намалено движение“. Иначе остава снимката.
+  const sectionRef = useRef<HTMLElement>(null);
+  const [loadVideo, setLoadVideo] = useState(false);
+  useEffect(() => {
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    const slowNetwork = !!conn && (conn.saveData === true || /(^|-)2g$/.test(conn.effectiveType ?? ''));
+    const allowed =
+      window.matchMedia('(min-width: 1024px)').matches &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+      !slowNetwork;
+    const el = sectionRef.current;
+    if (!allowed || !el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      entries => {
+        if (entries.some(e => e.isIntersecting)) {
+          setLoadVideo(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '300px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <section className="relative h-[70vh] min-h-[440px] max-h-[640px] w-full overflow-hidden bg-brand-dark">
+    <section ref={sectionRef} className="relative h-[70vh] min-h-[440px] max-h-[640px] w-full overflow-hidden bg-brand-dark">
       {/* Винаги видима снимка отдолу — ако видеото гръмне/забави (напр. ERR_QUIC_PROTOCOL_ERROR от Firebase
           Hosting CDN — мрежов/протоколен проблем, не бъг в кода), остава видима вместо черен/„замръзнал“ екран. */}
       <Image
@@ -24,15 +51,15 @@ export default function ParadiseQuote() {
         quality={80}
       />
 
-      {!videoFailed && (
+      {loadVideo && !videoFailed && (
         <video
-          key="/videos/sunset.mp4"
-          src="/videos/sunset.mp4"
+          key="/videos/web/sunset.mp4"
+          src="/videos/web/sunset.mp4"
           autoPlay
           muted
           loop
           playsInline
-          preload="auto"
+          preload="metadata"
           className="absolute inset-0 w-full h-full object-cover"
           style={{
             objectPosition: 'center 0%',

@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { X, MapPin, Quote, Star, User, UserRound, UsersRound, Ban } from 'lucide-react';
+import { useBackToClose } from '@/lib/hooks/useBackToClose';
 
 const AVATARS = [
   { id: 'none', label: 'Без', icon: Ban, color: 'bg-gray-50 text-gray-400 border-gray-200' },
@@ -11,6 +12,9 @@ const AVATARS = [
 ];
 
 export default function ReviewDetailModal({ review, onClose }: { review: any, onClose: () => void }) {
+  // Hook-ът трябва да е ПРЕДИ ранното връщане. Активен е само когато има избрано ревю.
+  useBackToClose(!!review, onClose);
+
   if (!review) return null;
 
   const avatarData = AVATARS.find(a => a.id === review.avatarId);

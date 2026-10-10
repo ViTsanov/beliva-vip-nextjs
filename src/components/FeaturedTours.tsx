@@ -74,13 +74,13 @@ export default function FeaturedTours({ tours }: FeaturedToursProps) {
   const [lead, ...rest] = featured;
 
   return (
-    <section className="bg-white py-12 md:py-16">
+    <section className="bg-[#f7f0e4] py-12 md:py-16">
       <div className="container mx-auto px-4 sm:px-6">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 md:mb-10">
           <div>
-            <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.3em] block mb-2">
+            <span className="text-brand-goldDeep text-[10px] font-black uppercase tracking-[0.3em] block mb-2">
               Горещи предложения
             </span>
             <h2 className="text-3xl md:text-4xl font-serif italic text-brand-dark leading-tight">
@@ -252,7 +252,7 @@ export default function FeaturedTours({ tours }: FeaturedToursProps) {
                   {/* Съдържание */}
                   <div className="w-3/5 p-4 flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center gap-1.5 text-brand-gold text-[9px] font-black uppercase tracking-widest mb-1.5">
+                      <div className="flex items-center gap-1.5 text-brand-goldDeep text-[9px] font-black uppercase tracking-widest mb-1.5">
                         <MapPin size={10} />
                         <span className="truncate">{country}</span>
                       </div>
@@ -271,8 +271,8 @@ export default function FeaturedTours({ tours }: FeaturedToursProps) {
                     </div>
                     <div className="flex items-end justify-between pt-2 mt-auto border-t border-gray-50">
                       <div>
-                        {date && <p className="text-[10px] text-gray-400 font-bold mb-0.5">{date}</p>}
-                        <p className="text-brand-gold font-serif font-bold text-base leading-none">{formatPrice(tour.price)}</p>
+                        {date && <p className="text-[10px] text-gray-500 font-bold mb-0.5">{date}</p>}
+                        <p className="text-brand-goldDeep font-serif font-bold text-base leading-none">{formatPrice(tour.price)}</p>
                       </div>
                       <div className="w-6 h-6 rounded-full bg-brand-gold/10 group-hover:bg-brand-gold flex items-center justify-center transition-colors shrink-0">
                         <ArrowRight size={12} className="text-brand-gold group-hover:text-white transition-colors" />
