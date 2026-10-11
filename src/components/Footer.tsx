@@ -112,6 +112,7 @@ export default function Footer() {
           <div>
             <h3 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Информация</h3>
             <ul className="space-y-3 text-sm text-gray-400">
+              <li><Link href="/destinations" className="hover:text-white transition-colors">Дестинации</Link></li>
               <li><Link href="/about-us"  className="hover:text-white transition-colors">За нас</Link></li>
               <li><Link href="/blog"      className="hover:text-white transition-colors">Блог & Пътеводител</Link></li>
               <li><Link href="/reviews"   className="hover:text-white transition-colors">Отзиви</Link></li>

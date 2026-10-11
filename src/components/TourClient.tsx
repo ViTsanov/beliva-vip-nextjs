@@ -9,6 +9,7 @@ import { ITour, IPost } from "@/types";
 import TopDestinations from "@/components/TopDestinations";
 import ImageModal from '@/components/ImageModal';
 import { useBackToClose } from '@/lib/hooks/useBackToClose';
+import { useScrollLock } from '@/lib/hooks/useScrollLock';
 
 // Импортираме новите компоненти
 import TourHero from './tour/TourHero';
@@ -22,9 +23,10 @@ interface TourClientProps {
   tourData: ITour;
   relatedPostsData: IPost[]; // 👈 Вече е масив от постове
   id: string;
+  similarToursData?: ITour[]; // „Вижте още“ — изчислени на сървъра (линковете трябва да са в HTML-а заради Google)
 }
 
-export default function TourClient({ tourData, relatedPostsData, id }: TourClientProps) {
+export default function TourClient({ tourData, relatedPostsData, id, similarToursData }: TourClientProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
@@ -35,6 +37,9 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
   // Бутонът Назад затваря модалите "Пакетни услуги" и "Документи", вместо да връща страницата
   useBackToClose(showInclusions, () => setShowInclusions(false));
   useBackToClose(showDocuments, () => setShowDocuments(false));
+
+  // Докато е отворен някой от модалите („Какво включва“, „Необходими документи“, „Запитване“), страницата отзад не се скролва
+  useScrollLock(showInclusions || showDocuments || showInquiryModal);
 
   // Show sticky bar after user scrolls past hero (~300px)
   useEffect(() => {
@@ -174,7 +179,7 @@ export default function TourClient({ tourData, relatedPostsData, id }: TourClien
         </div>
       </div>
 
-      <SimilarTours currentTour={tourData} />
+      <SimilarTours currentTour={tourData} initialTours={similarToursData} />
       <TopDestinations />
       
       <ImageModal isOpen={selectedImageIndex !== null} image={selectedImageIndex !== null ? galleryImages[selectedImageIndex] : ''} caption={selectedImageIndex !== null ? (gallery[selectedImageIndex]?.caption || '') : ''} currentIndex={selectedImageIndex ?? 0} totalCount={galleryImages.length} onClose={() => setSelectedImageIndex(null)} onNext={() => setSelectedImageIndex(prev => prev !== null && prev < galleryImages.length - 1 ? prev + 1 : prev)} onPrev={() => setSelectedImageIndex(prev => prev !== null && prev > 0 ? prev - 1 : prev)} hasNext={selectedImageIndex !== null && selectedImageIndex < galleryImages.length - 1} hasPrev={selectedImageIndex !== null && selectedImageIndex > 0} />

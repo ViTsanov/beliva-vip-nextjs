@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { COMPANY_INFO } from "@/lib/companyInfo";
 
 export const metadata: Metadata = {
-  title: "Общи условия | Beliva VIP Tour",
+  title: "Общи условия",
+  alternates: { canonical: "https://belivavip.bg/terms" },
   description: "Официални общи условия за ползване на услугите и уебсайта на туристическа агенция Beliva VIP Tour.",
 };
 

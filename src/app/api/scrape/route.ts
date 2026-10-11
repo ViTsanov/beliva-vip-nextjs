@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 import { WORLD_COUNTRIES } from '@/lib/constants';
 import { requireAdmin } from '@/lib/adminAuth';
+import { DARI_HOSTNAMES, parseDariTour } from '@/lib/scrapers/dariTour';
 
-// Единственият разрешен домейн — предпазва от SSRF към вътрешни мрежи/метаданни
-const ALLOWED_HOSTNAMES = new Set(['2mko.com', 'www.2mko.com']);
+// Разрешени са САМО домейните на туроператорите, с които работим — предпазва от SSRF към вътрешни мрежи/метаданни
+const ALLOWED_HOSTNAMES = new Set(['2mko.com', 'www.2mko.com', ...DARI_HOSTNAMES]);
 
 export async function POST(req: Request) {
     const authError = await requireAdmin();
@@ -32,6 +33,14 @@ export async function POST(req: Request) {
         // Проверяваме за Unicode replacement character (�) — знак за неуспешен UTF-8 decode.
         // ВАЖНО: трябва да е explicit \uFFFD escape, не гол копиран символ — иначе проверката '' е винаги вярна (всеки низ "съдържа" празен низ)
         if (html.includes('\uFFFD')) html = new TextDecoder('windows-1251').decode(buffer);
+
+        // Дари Тур има собствен парсер (src/lib/scrapers/dariTour.ts) — връща същата структура като 2mko по-долу
+        if (DARI_HOSTNAMES.has(parsed.hostname)) {
+            if (!response.ok) {
+                return NextResponse.json({ error: `Дари Тур върна грешка (HTTP ${response.status})` }, { status: 502 });
+            }
+            return NextResponse.json({ success: true, operator: 'dari', ...parseDariTour(html) });
+        }
 
         const $ = cheerio.load(html);
 

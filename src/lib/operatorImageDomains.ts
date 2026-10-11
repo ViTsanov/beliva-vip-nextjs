@@ -16,6 +16,7 @@ export const OPERATOR_HOTLINK_DOMAINS = [
   'anekatravel.com',
   'phoenixtours.bg',
   'travelmax.bg',
+  'dari-tour.com',
 ];
 
 export function isOperatorHotlink(url?: string | null): boolean {

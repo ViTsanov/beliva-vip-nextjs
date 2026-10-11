@@ -47,8 +47,8 @@ const TagsInput = ({ tags, setTags, placeholder, label }: any) => {
 };
 
 // Фалбек ако settings/operators още не е зададен в базата въобще (първо зареждане на админ панела) —
-// включва "2МКО" ␴иректно, така че туровете от автоматизацията винаги да се показват коректно.
-const DEFAULT_OPERATORS = ['Beliva VIP', '2МКО', 'Abax', 'Equator', 'Tez Tour', 'Emerald', 'Other'].map(name => ({ name, email: '' }));
+// включва "2МКО" и "Дари Тур" директно, така че туровете от автоматизацията винаги да се показват коректно.
+const DEFAULT_OPERATORS = ['Beliva VIP', '2МКО', 'Дари Тур', 'Abax', 'Equator', 'Tez Tour', 'Emerald', 'Other'].map(name => ({ name, email: '' }));
 
 export default function TourForm({ initialData, onClose, allTours, allCampaigns }: any) {
   const [operators, setOperators] = useState<{ name: string; email: string }[]>(DEFAULT_OPERATORS);
@@ -357,13 +357,18 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                                 </button>
                             </div>
                         </div>
-                        <p className="text-[10px] text-blue-500 mt-3 font-medium opacity-80">* Ботът в момента "разбира" сайтовете на: 2MKO.</p>
+                        <p className="text-[10px] text-blue-500 mt-3 font-medium opacity-80">* Ботът в момента "разбира" сайтовете на: 2MKO и Дари Тур.</p>
                     </div>
                 <div>
                     <label className={labelStyle}>Туроператор / Партньор *</label>
                     <select className={inputStyle} value={form.operator} onChange={e => setForm({...form, operator: e.target.value})} required>
                         <option value="">-- Избери --</option>
                         {operators.map(op => <option key={op.name} value={op.name}>{op.name}</option>)}
+                        {/* Ако турът е с оператор, който още не е добавен в Настройки (напр. „Дари Тур“ от автоматизацията),
+                        го показваме въпреки това — иначе select-ът би изглеждал празен и при запис операторът би се загубил. */}
+                        {form.operator && !operators.some(op => op.name === form.operator) && (
+                          <option value={form.operator}>{form.operator}</option>
+                        )}
                     </select>
                 </div>
                 <div>

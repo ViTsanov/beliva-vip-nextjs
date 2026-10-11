@@ -12,11 +12,14 @@ import { formatPrice } from '@/lib/formatPrice';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 
-export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
-  const [similarTours, setSimilarTours] = useState<ITour[]>([]);
+// initialTours: подадени от сървъра (src/app/tour/[id]/page.tsx) — тогава картите са в HTML-а още при зареждане
+// и Google вижда линковете към другите турове. Заявката от браузъра остава само като резервен вариант.
+export default function SimilarTours({ currentTour, initialTours }: { currentTour: ITour; initialTours?: ITour[] }) {
+  const [similarTours, setSimilarTours] = useState<ITour[]>(initialTours ?? []);
   const scrollContainerRef = useRef<HTMLDivElement>(null); // Реф за контейнера
 
   useEffect(() => {
+    if (initialTours) return; // сървърът вече ги е подал
     const fetchSimilarTours = async () => {
       if (!currentTour) return;
 
@@ -73,7 +76,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
     };
 
     fetchSimilarTours();
-  }, [currentTour]);
+  }, [currentTour, initialTours]);
 
   // Функция за скролиране с бутоните
   const scroll = (direction: 'left' | 'right') => {
@@ -89,6 +92,10 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
   };
 
   if (similarTours.length === 0) return null;
+
+  // „Всички предложения“ води към страницата на дестинацията (истинска страница за Google), не към филтър на началната
+  const firstCountry = Array.isArray(currentTour.country) ? currentTour.country[0] : String(currentTour.country || '').split(',')[0]?.trim();
+  const allToursHref = firstCountry ? `/destinations/${slugify(firstCountry)}` : '/destinations';
 
   const uniqueSimilarTours = similarTours.filter((tour, index, self) =>
     index === self.findIndex((t) => t.id === tour.id)
@@ -106,7 +113,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
               </h2>
           </div>
           <Link 
-              href={`/?continent=${slugify(currentTour.continent)}`}
+              href={allToursHref}
               className="hidden md:flex group items-center gap-2 text-brand-dark font-bold hover:text-brand-gold transition-colors"
           >
               Всички предложения <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -124,7 +131,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
           {uniqueSimilarTours.map((tour) => (
               <Link 
               key={tour.id} 
-              href={`/tour/${tour.tourId || tour.id}`}
+              href={`/tour/${tour.slug || tour.tourId || tour.id}`}
               // min-w-full прави картата да заема целия екран на мобилно
               // snap-center центрира картата при спиране на скрола
               className="min-w-full md:min-w-0 snap-center group bg-white rounded-[2rem] overflow-hidden border border-brand-gold/100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col h-full"
@@ -203,7 +210,7 @@ export default function SimilarTours({ currentTour }: { currentTour: ITour }) {
         {/* Линк "Всички" за мобилно (показваме го долу центрирано) */}
         <div className="md:hidden text-center mt-8">
             <Link 
-              href={`/?continent=${slugify(currentTour.continent)}`}
+              href={allToursHref}
               className="inline-flex items-center gap-2 text-brand-dark font-bold hover:text-brand-gold transition-colors text-sm uppercase tracking-wider"
             >
               Всички предложения <ArrowRight className="w-4 h-4" />

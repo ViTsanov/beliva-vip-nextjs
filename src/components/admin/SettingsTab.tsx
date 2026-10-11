@@ -52,7 +52,7 @@ export default function SettingsTab() {
           setOperators(raw.map((o: any) => typeof o === 'string' ? { name: o, email: '' } : o));
         } else {
           // Първо зареждане — същият fallback като TourForm.tsx, вкл. 2МКО
-          setOperators(['Beliva VIP', '2МКО', 'Abax', 'Equator', 'Tez Tour', 'Emerald', 'Other'].map(name => ({ name, email: '' })));
+          setOperators(['Beliva VIP', '2МКО', 'Дари Тур', 'Abax', 'Equator', 'Tez Tour', 'Emerald', 'Other'].map(name => ({ name, email: '' })));
         }
         const paymentSnap = await getDoc(doc(db, "settings", "payment"));
         if (paymentSnap.exists()) {
@@ -237,8 +237,8 @@ export default function SettingsTab() {
         </h3>
         <p className="text-xs text-gray-400 mb-6">
           Този списък се показва в падащото меню „Турооператор / Партньор“ в формата за екскурзия. Имейлът е важен — на него ще
-          изпращаме данните на пътниците и договорите от таб Резервации. „2МКО“ е важен да си остане тук —
-          това е точното име, което автоматизацията записва за всеки тур, намерен от 2mko.
+          изпращаме данните на пътниците и договорите от таб Резервации. „2МКО“ и „Дари Тур“ е важно да си останат
+          тук точно така изписани — това са имената, които автоматизацията записва за туровете от 2mko и от Дари Тур.
         </p>
         <div className="space-y-3">
           {operators.map((op, idx) => (

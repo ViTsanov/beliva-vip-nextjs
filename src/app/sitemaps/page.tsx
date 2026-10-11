@@ -1,11 +1,10 @@
-"use client";
-
-import { useState, useEffect } from 'react';
+import type { Metadata } from 'next';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
+import { getActiveTours } from '@/services/tourService';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Home, FileText, Map, Compass, Globe, Info, MessageCircle, Heart, Phone, ShieldCheck, Loader2, MapPin, ArrowRight } from 'lucide-react';
+import { Home, FileText, Map, Compass, Globe, Info, MessageCircle, Heart, Phone, ShieldCheck, MapPin, ArrowRight } from 'lucide-react';
 import { slugify } from '@/lib/admin-helpers';
 import { COUNTRY_TO_CONTINENT } from '@/lib/constants';
 
@@ -21,34 +20,28 @@ const continentImageMap: Record<string, string> = {
     'default': '/assets/continents/europe_tr.png' 
 };
 
-export default function SitemapPage() {
-  const [tours, setTours] = useState<any[]>([]);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+// Сървърна страница (преди беше "use client" и зареждаше данните в браузъра — тогава в HTML-а нямаше нито един
+// линк и за Google картата на сайта беше празна). Сега всички линкове към дестинации и турове са в HTML-а.
+export const revalidate = 3600;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const qTours = query(collection(db, "tours"), where("status", "==", "public"));
-        const toursSnap = await getDocs(qTours);
-        setTours(toursSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+export const metadata: Metadata = {
+  title: 'Карта на сайта',
+  description: 'Пълен списък с всички дестинации, екскурзии, статии и информационни страници на Beliva VIP Tour.',
+  alternates: { canonical: 'https://belivavip.bg/sitemaps' },
+};
 
-        const qPosts = query(collection(db, "posts"));
-        const postsSnap = await getDocs(qPosts);
-        setPosts(postsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (error) {
-        console.error("Error fetching sitemap data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+export default async function SitemapPage() {
+  const tours: any[] = await getActiveTours();
+  let posts: any[] = [];
+  try {
+    const postsSnap = await getDocs(collection(db, "posts"));
+    posts = postsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    console.error("Error fetching sitemap posts:", error);
+  }
 
   // 🔄 ГРУПИРАНЕ: Разделяме държавите, за да излизат поотделно
   const groupedTours = tours.reduce((acc: any, tour) => {
-    const cont = tour.continent ? tour.continent.trim() : 'Други';
-    
     // Разделяме държавите, ако са изписани със запетая
     let countries: string[] = [];
     if (Array.isArray(tour.country)) {
@@ -59,14 +52,13 @@ export default function SitemapPage() {
       countries = ['Разни'];
     }
 
-    if (!acc[cont]) acc[cont] = {}; 
-
-    // Добавяме тура към всяка държава, която съдържа — НО САМО ако тя КАНОНИЧНО принадлежи към този
-    // континент — без това, много-дестинационни турове като "Австралия + Сингапур" (continent: "Австралия")
-    // биха показвали Сингапур и под Австралия, дори той да е в Азия.
-    countries.forEach(country => {
-      if (COUNTRY_TO_CONTINENT[country] !== cont) return;
-      if (!acc[cont][country]) acc[cont][country] = []; 
+    // Всяка държава отива под СВОЯ континент (по COUNTRY_TO_CONTINENT), не под континента на тура. Така
+    // "Австралия + Сингапур" се показва и под Австралия, и под Сингапур в Азия, а турове от автоматизацията
+    // (без попълнен continent) вече не изчезват от картата.
+    countries.filter(Boolean).forEach(country => {
+      const cont = COUNTRY_TO_CONTINENT[country] || (tour.continent ? tour.continent.trim() : '') || 'Други';
+      if (!acc[cont]) acc[cont] = {};
+      if (!acc[cont][country]) acc[cont][country] = [];
       acc[cont][country].push(tour);
     });
 
@@ -98,18 +90,8 @@ export default function SitemapPage() {
     "url": "https://belivavip.bg/sitemaps"
   };
 
-  if (loading) {
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-[#fcf9f2]">
-            <Loader2 className="animate-spin text-brand-gold" size={40} />
-        </div>
-    );
-  }
-
   return (
     <main className="min-h-screen relative pt-32 pb-20 overflow-hidden">
-      <title>Карта на сайта | Beliva VIP Tour</title>
-      <meta name="description" content="Пълен списък с всички страници и екскурзии на Beliva VIP Tour." />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }} />
 
       {/* 🖼️ ФОНОВ СЛОЙ */}
@@ -154,6 +136,7 @@ export default function SitemapPage() {
                     <ul className="space-y-3">
                         {[
                             { href: '/', label: 'Начало', icon: Globe },
+                            { href: '/destinations', label: 'Дестинации', icon: Map },
                             { href: '/about-us', label: 'За Нас', icon: Info },
                             { href: '/reviews', label: 'Отзиви', icon: MessageCircle },
                             { href: '/contacts', label: 'Контакти', icon: Phone },
@@ -222,7 +205,7 @@ export default function SitemapPage() {
                                 {/* Header на Континента */}
                                 <div className="p-6 pb-0 flex items-center justify-between relative">
                                     {/* СЛЕД (Добавяме Link със slugify): */}
-                                    <Link href={`/?continent=${slugify(continent)}#tours-grid`} className="group/cont">
+                                    <Link href={`/destinations#${slugify(continent)}`} className="group/cont">
                                       <h3 className={`text-2xl font-black uppercase tracking-wide transition-colors group-hover/cont:text-brand-gold ${style.theme.text}`}>
                                           {continent}
                                       </h3>

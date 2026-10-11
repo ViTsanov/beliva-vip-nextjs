@@ -10,7 +10,7 @@ import {
 import { 
   LayoutDashboard, Image as ImageIcon, Map, Archive, BookOpen, Star, Inbox, Users, LogOut, 
   Menu, X, Edit2, Copy, Trash2, CheckCircle2, FileText, UserCheck, Search, PhoneIncoming, BadgePercent, Save, Calendar, User, Mail, Phone, Globe, History, Plus, Settings, ChevronRight,
-  XCircle, TrendingUp, AlertTriangle
+  XCircle, TrendingUp, AlertTriangle, RefreshCw, Play
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -30,6 +30,28 @@ import ClientDetailModal from '@/components/admin/ClientDetailModal';
 import SettingsTab from '@/components/admin/SettingsTab';
 import MarketingAnalytics from '@/components/admin/MarketingAnalytics';
 import CountryMultiSelect from '@/components/admin/CountryMultiSelect';
+
+// ==========================================
+// ТУРОПЕРАТОРИ ЗА „АВТОМАТИЧНАТА МАШИНА“
+// ==========================================
+// Ключът се праща към /api/scout; етикетът е точното име, което се записва в полето `operator` на тура
+// (и което се показва в TourForm / Резервации — затова „2МКО“ трябва да си остане изписано точно така).
+type ScanOperator = '2mko' | 'dari';
+const SCAN_OPERATORS: { key: ScanOperator; label: string }[] = [
+  { key: '2mko', label: '2МКО' },
+  { key: 'dari', label: 'Дари Тур' },
+];
+const OPERATOR_LABEL: Record<ScanOperator, string> = { '2mko': '2МКО', dari: 'Дари Тур' };
+
+// От кой туроператор е даден тур — първо по линка към оригинала (най-надеждно), после по полето operator.
+type InventoryOperator = ScanOperator | 'other';
+const tourOperatorKey = (t: any): InventoryOperator => {
+  const url = String(t.originalUrl || t.externalSourceLink || '').toLowerCase();
+  const op = String(t.operator || '').toLowerCase();
+  if (url.includes('dari-tour.com') || op.includes('дари') || op.includes('dari')) return 'dari';
+  if (url.includes('2mko.com') || op.includes('2мко') || op.includes('2mko')) return '2mko';
+  return 'other';
+};
 
 // Редизайн на Търсачката
 const SearchBar = ({ value, onChange, placeholder }: any) => (
@@ -125,6 +147,15 @@ export default function AdminDashboardClient() {
   // Колко нови тура е намерил последният "Провери за нови" за всяка държава отделно (групирано по
   // countryMatched от data.newLinks) — undefined означава "още не е проверена", не 0.
   const [scoutResults, setScoutResults] = useState<Record<string, number>>({});
+  // Кои туроператори да сканира машината. По подразбиране само 2МКО (не се запазва — при всяко отваряне е 2МКО).
+  const [automationOperators, setAutomationOperators] = useState<ScanOperator[]>(['2mko']);
+  // Държавата, за която в момента върви проверка/обработка от бутоните в чипа ѝ (за въртящата се иконка)
+  const [busyCountry, setBusyCountry] = useState<string | null>(null);
+  const selectOperators = (ops: ScanOperator[]) => {
+    setAutomationOperators(ops);
+    setScoutResults({}); // броят „Нови“ зависи от оператора — старите числа вече не важат
+  };
+  const operatorsLabel = automationOperators.map(o => OPERATOR_LABEL[o]).join(' и ');
 
   // Зареждаме запазените държави и минималната дата от localStorage при отваряне
   useEffect(() => {
@@ -432,13 +463,25 @@ export default function AdminDashboardClient() {
     totalSubscribers: subscribers.length,
   };
 
-  // Брой наши турове по държава (всички статуси — public/pending/archived/draft — това е общото инвентарно
-  // бройнико, за да знае Админът дали вече има достатъчно за тази държава, преди да скенира още).
-  const ourCountsByCountry = allTours.reduce((acc: Record<string, number>, t: any) => {
-    const countries: string[] = Array.isArray(t.country) ? t.country : [t.country].filter(Boolean);
-    countries.forEach(c => { if (c) acc[c] = (acc[c] || 0) + 1; });
-    return acc;
-  }, {});
+  // Какво вече имаме: брой турове по държава и по туроператор. Броим всичко без архивираните (публични, чакащи
+  // одобрение, чернови) — архивът са стари/минали турове и само би объркал картината дали има нужда от още.
+  type InventoryRow = { total: number } & Record<InventoryOperator, number>;
+  const inventoryByCountry: Record<string, InventoryRow> = {};
+  const inventoryTotals: InventoryRow = { total: 0, '2mko': 0, dari: 0, other: 0 };
+  allTours.forEach((t: any) => {
+    if (t.status === 'archived') return;
+    const op = tourOperatorKey(t);
+    inventoryTotals.total++;
+    inventoryTotals[op]++;
+    const countries: string[] = Array.isArray(t.country) ? t.country : String(t.country || '').split(',').map((c: string) => c.trim());
+    countries.filter(Boolean).forEach(c => {
+      const row = (inventoryByCountry[c] ||= { total: 0, '2mko': 0, dari: 0, other: 0 });
+      row.total++;
+      row[op]++;
+    });
+  });
+  const inventoryRows = Object.entries(inventoryByCountry).sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0], 'bg'));
+  const ourCountsByCountry: Record<string, number> = Object.fromEntries(inventoryRows.map(([c, row]) => [c, row.total]));
 
   const handleSaveCampaign = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -491,28 +534,74 @@ export default function AdminDashboardClient() {
     return '';
   };
 
-  const runTourAutomation = async () => {
-    if (automationCountries.length === 0) {
+  // Пита /api/scout кои екскурзии са НОВИ (още ги нямаме) за дадените държави при избраните туроператори.
+  const scoutNewTours = async (countries: string[]) => {
+    const res = await fetch('/api/scout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ countries, operators: automationOperators })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Грешка ${res.status}`);
+    return data as { totalNewFound: number; newLinks: any[]; errors?: Record<string, string> };
+  };
+
+  // Текст за туроператор, който не е отговорил (пр. „Дари Тур не отговаря (HTTP 503)“) — показва се в статуса
+  const describeScoutErrors = (errors?: Record<string, string>) =>
+    errors && Object.keys(errors).length > 0
+      ? ' ⚠ ' + Object.entries(errors).map(([op, msg]) => `${OPERATOR_LABEL[op as ScanOperator] || op}: ${msg}`).join('; ')
+      : '';
+
+  // „Провери за нови“ — за всички избрани държави или само за една (бутона ↻ в чипа на държавата).
+  // Само брои, НЕ обработва и НЕ записва нищо.
+  const checkForNewTours = async (countries: string[]) => {
+    if (countries.length === 0) { alert('Добави поне една държава.'); return; }
+    setIsAutoProcessing(true);
+    setBusyCountry(countries.length === 1 ? countries[0] : null);
+    setAutoProcessStatus(`Проверка за нови екскурзии при ${operatorsLabel}${countries.length === 1 ? ` за ${countries[0]}` : ''}...`);
+    try {
+      const data = await scoutNewTours(countries);
+      const count = data.totalNewFound || 0;
+      // Групираме data.newLinks по countryMatched, за да покажем отделна бройка във всеки чип държава.
+      // Инициализираме всяка проверена държава на 0, така че "?" да се смени на "0", не да остане неопределено.
+      const freshCounts: Record<string, number> = Object.fromEntries(countries.map(c => [c, 0]));
+      (data.newLinks || []).forEach((l: any) => {
+        if (l.countryMatched) freshCounts[l.countryMatched] = (freshCounts[l.countryMatched] || 0) + 1;
+      });
+      setScoutResults(prev => ({ ...prev, ...freshCounts }));
+      setAutoProcessStatus((count > 0
+        ? `Намерени ${count} нови екскурзии! Натисни "Стартирай сканиране" (или ▶ до държавата), за да ги обработиш.`
+        : 'Няма нови екскурзии за избраните държави.') + describeScoutErrors(data.errors));
+      setTimeout(() => setAutoProcessStatus(''), 10000);
+    } catch (e: any) {
+      setAutoProcessStatus(`Грешка при проверката: ${e?.message || ''}`);
+      setTimeout(() => setAutoProcessStatus(''), 5000);
+    }
+    setBusyCountry(null);
+    setIsAutoProcessing(false);
+  };
+
+  // countriesOverride: когато е пусната само за една държава (бутона ▶ в чипа ѝ) — иначе всички избрани
+  const runTourAutomation = async (countriesOverride?: string[]) => {
+    const countries = countriesOverride && countriesOverride.length > 0 ? countriesOverride : automationCountries;
+    if (countries.length === 0) {
       alert('Първо добави поне една държава за сканиране.');
       return;
     }
-    if (!confirm(`Започваме сканиране на 2mko за: ${automationCountries.join(', ')}. Това може да отнеме няколко минути. Продължаваме ли?`)) return;
+    if (!confirm(`Започваме сканиране на ${operatorsLabel} за: ${countries.join(', ')}. Това може да отнеме няколко минути. Продължаваме ли?`)) return;
     
     setIsAutoProcessing(true);
+    setBusyCountry(countries.length === 1 ? countries[0] : null);
     setAutoProcessStatus('Разузнавачът търси нови линкове...');
 
     try {
-      // 1. Скаутът търси нови екскурзии в ИЗБРАНИТЕ от теб държави
-      const scoutRes = await fetch('/api/scout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ countries: automationCountries })
-      });
-      const scoutData = await scoutRes.json();
+      // 1. Скаутът търси нови екскурзии в ИЗБРАНИТЕ от теб държави, при избраните туроператори
+      const scoutData = await scoutNewTours(countries);
 
       if (!scoutData.newLinks || scoutData.newLinks.length === 0) {
-        setAutoProcessStatus('Няма нови екскурзии за тези държави.');
-        setTimeout(() => setAutoProcessStatus(''), 3000);
+        setAutoProcessStatus('Няма нови екскурзии за тези държави.' + describeScoutErrors(scoutData.errors));
+        setTimeout(() => setAutoProcessStatus(''), scoutData.errors ? 8000 : 3000);
+        setBusyCountry(null);
         setIsAutoProcessing(false);
         return;
       }
@@ -772,7 +861,7 @@ export default function AdminDashboardClient() {
             images: finalTour.images || '',
             tourId: genTourId,
             slug: genTourId,
-            operator: '2МКО',
+            operator: OPERATOR_LABEL[linkObj.operator as ScanOperator] || '2МКО',
             date: '', // датите се добавят ръчно при одобрение (или от scraped dates ако има)
             dates: [],
             categories: [],
@@ -812,17 +901,24 @@ export default function AdminDashboardClient() {
         }
       }
 
-      setAutoProcessStatus(`Готово! Успешно автоматизирахме ${successCount} екскурзии${automationLimit ? ` (ограничено до ${automationLimit})` : ''}.`);
+      setAutoProcessStatus(`Готово! Успешно автоматизирахме ${successCount} екскурзии${automationLimit ? ` (ограничено до ${automationLimit})` : ''}.` + describeScoutErrors(scoutData.errors));
       setTimeout(() => setAutoProcessStatus(''), 5000);
       
       // onSnapshot listener-ът автоматично ще покаже новите турове — не трябва ръчно опресняване
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setAutoProcessStatus('Грешка в автоматизацията.');
-      setTimeout(() => setAutoProcessStatus(''), 3000);
+      setAutoProcessStatus(`Грешка в автоматизацията.${err?.message ? ' ' + err.message : ''}`);
+      setTimeout(() => setAutoProcessStatus(''), 4000);
     }
     
+    // Броят „Нови“ за тези държави вече не е актуален (част от туровете току-що се записаха) — връщаме „?“
+    setScoutResults(prev => {
+      const next = { ...prev };
+      countries.forEach(c => { delete next[c]; });
+      return next;
+    });
+    setBusyCountry(null);
     setIsAutoProcessing(false);
   };
 
@@ -999,7 +1095,95 @@ export default function AdminDashboardClient() {
                   <div className="bg-brand-dark rounded-[2.5rem] p-8 shadow-xl space-y-5">
                     <div>
                       <h3 className="text-brand-gold font-serif italic text-xl mb-1">Автоматична машина за екскурзии</h3>
-                      <p className="text-white/50 text-xs">Добави държави една по една и натисни Старт. Новите турове се появяват тук за одобрение.</p>
+                      <p className="text-white/50 text-xs">Избери туроператор, добави държави и натисни Старт. Новите турове се появяват тук за одобрение.</p>
+                    </div>
+
+                    {/* КАКВО ИМАМЕ — обобщение по туроператори + таблица по държави (без архивираните турове).
+                    Оттук държава се добавя в списъка за сканиране с един клик, без да се търси в падащото меню. */}
+                    <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="mr-1 text-[10px] font-black uppercase tracking-widest text-white/40">Имаме в момента:</span>
+                        <span className="rounded-xl bg-white/10 px-3 py-1.5 text-xs font-bold text-white">{inventoryTotals.total} екскурзии</span>
+                        <span className="rounded-xl border border-brand-gold/30 bg-brand-gold/10 px-3 py-1.5 text-xs font-bold text-brand-gold">2МКО: {inventoryTotals['2mko']}</span>
+                        <span className="rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-1.5 text-xs font-bold text-sky-300">Дари Тур: {inventoryTotals.dari}</span>
+                        <span className="rounded-xl border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60">Други / собствени: {inventoryTotals.other}</span>
+                      </div>
+
+                      {inventoryRows.length > 0 && (
+                        <div className="mt-4 max-h-72 overflow-y-auto rounded-2xl border border-white/10">
+                          <table className="w-full text-left text-xs">
+                            <thead className="sticky top-0 bg-[#141c2f] text-[10px] uppercase tracking-widest text-white/40">
+                              <tr>
+                                <th className="px-4 py-2.5 font-black">Държава</th>
+                                <th className="px-3 py-2.5 text-center font-black">Общо</th>
+                                <th className="px-3 py-2.5 text-center font-black text-brand-gold/70">2МКО</th>
+                                <th className="px-3 py-2.5 text-center font-black text-sky-300/70">Дари Тур</th>
+                                <th className="px-3 py-2.5 text-center font-black">Други</th>
+                                <th className="px-3 py-2.5 text-right font-black"><span className="sr-only">Действие</span></th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                              {inventoryRows.map(([country, row]) => {
+                                const isSelected = automationCountries.includes(country);
+                                return (
+                                  <tr key={country} className="text-white/80 hover:bg-white/[0.04]">
+                                    <td className="px-4 py-2 font-bold text-white">{country}</td>
+                                    <td className="px-3 py-2 text-center font-bold">{row.total}</td>
+                                    <td className="px-3 py-2 text-center">{row['2mko'] || <span className="text-white/20">—</span>}</td>
+                                    <td className="px-3 py-2 text-center">{row.dari || <span className="text-white/20">—</span>}</td>
+                                    <td className="px-3 py-2 text-center">{row.other || <span className="text-white/20">—</span>}</td>
+                                    <td className="px-3 py-2 text-right">
+                                      {isSelected ? (
+                                        <span className="text-[10px] font-bold text-emerald-400">✓ В списъка</span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => setAutomationCountries([...automationCountries, country])}
+                                          disabled={isAutoProcessing}
+                                          className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/70 transition-colors hover:bg-brand-gold hover:text-brand-dark disabled:opacity-40"
+                                        >
+                                          <Plus size={12} aria-hidden="true" /> Добави
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ТУРОПЕРАТОР: 2МКО (по подразбиране), Дари Тур или всички */}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Туроператор:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {SCAN_OPERATORS.map(op => {
+                          const active = automationOperators.length === 1 && automationOperators[0] === op.key;
+                          return (
+                            <button
+                              key={op.key}
+                              type="button"
+                              onClick={() => selectOperators([op.key])}
+                              disabled={isAutoProcessing}
+                              aria-pressed={active}
+                              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all disabled:opacity-40 ${active ? 'bg-brand-gold text-brand-dark' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
+                            >
+                              {op.label}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => selectOperators(SCAN_OPERATORS.map(o => o.key))}
+                          disabled={isAutoProcessing}
+                          aria-pressed={automationOperators.length === SCAN_OPERATORS.length}
+                          className={`rounded-xl px-4 py-2 text-xs font-bold transition-all disabled:opacity-40 ${automationOperators.length === SCAN_OPERATORS.length ? 'bg-brand-gold text-brand-dark' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
+                        >
+                          Всички
+                        </button>
+                      </div>
                     </div>
 
                     {/* Избрани държави — търсачка срещу реалните имена на държави (WORLD_COUNTRIES), вместо свободен текст — намалява
@@ -1013,13 +1197,37 @@ export default function AdminDashboardClient() {
                       renderExtra={(c) => {
                         const ourCount = ourCountsByCountry[c] || 0;
                         const newCount = scoutResults[c];
+                        const isBusy = busyCountry === c;
                         return (
-                          <span className="text-white/40 font-normal text-[11px]">
-                            (Имаме: <span className="text-white/70 font-bold">{ourCount}</span>
-                            {' · '}
-                            Нови: {newCount === undefined
-                              ? <span className="text-white/40 italic">?</span>
-                              : <span className={newCount > 0 ? 'text-emerald-400 font-bold' : 'text-white/40'}>{newCount}</span>})
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="text-white/40 font-normal text-[11px]">
+                              (Имаме: <span className="text-white/70 font-bold">{ourCount}</span>
+                              {' · '}
+                              Нови: {newCount === undefined
+                                ? <span className="text-white/40 italic">?</span>
+                                : <span className={newCount > 0 ? 'text-emerald-400 font-bold' : 'text-white/40'}>{newCount}</span>})
+                            </span>
+                            {/* Бутони само за ТАЗИ държава — без да се махат/добавят другите от списъка */}
+                            <button
+                              type="button"
+                              onClick={() => checkForNewTours([c])}
+                              disabled={isAutoProcessing}
+                              title={`Провери за нови екскурзии за ${c}`}
+                              aria-label={`Провери за нови екскурзии за ${c}`}
+                              className="rounded-md p-1 text-brand-gold/70 transition-colors hover:bg-brand-gold/20 hover:text-white disabled:opacity-40"
+                            >
+                              <RefreshCw size={12} className={isBusy ? 'animate-spin' : ''} aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => runTourAutomation([c])}
+                              disabled={isAutoProcessing}
+                              title={`Сканирай и обработи само ${c}`}
+                              aria-label={`Сканирай и обработи само ${c}`}
+                              className="rounded-md p-1 text-brand-gold/70 transition-colors hover:bg-brand-gold/20 hover:text-white disabled:opacity-40"
+                            >
+                              <Play size={12} aria-hidden="true" />
+                            </button>
                           </span>
                         );
                       }}
@@ -1044,43 +1252,14 @@ export default function AdminDashboardClient() {
                     {/* Провери за нови / Стартирай сканиране */}
                     <div className="flex flex-col sm:flex-row gap-3">
                       <button
-                        onClick={async () => {
-                          if (automationCountries.length === 0) { alert('Добави поне една държава.'); return; }
-                          setIsAutoProcessing(true);
-                          setAutoProcessStatus('Проверка за нови екскурзии...');
-                          try {
-                            const res = await fetch('/api/scout', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ countries: automationCountries })
-                            });
-                            const data = await res.json();
-                            const count = data.totalNewFound || 0;
-                            // Групираме data.newLinks по countryMatched, за да покажем отделна бройка във всеки чип държава,
-                            // не само общата бройка за всички. Инициализираме всяка проверена държава на 0 първо (дори
-                            // ако няма newLinks за нея), така че "?" да се смени на "0", не да остане неопределено.
-                            const freshCounts: Record<string, number> = Object.fromEntries(automationCountries.map(c => [c, 0]));
-                            (data.newLinks || []).forEach((l: any) => {
-                              if (l.countryMatched) freshCounts[l.countryMatched] = (freshCounts[l.countryMatched] || 0) + 1;
-                            });
-                            setScoutResults(prev => ({ ...prev, ...freshCounts }));
-                            setAutoProcessStatus(count > 0
-                              ? `Намерени ${count} нови екскурзии! Натисни "Стартирай сканиране" за да ги обработиш.`
-                              : 'Няма нови екскурзии за избраните държави.');
-                            setTimeout(() => setAutoProcessStatus(''), 8000);
-                          } catch {
-                            setAutoProcessStatus('Грешка при проверката.');
-                            setTimeout(() => setAutoProcessStatus(''), 3000);
-                          }
-                          setIsAutoProcessing(false);
-                        }}
+                        onClick={() => checkForNewTours(automationCountries)}
                         disabled={isAutoProcessing || automationCountries.length === 0}
                         className="bg-white/10 border border-brand-gold/40 text-brand-gold px-6 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-brand-gold/20 transition-all disabled:opacity-40"
                       >
                         Провери за нови
                       </button>
                       <button
-                        onClick={runTourAutomation}
+                        onClick={() => runTourAutomation()}
                         disabled={isAutoProcessing || automationCountries.length === 0}
                         className="bg-brand-gold text-brand-dark px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
                       >

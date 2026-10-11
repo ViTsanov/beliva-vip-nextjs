@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { COMPANY_INFO } from "@/lib/companyInfo";
 
 export const metadata: Metadata = {
-  title: "Политика за поверителност | Beliva VIP Tour",
+  title: "Политика за поверителност",
+  alternates: { canonical: "https://belivavip.bg/privacy" },
   description: "Научете как Beliva VIP Tour събира, съхранява и защитава вашите лични данни съгласно изискванията на GDPR.",
 };
 

@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import TourClient from "@/components/TourClient";
 import TourSchema from "@/components/TourSchema";
-import { getTourBySlug } from "@/services/tourService";
+import { getTourBySlug, getActiveTours } from "@/services/tourService";
+import { notFound, permanentRedirect } from "next/navigation";
+import { slugify } from "@/lib/admin-helpers";
+import type { ITour } from "@/types";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, limit } from "firebase/firestore";
 import { isOperatorHotlink } from "@/lib/operatorImageDomains";
@@ -123,7 +126,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const tour = await getTourBySlug(resolvedParams.id); // ВЕЧЕ Е САМО 1 РЕД!
 
-  if (!tour) return { title: 'Турът не е намерен | Beliva VIP Tour' };
+  // Липсващ тур → страницата връща истински 404 (вж. TourPage). Без "| Beliva VIP Tour" тук — шаблонът в layout.tsx
+  // вече го добавя (иначе заглавието ставаше „… | Beliva VIP Tour | Beliva VIP Tour“).
+  if (!tour) return { title: 'Турът не е намерен', robots: { index: false, follow: true } };
 
   // Build the best possible absolute image URL
   const ogImageUrl = getRawImageUrl(tour);
@@ -136,6 +141,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${tour.title} | Екскурзия до ${Array.isArray(tour.country) ? tour.country.join(', ') : tour.country}`,
     description,
     alternates: { canonical: canonicalUrl },
+    // Архивирани / чакащи / чернови турове остават достъпни по линк (напр. за клиенти), но не трябва да се показват
+    // в Google — с минали дати или непубликувано съдържание само биха влошили качеството на сайта в очите на търсачката.
+    ...(tour.status !== 'public' && { robots: { index: false, follow: true } }),
     openGraph: {
       type: 'website',
       url: canonicalUrl,
@@ -184,19 +192,55 @@ async function getTourReviews(tourId: string) {
   }
 }
 
+const countriesOf = (tour: ITour): string[] =>
+  Array.isArray(tour.country)
+    ? tour.country.filter(Boolean)
+    : typeof tour.country === 'string'
+      ? tour.country.split(',').map((c) => c.trim()).filter(Boolean)
+      : [];
+
+// „Вижте още“: първо турове от същата държава, после от същия континент, после най-близките по дата.
+// Изчислява се на сървъра, за да са линковете в HTML-а — иначе Google вижда страницата на тура като задънена улица.
+function pickSimilarTours(current: ITour, all: ITour[], max = 3) {
+  const isSelf = (t: ITour) => t.id === current.id || (!!t.tourId && t.tourId === current.tourId);
+  const currentCountries = new Set(countriesOf(current));
+  const others = all.filter((t) => !isSelf(t)).sort((a, b) => String(a.date || '9999').localeCompare(String(b.date || '9999')));
+  const sameCountry = others.filter((t) => countriesOf(t).some((c) => currentCountries.has(c)));
+  const sameContinent = current.continent ? others.filter((t) => t.continent === current.continent) : [];
+  const picked: ITour[] = [];
+  for (const t of [...sameCountry, ...sameContinent, ...others]) {
+    if (picked.length >= max) break;
+    if (!picked.some((p) => p.id === t.id)) picked.push(t);
+  }
+  // Само полетата, които картата показва — по-малко данни в HTML-а
+  return picked.map((t) => ({
+    id: t.id, tourId: t.tourId, slug: t.slug, title: t.title, img: t.img,
+    country: t.country, price: t.price, date: t.date, continent: t.continent,
+  })) as ITour[];
+}
+
 // 2. ОСНОВНА СТРАНИЦА
 export default async function TourPage({ params }: Props) {
   const resolvedParams = await params;
   const tour = await getTourBySlug(resolvedParams.id); // ОТНОВО САМО 1 РЕД!
-  
+  const activeTours = await getActiveTours();
+
   if (!tour) {
-    return (
-        <div className="min-h-screen flex items-center justify-center pt-20">
-             <h1 className="text-2xl font-serif text-brand-dark">Екскурзията не е намерена.</h1>
-        </div>
-    );
+    // Изтрит тур. Преди тук се връщаше страница „Екскурзията не е намерена“ със статус 200 — Google я брои за
+    // „soft 404“ и дори индексира няколко такива празни страници. Сега:
+    //  - ако ID-то започва с държава, за която още имаме турове (напр. „kitay-03-2026-1“ → Китай), пренасочваме
+    //    постоянно (308) към страницата на дестинацията — посетителят от стар линк вижда актуалните оферти;
+    //  - иначе — истински 404.
+    const id = decodeURIComponent(resolvedParams.id).toLowerCase();
+    const activeSlugs = Array.from(new Set(activeTours.flatMap((t) => countriesOf(t).map((c) => slugify(c)))))
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length);
+    const destinationSlug = activeSlugs.find((slug) => id === slug || id.startsWith(`${slug}-`));
+    if (destinationSlug) permanentRedirect(`/destinations/${destinationSlug}`);
+    notFound();
   }
 
+  const similarTours = pickSimilarTours(tour, activeTours);
   const relatedPosts = tour.country ? await getRelatedPosts(tour.country, tour.continent) : [];
   const tourReviews = await getTourReviews(tour.id);
   const tourForSchema = { ...tour, img: getRawImageUrl(tour) };
@@ -204,7 +248,7 @@ export default async function TourPage({ params }: Props) {
   return (
     <>
       <TourSchema tour={tourForSchema} reviews={tourReviews} />
-      <TourClient tourData={tour} relatedPostsData={relatedPosts} id={resolvedParams.id} />
+      <TourClient tourData={tour} relatedPostsData={relatedPosts} id={resolvedParams.id} similarToursData={similarTours} />
     </>
   );
 }
