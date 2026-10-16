@@ -76,7 +76,7 @@ export default async function DestinationsSection({ tours, adminCountries = [] }
   if (destinations.length === 0) return null;
 
   return (
-    <section aria-labelledby="dest-heading" className="bg-[#f7f0e4] py-20">
+    <section aria-labelledby="dest-heading" className="bg-white py-20">
       <div className="container mx-auto px-6">
         <div className="mb-9 flex flex-wrap items-end justify-between gap-4">
           <div>

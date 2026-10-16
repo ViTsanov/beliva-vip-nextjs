@@ -133,6 +133,7 @@ export default function CookieConsent() {
             exit={{ opacity: 0, scale: 0.7 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             onClick={openSettings}
+            data-floating-button
             aria-label="Настройки за бисквитки"
             className={`fixed z-[999] bg-white p-3 rounded-full shadow-lg border border-gray-100 text-brand-dark hover:text-brand-gold hover:scale-110 active:scale-95 transition-all group left-4
               ${isTourPage ? 'bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:bottom-[calc(1rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(1rem+env(safe-area-inset-bottom))]'}`}

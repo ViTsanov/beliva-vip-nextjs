@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import Reveal from '@/components/ui/Reveal';
 import { ArrowRight, MapPin } from 'lucide-react';
 
 // Страничните снимки — 8 тотал, по 2 в колона
@@ -22,8 +22,6 @@ const SIDE_PHOTOS = [
   { src: '/guides/poly-7.jpg', pos: 'center 58%', alt: 'Поли на Великата китайска стена' },
 ];
 
-// translateY стагеринг на всяка от 4-те колони (2 снимки в колона)
-const STAGGER = [-65, 50, -30, 75];
 
 export default function MeetGuides() {
   return (
@@ -79,13 +77,11 @@ export default function MeetGuides() {
         }}
       >
         {/* Лява колона 1 — 2 снимки, изместена нагоре */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0 }}
+        <Reveal
+          y={20}
+          duration={0.6}
+          delay={0}
           className="flex flex-col gap-3"
-          style={{ transform: `translateY(${STAGGER[0]}px)` }}
         >
           {[SIDE_PHOTOS[0], SIDE_PHOTOS[1]].map((p, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden shadow-md flex-1">
@@ -94,16 +90,14 @@ export default function MeetGuides() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
             </div>
           ))}
-        </motion.div>
+        </Reveal>
 
         {/* Лява колона 2 — 2 снимки, изместена надолу */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.06 }}
+        <Reveal
+          y={20}
+          duration={0.6}
+          delay={0.06}
           className="flex flex-col gap-3"
-          style={{ transform: `translateY(${STAGGER[1]}px)` }}
         >
           {[SIDE_PHOTOS[2], SIDE_PHOTOS[3]].map((p, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden shadow-md flex-1">
@@ -112,26 +106,23 @@ export default function MeetGuides() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
             </div>
           ))}
-        </motion.div>
+        </Reveal>
 
         {/* Централна карта */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.65, delay: 0.04 }}
+        <Reveal
+          y={24}
+          duration={0.65}
+          delay={0.04}
         >
           <PoliCard />
-        </motion.div>
+        </Reveal>
 
         {/* Дясна колона 3 — 2 снимки, леко нагоре */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.06 }}
+        <Reveal
+          y={20}
+          duration={0.6}
+          delay={0.06}
           className="flex flex-col gap-3"
-          style={{ transform: `translateY(${STAGGER[2]}px)` }}
         >
           {[SIDE_PHOTOS[4], SIDE_PHOTOS[5]].map((p, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden shadow-md flex-1">
@@ -140,16 +131,14 @@ export default function MeetGuides() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
             </div>
           ))}
-        </motion.div>
+        </Reveal>
 
         {/* Дясна колона 4 — 2 снимки, най-надолу */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0 }}
+        <Reveal
+          y={20}
+          duration={0.6}
+          delay={0}
           className="flex flex-col gap-3"
-          style={{ transform: `translateY(${STAGGER[3]}px)` }}
         >
           {[SIDE_PHOTOS[6], SIDE_PHOTOS[7]].map((p, i) => (
             <div key={i} className="relative rounded-2xl overflow-hidden shadow-md flex-1">
@@ -158,7 +147,7 @@ export default function MeetGuides() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
             </div>
           ))}
-        </motion.div>
+        </Reveal>
       </div>
 
       {/* ─── МОБИЛЕН: само централна карта ─── */}

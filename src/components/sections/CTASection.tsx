@@ -6,21 +6,10 @@ export default function CTASection() {
   return (
     <section
       aria-labelledby="cta-heading"
-      className="relative overflow-hidden py-24 px-6 text-center"
-      style={{
-        background: 'linear-gradient(135deg, #b8920e 0%, #d4af37 40%, #c9a227 70%, #a37c0a 100%)',
-      }}
+      // Светлият тон от тъмносиньото (brand-mist) — отговаря на секцията с Поли под героса.
+      // Златото остава само акцент (текстът на бутона), не цял фон.
+      className="relative overflow-hidden bg-brand-mist py-24 px-6 text-center"
     >
-      {/* Нежен светъл рефлекс в центъра */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 65% 140% at 50% -5%, rgba(255,255,255,.18) 0%, transparent 65%)',
-        }}
-      />
-
       <div className="relative mx-auto max-w-2xl">
         <p className="mb-3 text-[9px] font-black uppercase tracking-[.3em] text-brand-dark/50">
           Готови ли сте?

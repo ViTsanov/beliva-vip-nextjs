@@ -50,5 +50,5 @@ export function LazyTestimonials() {
     return () => io.disconnect();
   }, []);
   if (visible) return <Testimonials />;
-  return <div ref={holderRef} className="min-h-[560px] w-full bg-gray-50" aria-hidden="true" />;
+  return <div ref={holderRef} className="min-h-[560px] w-full bg-white" aria-hidden="true" />;
 }

@@ -7,6 +7,7 @@ import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
 import { WORLD_COUNTRIES } from '@/lib/constants';
 import CountryMultiSelect from '@/components/admin/CountryMultiSelect';
+import HeroFocalPicker from '@/components/admin/HeroFocalPicker';
 
 
 // ПОМОЩЕН КОМПОНЕНТ ЗА СПИСЪЦИ (Тагове)
@@ -224,12 +225,13 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
 };
 
   const handleMediaSelect = (url: string) => {
-      if (mediaField === 'img') setForm({...form, img: url});
+      // Нова главна снимка — старата точка на фокус не важи за нея
+      if (mediaField === 'img') setForm({...form, img: url, imgPosition: ''});
       else setGalleryWithCaptions(prev => [...prev, { url, caption: '' }]);
       setShowMedia(false);
   };
 
-  const removeMainImage = () => setForm({...form, img: ''});
+  const removeMainImage = () => setForm({...form, img: '', imgPosition: ''});
   const removeGalleryImage = (indexToRemove: number) => {
       setGalleryWithCaptions(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
@@ -553,7 +555,12 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                  <div className="space-y-4">
                     <label className={labelStyle}>Главна снимка (Preview) *</label>
                     {form.img ? (
-                        <div className="relative group"><img src={form.img} className="h-48 w-full object-cover rounded-3xl shadow-md border" /><button type="button" onClick={removeMainImage} className="absolute top-4 right-4 bg-white/90 text-red-500 p-2 rounded-full shadow-xl hover:bg-red-500 hover:text-white transition-all"><X size={20}/></button></div>
+                        <HeroFocalPicker
+                          src={form.img}
+                          position={form.imgPosition}
+                          onChange={imgPosition => setForm((prev: any) => ({ ...prev, imgPosition }))}
+                          onRemove={removeMainImage}
+                        />
                     ) : (
                         <button type="button" onClick={() => {setMediaField('img'); setShowMedia(true)}} className="w-full py-12 border-2 border-dashed border-gray-200 rounded-3xl text-gray-400 font-bold hover:border-brand-gold hover:text-brand-gold transition-all">+ Избери снимка</button>
                     )}

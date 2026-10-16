@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       egn: t.egn ? decryptField(t.egn) : '',
       passportNumber: t.passportNumber ? decryptField(t.passportNumber) : '',
       passportValidity: t.passportValidity || '',
+      passportPhoto: t.passportPhoto || '',
     }));
 
     return NextResponse.json({ success: true, travelers: decrypted });

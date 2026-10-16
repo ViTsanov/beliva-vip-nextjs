@@ -16,7 +16,8 @@ import TourHero from './tour/TourHero';
 import TourTabs from './tour/TourTabs';
 import TourSidebar from './tour/TourSidebar';
 import SimilarTours from './tour/SimilarTours';
-import InquiryModal from './tour/InquiryModal'; 
+import InquiryDialog from './inquiry/InquiryDialog';
+import { splitListText } from '@/lib/listItems';
 import { formatPrice } from '@/lib/formatPrice';
 
 interface TourClientProps {
@@ -39,7 +40,8 @@ export default function TourClient({ tourData, relatedPostsData, id, similarTour
   useBackToClose(showDocuments, () => setShowDocuments(false));
 
   // Докато е отворен някой от модалите („Какво включва“, „Необходими документи“, „Запитване“), страницата отзад не се скролва
-  useScrollLock(showInclusions || showDocuments || showInquiryModal);
+  // Запитването (InquiryDialog) само заключва скрола — тук не го повтаряме, за да не се застъпят двете заключвания.
+  useScrollLock(showInclusions || showDocuments);
 
   // Show sticky bar after user scrolls past hero (~300px)
   useEffect(() => {
@@ -82,11 +84,8 @@ export default function TourClient({ tourData, relatedPostsData, id, similarTour
     }
   }, [tourData, id]);
 
-  const getListItems = (data?: string | string[]): string[] => {
-    if (!data) return [];
-    if (Array.isArray(data)) return data;
-    return data.split('\n').filter(item => item.trim() !== '');
-  };
+  // Отделни точки за „Включва / Не включва“ — общото правило за делене е в src/lib/listItems.ts.
+  const getListItems = (data?: string | string[]): string[] => splitListText(data);
 
   const toggleFavorite = () => {
     const stored = localStorage.getItem('beliva_favorites');
@@ -183,7 +182,8 @@ export default function TourClient({ tourData, relatedPostsData, id, similarTour
       <TopDestinations />
       
       <ImageModal isOpen={selectedImageIndex !== null} image={selectedImageIndex !== null ? galleryImages[selectedImageIndex] : ''} caption={selectedImageIndex !== null ? (gallery[selectedImageIndex]?.caption || '') : ''} currentIndex={selectedImageIndex ?? 0} totalCount={galleryImages.length} onClose={() => setSelectedImageIndex(null)} onNext={() => setSelectedImageIndex(prev => prev !== null && prev < galleryImages.length - 1 ? prev + 1 : prev)} onPrev={() => setSelectedImageIndex(prev => prev !== null && prev > 0 ? prev - 1 : prev)} hasNext={selectedImageIndex !== null && selectedImageIndex < galleryImages.length - 1} hasPrev={selectedImageIndex !== null && selectedImageIndex > 0} />
-      <InquiryModal isOpen={showInquiryModal} onClose={() => setShowInquiryModal(false)} tourId={tourData.id} tourTitle={tourData.title} tourPrice={tourData.price} tourDates={tourData.dates} />
+      {/* Същата форма като в менюто и на „Контакти“ (имейлът е задължителен, две стъпки), с този тур избран */}
+      <InquiryDialog open={showInquiryModal} onClose={() => setShowInquiryModal(false)} defaultTourSlug={tourData.id} source="tour_page" />
 
       {/* 2. Inclusion Modal */}
       <AnimatePresence>

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   if (authError) return authError;
 
   try {
-    const { customerId, latinName, egn, passportNumber, passportValidity } = await request.json();
+    const { customerId, latinName, egn, passportNumber, passportValidity, passportPhoto } = await request.json();
     if (!customerId || typeof customerId !== 'string') {
       return NextResponse.json({ error: 'Липсва customerId' }, { status: 400 });
     }
@@ -23,6 +23,8 @@ export async function POST(request: Request) {
       egn: egn ? encryptField(egn.trim()) : '',
       passportNumber: passportNumber ? encryptField(passportNumber.trim()) : '',
       passportValidity: (passportValidity || '').trim(),
+      // Път до криптираната снимка (идва от резервацията) — приемаме само нашата папка в Storage.
+      ...(typeof passportPhoto === 'string' && /^passport-scans\/[A-Za-z0-9_-]+\/[A-Za-z0-9-]+\.enc$/.test(passportPhoto) ? { passportPhoto } : {}),
     });
 
     return NextResponse.json({ success: true });

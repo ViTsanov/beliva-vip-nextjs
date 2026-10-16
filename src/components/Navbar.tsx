@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, X, User, Heart, LayoutGrid } from 'lucide-react';
+import { Menu, X, User, Heart, LayoutGrid, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import NavbarSearch from './NavbarSearch';
+import InquiryDialog from './inquiry/InquiryDialog';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,6 +21,20 @@ export default function Navbar() {
   const prefersReducedMotion = useReducedMotion();
   const menuRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Прозорецът „Запитване“. На страница на тур (/tour/…) турът се избира автоматично във формата.
+  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const inquiryTriggerRef = useRef<HTMLButtonElement>(null);
+  const tourSlug = pathname?.startsWith('/tour/') ? decodeURIComponent(pathname.split('/')[2] || '') : undefined;
+  const openInquiry = () => {
+    setIsOpen(false);
+    setInquiryOpen(true);
+  };
+  const closeInquiry = () => {
+    setInquiryOpen(false);
+    // Фокусът се връща на бутона, който го отвори (на десктоп), за да не се губи мястото при клавиатура.
+    requestAnimationFrame(() => inquiryTriggerRef.current?.focus());
+  };
 
   useEffect(() => {
     let ticking = false;
@@ -182,6 +197,23 @@ export default function Navbar() {
 
             <NavbarSearch isScrolled={scrolled || !isHome} />
 
+            {/* „Запитване“ — второстепенен бутон с контур (бял върху героса, тъмносин върху бялото меню).
+                Златният, плътен вид остава само за главното действие на страницата („Разгледай екскурзиите“ в героса). */}
+            <button
+              ref={inquiryTriggerRef}
+              type="button"
+              onClick={openInquiry}
+              aria-haspopup="dialog"
+              className={`inline-flex h-10 items-center gap-2 rounded-full border px-5 text-[13px] font-semibold normal-case tracking-normal transition-[background-color,color,border-color,transform] duration-150 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                scrolled || !isHome
+                  ? 'border-brand-dark/30 text-brand-dark hover:border-brand-dark hover:bg-brand-dark hover:text-white focus-visible:outline-brand-dark'
+                  : 'border-white/70 text-white hover:border-white hover:bg-white hover:text-brand-dark focus-visible:outline-white'
+              }`}
+            >
+              <MessageSquare size={16} aria-hidden="true" />
+              Запитване
+            </button>
+
             {user ? (
               <Link
                 href="/admin-beliva-2025"
@@ -258,6 +290,15 @@ export default function Navbar() {
             </div>
 
             <div className="flex flex-col items-center justify-center flex-grow gap-8 p-6 overflow-y-auto">
+              <button
+                type="button"
+                onClick={openInquiry}
+                aria-haspopup="dialog"
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-brand-dark px-7 text-[16px] font-semibold text-white transition-colors hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark"
+              >
+                <MessageSquare size={18} aria-hidden="true" />
+                Изпрати запитване
+              </button>
               <Link href="/" onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined} className="text-2xl font-bold text-brand-dark hover:text-brand-gold transition-colors">Начало</Link>
               <Link href="/about-us" onClick={() => setIsOpen(false)} aria-current={pathname === '/about-us' ? 'page' : undefined} className="text-2xl font-bold text-brand-dark hover:text-brand-gold transition-colors">За нас</Link>
               <Link href="/blog" onClick={() => setIsOpen(false)} aria-current={pathname === '/blog' ? 'page' : undefined} className="text-2xl font-bold text-brand-dark hover:text-brand-gold transition-colors">Блог</Link>
@@ -287,6 +328,8 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <InquiryDialog open={inquiryOpen} onClose={closeInquiry} defaultTourSlug={tourSlug} />
     </>
   );
 }

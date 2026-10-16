@@ -34,7 +34,7 @@ export default function Badge({
 
     return (
       <span 
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border-none shadow-[0_4px_15px_rgba(0,0,0,0.3)] backdrop-blur-md ${promoEffectClass} ${className}`}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border-none shadow-[0_4px_15px_rgba(0,0,0,0.3)] ${promoEffectClass} ${className}`}
         style={{ 
           backgroundColor: customBgColor || '#dc2626', 
           color: customTextColor || '#ffffff' 

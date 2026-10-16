@@ -6,10 +6,10 @@ import { collection, query, orderBy, getDocs, getDoc, updateDoc, doc, deleteDoc,
 import emailjs from '@emailjs/browser';
 import {
   Search, Trash2, Calendar, Phone, Mail, Edit, X, FileText, CheckCircle, AlertTriangle,
-  DollarSign, Tag, Link2, Users, Send, Copy, Clock, MessageSquare, Percent, Building2
+  DollarSign, Tag, Link2, Users, Send, Copy, Clock, MessageSquare, Percent, Building2, RefreshCw
 } from 'lucide-react';
 
-// Същите EmailJS данни, ползвани навсякъде другаде в проекта (ContactClient.tsx, InquiryModal.tsx).
+// Същите EmailJS данни, ползвани навсякъде другаде в проекта (src/lib/sendInquiry.ts).
 // CLIENT_TEMPLATE_ID е НОВ, отделен template — трябва да го създадеш в EmailJS с полето „To Email“
 // настроено на {{to_email}} (не фиксиран адрес), за да може да изпраща КЪМ произволен клиент, не само
 // към твоя собствен имейл. Виж инструкциите след кода.
@@ -36,7 +36,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
   const [subTab, setSubTab] = useState<'inquiry' | 'reservations'>('inquiry');
 
   const [editingInq, setEditingInq] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ tourId: '', tourTitle: '', tourDate: '', notes: '' });
+  const [editForm, setEditForm] = useState({ tourId: '', tourTitle: '', tourDate: '', notes: '', clientEmail: '' });
   const [paymentModalData, setPaymentModalData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [viewingTravelers, setViewingTravelers] = useState<{ inquiry: any; travelers: any[] | null } | null>(null);
@@ -106,6 +106,43 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
     return parseFloat(cleaned) || 0;
   };
 
+  // Собствените бележки на агента към запитването. Старите записи може да съдържат копие на съобщението на
+  // клиента (грешка в предишния формуляр за редакция) — такова копие не е бележка и го третираме като празно.
+  const getOwnNotes = (inq: any): string => {
+    const notes = (inq?.notes || '').trim();
+    if (!notes) return '';
+    return notes === (inq?.message || '').trim() ? '' : notes;
+  };
+
+  // Активните промоции на агенцията (Промоции → кампании, чийто период в момента тече).
+  const getActivePromotions = (tour: any) => {
+    const now = Date.now();
+    const options: { id: string; name: string; percent: number; includedInTour: boolean }[] = allCampaigns
+      .filter(c => {
+        const start = new Date(c.startDate).getTime();
+        const end = new Date(c.endDate).getTime();
+        return !isNaN(start) && !isNaN(end) && now >= start && now <= end;
+      })
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        percent: Number(c.discountPercent) || 0,
+        // Ако турът е вързан към същата кампания, промо цената вече е в каталожната цена — не я броим втори път.
+        includedInTour: !!tour?.campaignId && c.id === tour.campaignId,
+      }));
+    // Тур с промо етикет без кампания в списъка — запазваме старото поведение (етикетът се записва като промоция).
+    if (tour?.promoLabel && !options.some(o => o.includedInTour)) {
+      options.push({ id: 'tour-promo', name: tour.promoLabel, percent: 0, includedInTour: true });
+    }
+    return options;
+  };
+
+  // Крайна цена = каталожна цена минус % от промоцията, минус личната отстъпка на клиента (ако има).
+  const calcPaidPrice = (base: number, promoPercent: number, personalPercent: number) => {
+    if (!base) return 0;
+    return Math.round(base * (1 - (promoPercent || 0) / 100) * (1 - (personalPercent || 0) / 100));
+  };
+
   // Сравнява две запитвания/клиенти по email ИЛИ телефон (не изисква и двете).
   const sameContact = (email1?: string, phone1?: string, email2?: string, phone2?: string) => {
     if (email1 && email2 && email1.toLowerCase() === email2.toLowerCase()) return true;
@@ -138,6 +175,11 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
 
   const handleStatusChangeClick = async (inq: any, newStatus: string) => {
     if (newStatus === 'paid') {
+      // „Платено“ (и създаването на клиент) става само от подтаб „Резервации“ — след като клиентът е попълнил данните си.
+      if (!inq.checkoutCompletedAt) {
+        alert('„Платено“ се отбелязва от подтаб „Резервации“, след като клиентът попълни данните си.');
+        return;
+      }
       try {
         const customersRef = collection(db, "customers");
         let existingCustomer: any = null;
@@ -160,31 +202,28 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
           }
         }
 
-        let campaignName = "";
-        const { tour, regularPrice, finalPrice, hasDiscount, discountPercentage } = getDiscountInfo(inq);
-        if (tour?.campaignId) {
-          const campaign = allCampaigns.find(c => c.id === tour.campaignId);
-          campaignName = campaign ? campaign.name : "Промоционална кампания";
-        } else if (tour?.promoLabel) {
-          campaignName = tour.promoLabel;
-        }
-        // Ако клиентът има лична отстъпка, я отразяваме автоматично в името на промоцията, за да е ясно
-        // на пръв поглед защо крайната цена е такава, каквато е.
-        if (hasDiscount) {
-          campaignName = campaignName
-            ? `${campaignName} + лична отстъпка ${discountPercentage}%`
-            : `Лична отстъпка ${discountPercentage}%`;
-        }
+        const { tour, regularPrice, discountPercentage } = getDiscountInfo(inq);
+        const promoOptions = getActivePromotions(tour);
+        // Ако турът има собствена промоция (вече в цената му), тя е избрана по подразбиране; иначе — без промоция.
+        const preselected = promoOptions.find(o => o.includedInTour);
+        const promoId = preselected?.id || '';
+        const promoPercent = 0; // промоцията на тура вече е в каталожната цена
 
         setPaymentModalData({
           inquiry: inq,
           existingCustomer,
           existingCustomerId,
           tour,
-          paidPrice: finalPrice, // Автоматично отразява и промо, и лична отстъпка
+          promoOptions,
+          promoId,
+          promoPercent,
+          personalPercent: discountPercentage,
+          paidPrice: calcPaidPrice(regularPrice, promoPercent, discountPercentage),
           basePrice: regularPrice,
-          promoName: campaignName,
-          notes: inq.notes || ''
+          // И двете цени на тура — редовната и промо цената (ако турът има такава), за да се виждат едновременно.
+          listPrice: parsePrice(tour?.price),
+          tourPromoPrice: parsePrice(tour?.discountPrice),
+          notes: getOwnNotes(inq)
         });
       } catch (error) {
         console.error("Грешка:", error);
@@ -201,7 +240,20 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
     if (!paymentModalData) return;
     setIsSaving(true);
     try {
-      const { inquiry, existingCustomer, existingCustomerId, tour, paidPrice, basePrice, promoName, notes } = paymentModalData;
+      const { inquiry, existingCustomer, existingCustomerId, tour, paidPrice, basePrice, promoOptions, promoId, promoPercent, personalPercent } = paymentModalData;
+      const notes = (paymentModalData.notes || '').trim();
+
+      // Име на промоцията за профила на клиента: избраната кампания (+ % ако е добавена отстъпка) и/или лична отстъпка.
+      const selectedPromo = (promoOptions || []).find((o: any) => o.id === promoId);
+      let promoName = selectedPromo ? selectedPromo.name : '';
+      if (selectedPromo && !selectedPromo.includedInTour && Number(promoPercent) > 0) promoName += ` (−${Number(promoPercent)}%)`;
+      if (Number(personalPercent) > 0) {
+        promoName = promoName ? `${promoName} + лична отстъпка ${personalPercent}%` : `Лична отстъпка ${personalPercent}%`;
+      }
+
+      // Бележката отива в профила на клиента заедно с пътуването, за което е била.
+      const tripLabel = `${inquiry.tourTitle || 'Екскурзия'}${inquiry.tourDate && inquiry.tourDate !== 'Не е потвърдена' ? ` (${inquiry.tourDate})` : ''}`;
+      const noteEntry = notes ? `${tripLabel}: ${notes}` : '';
 
       // Свежо четене на запитването, ПРЕДИ да построим tripData — ReservationsTab зарежда запитванията
       // само веднъж при отваряне (не следи Firestore в реално време), затова локалното копие може вече
@@ -216,9 +268,6 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
         console.error("Грешка при свежото четене (продължаваме с локалното копие):", e);
       }
 
-      await updateDoc(doc(db, "inquiries", inquiry.id), { status: 'paid' });
-      setInquiries(prev => prev.map(item => item.id === inquiry.id ? { ...item, status: 'paid' } : item));
-
       const tripData = {
         tourId: inquiry.tourId || "",
         tourSlug: tour?.slug || inquiry.tourId || "",
@@ -228,6 +277,9 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
         paidPrice: Number(paidPrice),
         basePrice: Number(basePrice),
         promoName: promoName,
+        promoId: promoId || '',
+        promoPercent: Number(promoPercent) || 0,
+        notes,
         addedAt: new Date().toISOString(),
         feedbackStatus: 'pending',
         travelers: freshTravelers
@@ -236,18 +288,33 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       const customersRef = collection(db, "customers");
       let finalCustomerId = existingCustomerId;
 
+      // Паспортните данни на първия пътник (обикновено самият клиент) отиват и в профила — вече криптирани,
+      // точно във формата, в който ги пази и „Данни по паспорт“ в картона. Само ако профилът още няма такива.
+      const mainTraveler = Array.isArray(freshTravelers) && freshTravelers.length > 0 ? freshTravelers[0] : null;
+      const passportFields = mainTraveler ? {
+        latinName: mainTraveler.latinName || '',
+        egn: mainTraveler.egn || '',
+        passportNumber: mainTraveler.passportNumber || '',
+        passportValidity: mainTraveler.passportValidity || '',
+        passportPhoto: mainTraveler.passportPhoto || '',
+      } : {};
+
       if (existingCustomer) {
         const updatedHistory = [...(existingCustomer.tripHistory || []), tripData];
         const newCount = updatedHistory.length;
-        const updatedNotes = notes
-          ? (existingCustomer.notes ? existingCustomer.notes + '\n---\n' + notes : existingCustomer.notes)
-          : existingCustomer.notes;
+        // Новата бележка се долепя към старите (преди това се губеше, ако клиентът още нямаше бележки).
+        const updatedNotes = noteEntry
+          ? (existingCustomer.notes ? existingCustomer.notes + '\n---\n' + noteEntry : noteEntry)
+          : (existingCustomer.notes || '');
 
         await updateDoc(doc(db, "customers", existingCustomerId as string), {
           tripHistory: updatedHistory,
           totalTrips: newCount,
           tripsCount: newCount,
           notes: updatedNotes,
+          // Имейл, въведен в запитването, се добавя към профила, ако клиентът още няма такъв.
+          ...(!existingCustomer.email && inquiry.clientEmail ? { email: inquiry.clientEmail } : {}),
+          ...(!existingCustomer.egn && !existingCustomer.passportNumber ? passportFields : {}),
           updatedAt: serverTimestamp()
         });
       } else {
@@ -263,44 +330,68 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
           tripHistory: [tripData],
           vipDiscount: 0,
           discountFlag: false,
-          notes: notes || '',
+          notes: noteEntry,
+          ...passportFields,
           createdAt: serverTimestamp()
         });
         finalCustomerId = newCustomerRef.id;
       }
 
-      const groupsRef = collection(db, "groups");
-      const qGroup = query(groupsRef, where("tourId", "==", inquiry.tourId), where("startDate", "==", inquiry.tourDate));
-      const groupSnap = await getDocs(qGroup);
+      // Групата за заминаването е допълнителна — ако нещо гръмне тук, клиентът вече е записан и не
+      // връщаме цялата операция назад; само предупреждаваме.
+      let groupWarning = '';
+      try {
+        if (inquiry.tourId && inquiry.tourDate) {
+          const groupsRef = collection(db, "groups");
+          const qGroup = query(groupsRef, where("tourId", "==", inquiry.tourId), where("startDate", "==", inquiry.tourDate));
+          const groupSnap = await getDocs(qGroup);
 
-      const touristInfo = {
-        customerId: finalCustomerId || "unknown",
-        name: inquiry.clientName,
-        paidPrice: Number(paidPrice),
-        addedAt: new Date().toISOString()
-      };
+          const touristInfo = {
+            customerId: finalCustomerId || "unknown",
+            name: inquiry.clientName || '',
+            paidPrice: Number(paidPrice),
+            addedAt: new Date().toISOString()
+          };
 
-      if (!groupSnap.empty) {
-        const groupDoc = groupSnap.docs[0];
-        await updateDoc(doc(db, "groups", groupDoc.id), {
-          tourists: [...(groupDoc.data().tourists || []), touristInfo]
-        });
-      } else {
-        await addDoc(groupsRef, {
-          tourId: inquiry.tourId,
-          tourTitle: inquiry.tourTitle,
-          startDate: inquiry.tourDate,
-          tourOperator: tour?.operator || "Неизвестен",
-          tourists: [touristInfo],
-          createdAt: serverTimestamp()
-        });
+          if (!groupSnap.empty) {
+            const groupDoc = groupSnap.docs[0];
+            await updateDoc(doc(db, "groups", groupDoc.id), {
+              tourists: [...(groupDoc.data().tourists || []), touristInfo]
+            });
+          } else {
+            await addDoc(groupsRef, {
+              tourId: inquiry.tourId,
+              tourTitle: inquiry.tourTitle || '',
+              startDate: inquiry.tourDate,
+              tourOperator: tour?.operator || "Неизвестен",
+              tourists: [touristInfo],
+              createdAt: serverTimestamp()
+            });
+          }
+        } else {
+          groupWarning = '\n\nВнимание: запитването няма избрана екскурзия/дата, затова не е добавено в група за заминаване.';
+        }
+      } catch (groupError) {
+        console.error('Грешка при добавяне в група:', groupError);
+        groupWarning = '\n\nВнимание: клиентът е записан, но не успях да го добавя в групата за заминаване.';
       }
 
+      // Статусът „Платено“ се записва ЧАК СЕГА — след като клиентският профил е записан. Преди това ставаше
+      // първо, така че при грешка по-нататък запитването оставаше „Платено“ без клиент и не можеше да се опита пак.
+      await updateDoc(doc(db, "inquiries", inquiry.id), { status: 'paid', notes });
+      setInquiries(prev => prev.map(item => item.id === inquiry.id ? { ...item, status: 'paid', notes } : item));
+
       setPaymentModalData(null);
-      alert("Резервацията е финализирана! Броячът на клиента е обновен.");
+      const customerName = existingCustomer ? (existingCustomer.name || `${existingCustomer.firstName || ''} ${existingCustomer.lastName || ''}`.trim() || 'клиента') : (inquiry.clientName || 'клиента');
+      alert(
+        (existingCustomer
+          ? `Пътуването е добавено към профила на ${customerName}.`
+          : `Създаден е нов клиент: ${customerName}. Виж го в таб „Клиенти“.`) + groupWarning
+      );
     } catch (e) {
       console.error(e);
-      alert("Грешка при запис.");
+      // Показваме реалната причина, за да се вижда какво точно не е наред (права, липсващо поле и т.н.).
+      alert(`Грешка при запис — резервацията НЕ е отбелязана като платена.\n\n${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setIsSaving(false);
     }
@@ -369,6 +460,43 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
     } catch (error) {
       console.error("Грешка при генериране на checkout линк:", error);
       alert("Грешка при генериране на линка. Проверете конзолата за детайли (най-често: EmailJS template не е конфигуриран).");
+    }
+  };
+
+  // Повторен линк за попълване, когато клиентът е сгрешил данните си. За разлика от handleGenerateCheckoutLink,
+  // НЕ нулира checkoutCompletedAt — резервацията си остава в „Резервации“ (с видим статус „Чака корекция“),
+  // а старите данни се пазят, докато клиентът не изпрати коригираните. Новият линк е валиден 14 дни.
+  const handleRequestCorrection = async (inq: any, method: 'email' | 'copy') => {
+    const token = crypto.randomUUID();
+    const expiryMs = Date.now() + 14 * 24 * 60 * 60 * 1000;
+    try {
+      await updateDoc(doc(db, "inquiries", inq.id), {
+        checkoutToken: token,
+        checkoutTokenExpiry: expiryMs,
+        checkoutReopened: true,
+      });
+      const updatedInq = { ...inq, checkoutToken: token, checkoutTokenExpiry: expiryMs, checkoutReopened: true };
+      setInquiries(prev => prev.map(item => item.id === inq.id ? updatedInq : item));
+
+      const link = `${window.location.origin}/checkout/${token}`;
+      if (method === 'copy') {
+        await navigator.clipboard.writeText(link);
+        alert(`Линкът за корекция е копиран!\n\n${link}\n\nВалиден е 14 дни. Изпратете го през Viber/WhatsApp. Резервацията остава в „Резервации“.`);
+        return;
+      }
+      if (!inq.clientEmail) {
+        alert('Този клиент няма въведен имейл. Добавете го от редакцията на запитването или изберете „Копирай линка“.');
+        return;
+      }
+      // Отваряме готовия имейл за преглед — админът може да допише какво точно да се поправи, преди да го изпрати.
+      setEmailModalData({
+        inquiry: updatedInq,
+        subject: 'Корекция на данните за вашата резервация',
+        body: `Здравейте ${inq.clientName || ''},\n\nПри проверка на данните за "${inq.tourTitle}" се оказа, че е нужно да ги попълните отново (например поради неточност или нечетлива снимка на паспорта).\n\nМоля, попълнете ги през този линк:\n${link}\n\nЛинкът е валиден 14 дни.\n\nБлагодарим Ви!\nBeliva VIP Tour`,
+      });
+    } catch (error) {
+      console.error('Грешка при линк за корекция:', error);
+      alert('Грешка при генериране на линка за корекция.');
     }
   };
 
@@ -542,16 +670,24 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       tourId: inq.tourId || '',
       tourTitle: inq.tourTitle || '',
       tourDate: inq.tourDate || 'Не е потвърдена',
-      notes: inq.notes || inq.message || ''
+      // Само собствените бележки — съобщението на клиента се показва отделно и не се копира тук.
+      notes: getOwnNotes(inq),
+      clientEmail: inq.clientEmail || ''
     });
   };
 
   const handleSaveEdit = async () => {
     if (!editingInq) return;
+    const clientEmail = editForm.clientEmail.trim();
+    if (clientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail)) {
+      alert('Въведеният имейл не изглежда валиден.');
+      return;
+    }
+    const payload = { ...editForm, clientEmail };
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, "inquiries", editingInq.id), editForm);
-      setInquiries(prev => prev.map(item => item.id === editingInq.id ? { ...item, ...editForm } : item));
+      await updateDoc(doc(db, "inquiries", editingInq.id), payload);
+      setInquiries(prev => prev.map(item => item.id === editingInq.id ? { ...item, ...payload } : item));
       setEditingInq(null);
     } catch (error) { console.error(error); } finally { setIsSaving(false); }
   };
@@ -675,6 +811,15 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                           ⚠️ {otherInquiries.length} друг{otherInquiries.length > 1 ? 'и' : 'о'} активн{otherInquiries.length > 1 ? 'и' : 'о'} запитван{otherInquiries.length > 1 ? 'ия' : 'е'}
                         </div>
                       )}
+                      {inq.checkoutReopened ? (
+                        <div className="mt-1 inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-lg">
+                          ⏳ Чака корекция от клиента
+                        </div>
+                      ) : inq.checkoutRevisions > 0 ? (
+                        <div className="mt-1 inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-1 rounded-lg">
+                          ✏️ Данните са коригирани от клиента
+                        </div>
+                      ) : null}
                       {inq.emailLog && inq.emailLog.length > 0 && (
                         <button
                           onClick={() => setViewingEmailLog(inq)}
@@ -712,9 +857,9 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                       )}
                     </td>
                     <td className="p-5">
-                      {inq.notes ? (
+                      {getOwnNotes(inq) ? (
                         <p className="text-xs text-gray-500 line-clamp-3 bg-yellow-50/50 p-3 rounded-xl border border-yellow-100 max-w-xs">
-                          {inq.notes}
+                          {getOwnNotes(inq)}
                         </p>
                       ) : (
                         <span className="text-xs text-gray-300 italic">Няма въведени бележки</span>
@@ -728,7 +873,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                       >
                         <option value="new">🆕 Ново</option>
                         <option value="processing">⚙️ В процес</option>
-                        <option value="paid">✅ Платено</option>
+                        {(subTab === 'reservations' || inq.status === 'paid') && <option value="paid">✅ Платено</option>}
                         <option value="cancelled">❌ Отказано</option>
                       </select>
                     </td>
@@ -759,6 +904,24 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                         >
                           <Send size={18} />
                         </button>
+                        {subTab === 'reservations' && inq.checkoutCompletedAt && inq.status !== 'cancelled' && (
+                          <>
+                            <button
+                              onClick={() => handleRequestCorrection(inq, 'email')}
+                              title="Поискай корекция на данните — нов линк по имейл (резервацията остава тук)"
+                              className="p-2.5 text-amber-500 hover:text-white hover:bg-amber-500 rounded-xl transition-all"
+                            >
+                              <RefreshCw size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleRequestCorrection(inq, 'copy')}
+                              title="Копирай линк за корекция на данните (за Viber/WhatsApp)"
+                              className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-500 rounded-xl transition-all"
+                            >
+                              <Copy size={18} />
+                            </button>
+                          </>
+                        )}
                         {inq.checkoutCompletedAt && (
                           <button
                             onClick={() => handleViewTravelers(inq)}
@@ -768,7 +931,8 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                             <Users size={18} />
                           </button>
                         )}
-                        {inq.tourId && inq.tourDate && inq.tourDate !== 'Не е потвърдена' && inq.status !== 'paid' && inq.status !== 'cancelled' && (
+                        {/* Линкът за данни е само за „Запитване“. В „Резервации“ клиентът вече е попълнил данните си, а нов линк ги нулира (checkoutCompletedAt) и връща резервацията обратно. */}
+                        {!inq.checkoutCompletedAt && inq.tourId && inq.tourDate && inq.tourDate !== 'Не е потвърдена' && inq.status !== 'paid' && inq.status !== 'cancelled' && (
                           <>
                             <button
                               onClick={() => handleGenerateCheckoutLink(inq, 'email')}
@@ -814,6 +978,17 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                 </div>
               )}
               <div>
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2 mb-2 block">Имейл на клиента</label>
+                <input
+                  type="email"
+                  value={editForm.clientEmail}
+                  onChange={e => setEditForm({...editForm, clientEmail: e.target.value})}
+                  placeholder="имейл (по избор)"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-brand-gold"
+                />
+                <p className="text-[11px] text-gray-400 mt-2 ml-2">Може да се смени, докато човекът още не е клиент. При „Платено“ имейлът отива в профила му.</p>
+              </div>
+              <div>
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2 mb-2 block">Екскурзия</label>
                 <select
                   value={editForm.tourId}
@@ -842,7 +1017,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                 )}
               </div>
               <div>
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2 mb-2 block">Бележки</label>
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2 mb-2 block">Бележки (отиват в профила на клиента, ако стане клиент)</label>
                 <textarea value={editForm.notes} onChange={e => setEditForm({...editForm, notes: e.target.value})} className="w-full h-32 p-4 bg-yellow-50/50 border border-yellow-100 rounded-2xl text-sm outline-none resize-none" placeholder="Интересува се от..." />
               </div>
               <button onClick={handleSaveEdit} disabled={isSaving} className="w-full bg-brand-dark text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-brand-gold transition-all shadow-xl">{isSaving ? 'Запазване...' : 'Запази промените'}</button>
@@ -886,9 +1061,24 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
               <div className="space-y-6 pt-2 border-t border-gray-100">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-2 block">Цена по каталог</label>
-                    <div className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-400 italic">
-                      {paymentModalData.basePrice > 0 ? `${paymentModalData.basePrice} €` : 'Не е зададена'}
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-2 block">Цена на тура</label>
+                    <div className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm space-y-1">
+                      {paymentModalData.tourPromoPrice > 0 && paymentModalData.listPrice > paymentModalData.tourPromoPrice ? (
+                        <>
+                          <p className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-black uppercase text-gray-400">Редовна</span>
+                            <span className="font-bold text-gray-400 line-through">{paymentModalData.listPrice} €</span>
+                          </p>
+                          <p className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-black uppercase text-red-500">Промо</span>
+                            <span className="font-black text-red-600">{paymentModalData.tourPromoPrice} €</span>
+                          </p>
+                        </>
+                      ) : (
+                        <p className="font-bold text-gray-500">
+                          {paymentModalData.basePrice > 0 ? `${paymentModalData.basePrice} €` : 'Не е зададена'}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -905,15 +1095,75 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-2 block items-center gap-1">
-                    <Tag size={12} /> Кампания / Промоция
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-2 flex items-center gap-1">
+                    <Tag size={12} /> Промоция
                   </label>
-                  <input
-                    type="text"
-                    value={paymentModalData.promoName}
-                    onChange={(e) => setPaymentModalData((prev: any) => ({...prev, promoName: e.target.value}))}
-                    placeholder="напр. Black Friday или Ранно записване"
+                  <select
+                    value={paymentModalData.promoId}
+                    onChange={(e) => {
+                      const opt = (paymentModalData.promoOptions || []).find((o: any) => o.id === e.target.value);
+                      const percent = opt && !opt.includedInTour ? opt.percent : 0;
+                      setPaymentModalData((prev: any) => ({
+                        ...prev,
+                        promoId: e.target.value,
+                        promoPercent: percent,
+                        paidPrice: prev.basePrice > 0 ? calcPaidPrice(prev.basePrice, percent, prev.personalPercent) : prev.paidPrice,
+                      }));
+                    }}
                     className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-brand-dark outline-none focus:bg-white focus:border-brand-gold"
+                  >
+                    <option value="">Без промоция</option>
+                    {(paymentModalData.promoOptions || []).map((o: any) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}{o.includedInTour ? ' (вече в цената на тура)' : o.percent > 0 ? ` (−${o.percent}%)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {(paymentModalData.promoOptions || []).length === 0 && (
+                    <p className="text-[11px] text-gray-400 mt-2 ml-2">В момента няма активни промоции. Добавят се от таб „Промоции“.</p>
+                  )}
+                  {(() => {
+                    const opt = (paymentModalData.promoOptions || []).find((o: any) => o.id === paymentModalData.promoId);
+                    if (!opt || opt.includedInTour) return null;
+                    return (
+                      <div className="mt-3 flex items-center gap-3">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Отстъпка %</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={paymentModalData.promoPercent}
+                          onChange={(e) => {
+                            const percent = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                            setPaymentModalData((prev: any) => ({
+                              ...prev,
+                              promoPercent: percent,
+                              paidPrice: prev.basePrice > 0 ? calcPaidPrice(prev.basePrice, percent, prev.personalPercent) : prev.paidPrice,
+                            }));
+                          }}
+                          className="w-24 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-black text-brand-dark outline-none focus:bg-white focus:border-brand-gold"
+                        />
+                        {paymentModalData.basePrice > 0 && Number(paymentModalData.promoPercent) > 0 && (
+                          <span className="text-xs text-emerald-600 font-bold">
+                            −{Math.round(paymentModalData.basePrice * Number(paymentModalData.promoPercent) / 100)} €
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {paymentModalData.personalPercent > 0 && (
+                    <p className="text-[11px] text-emerald-600 font-bold mt-2 ml-2">
+                      + лична отстъпка на клиента {paymentModalData.personalPercent}% (включена в сумата)
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-2 block">Бележка към профила на клиента</label>
+                  <textarea
+                    value={paymentModalData.notes}
+                    onChange={(e) => setPaymentModalData((prev: any) => ({...prev, notes: e.target.value}))}
+                    placeholder={`Ще се запише в профила заедно с пътуването „${paymentModalData.inquiry.tourTitle || 'Екскурзия'}“`}
+                    className="w-full h-24 p-4 bg-yellow-50/50 border border-yellow-100 rounded-2xl text-sm outline-none resize-none focus:bg-white focus:border-brand-gold"
                   />
                 </div>
               </div>
@@ -955,6 +1205,15 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                       <div><span className="text-gray-400 block">ЕГН</span><span className="font-mono font-bold text-brand-dark">{t.egn}</span></div>
                       <div><span className="text-gray-400 block">Паспорт</span><span className="font-mono font-bold text-brand-dark">{t.passportNumber}</span></div>
                       <div className="col-span-2"><span className="text-gray-400 block">Валидност на паспорта</span><span className="font-bold text-brand-dark">{t.passportValidity}</span></div>
+                      {t.passportPhoto && (
+                        <div className="col-span-2">
+                          <span className="text-gray-400 block mb-1">Снимка на паспорта</span>
+                          <a href={`/api/admin/passport-photo?path=${encodeURIComponent(t.passportPhoto)}`} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={`/api/admin/passport-photo?path=${encodeURIComponent(t.passportPhoto)}`} alt={`Паспорт на пътник ${idx + 1}`} className="h-32 w-auto rounded-xl border border-gray-200 object-cover" />
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))

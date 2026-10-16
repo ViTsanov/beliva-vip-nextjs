@@ -1,11 +1,30 @@
 "use client";
 
-import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { flushSync } from 'react-dom';
+import { animate, motion, useMotionValue, type MotionValue, type PanInfo } from 'framer-motion';
+import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
+const SOFIA = { lat: 42.6977, lon: 23.3219 };
+
+// Разстояние по права линия от София (km, закръглено до 50). Изчислява се еднакво на сървъра и клиента.
+function kmFromSofia(lat: number, lon: number) {
+  const r = Math.PI / 180;
+  const dLat = (lat - SOFIA.lat) * r;
+  const dLon = (lon - SOFIA.lon) * r;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(SOFIA.lat * r) * Math.cos(lat * r) * Math.sin(dLon / 2) ** 2;
+  return Math.round((6371 * 2 * Math.asin(Math.sqrt(a))) / 50) * 50;
+}
+const formatKm = (km: number) => `${Math.floor(km / 1000)} ${String(km % 1000).padStart(3, '0')} км`;
+
+// color — цветното поле под снимката, взето от самото място (морето, пристанището, лака, планината, залеза).
+//   Всички са достатъчно тъмни за бял текст (контраст ≥ 4.5:1).
+// em — ширината на името (главни букви, Unbounded 700, letter-spacing -0.035em), измерена в браузър; по нея
+//   надписът запълва точно ширината на контейнера. lsb — празното място пред първата буква (в em), с което
+//   буквата се изтегля наляво за оптическо подравняване. При ново име — и двете се измерват отново.
+// city/timeZone/lat/lon — за местното време и разстоянието от София.
 const SLIDES = [
   {
     destination: 'Тайланд',
@@ -13,6 +32,13 @@ const SLIDES = [
     img: '/hero/thailand.webp',
     video: '/videos/web/thailand.mp4',
     filterHref: '/?country=tayland#tours-grid',
+    em: 6.351,
+    lsb: 0.01,
+    color: '#00737A',
+    city: 'Банкок',
+    timeZone: 'Asia/Bangkok',
+    lat: 13.7563,
+    lon: 100.5018,
   },
   {
     destination: 'Австралия',
@@ -20,6 +46,13 @@ const SLIDES = [
     img: '/hero/australia.webp',
     video: '/videos/web/australia.mp4',
     filterHref: '/?country=avstraliya#tours-grid',
+    em: 7.773,
+    lsb: -0.01,
+    color: '#0B4F9C',
+    city: 'Сидни',
+    timeZone: 'Australia/Sydney',
+    lat: -33.8688,
+    lon: 151.2093,
   },
   {
     destination: 'Китай',
@@ -27,6 +60,13 @@ const SLIDES = [
     img: '/hero/china.webp',
     video: '/videos/web/china.mp4',
     filterHref: '/?country=kitay#tours-grid',
+    em: 4.316,
+    lsb: 0.06,
+    color: '#B3121F',
+    city: 'Пекин',
+    timeZone: 'Asia/Shanghai',
+    lat: 39.9042,
+    lon: 116.4074,
   },
   {
     destination: 'Перу',
@@ -34,6 +74,13 @@ const SLIDES = [
     img: '/hero/peru.webp',
     video: '/videos/web/peru.mp4',
     filterHref: '/?country=peru#tours-grid',
+    em: 3.274,
+    lsb: 0.06,
+    color: '#9E1F63',
+    city: 'Куско',
+    timeZone: 'America/Lima',
+    lat: -13.532,
+    lon: -71.9675,
   },
   {
     destination: 'Сингапур',
@@ -41,35 +88,71 @@ const SLIDES = [
     img: '/hero/singapore.webp',
     video: '/videos/web/singapore.mp4',
     filterHref: '/?country=singapur#tours-grid',
+    em: 6.72,
+    lsb: 0.03,
+    color: '#C2410C',
+    city: 'Сингапур',
+    timeZone: 'Asia/Singapore',
+    lat: 1.3521,
+    lon: 103.8198,
   },
-];
+].map(s => ({ ...s, km: kmFromSofia(s.lat, s.lon) }));
 
-// Снимката на Поли в hero-то. Взета е poly-10.jpg (портрет с лице), а не poly.jpg — тя е широк кадър отзад
-// от Мачу Пикчу и в малък кръг лицето ѝ почти не се вижда. zoom/origin приближават кадъра към лицето и раменете.
-// За смяна на снимката се променя само този обект.
-const POLI_PHOTO = {
-  src: '/guides/poly-10.jpg',
-  alt: 'Поли (Паулина Алексиева) — основател и водач на Beliva VIP Tour',
-  objectPosition: '100% 50%',
-  zoom: 1.6,
-  origin: '52% 58%',
-};
+type Slide = (typeof SLIDES)[number];
 
-// Същите дестинации като в картата на Поли в секцията "Човекът зад пътуванията" (MeetGuides.tsx)
+// 24-часов формат без „ч.“ (bg-BG го добавя).
+const TIME_FORMATS = SLIDES.map(s => new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: s.timeZone,
+}));
 
-// Фиксиран, предвидим ритъм на всеки слайд: 3s само снимка, после клипче отгоре. Преходът към следващата
-// държава се задвижва от реалното края на видеото (onEnded), не от фиксиран таймер. Фиксираният таймер по-долу
-// остава само като предпазна мрежа за случай, в който видеото никога не затръгне/не завърши.
-const PHOTO_DURATION = 3000;
-// Таван за fallback-а — генерозен, така че да не пречи никога нормално играещо видео (клипчетата са 5-10s) —
-// onEnded винаги ще стреля първо за работещо видео, тази стойност се използва само ако той никога не стреля.
-const FALLBACK_VIDEO_CEILING = 12000;
-const PHOTO_ONLY_DURATION = 6000; // колко стои всяка държава, когато няма видео
-const CROSSFADE_DURATION = 1400; // съвпада с opacity transition-а на обвиващия div по-долу
+// Колко стои всяка дестинация.
+const SLIDE_DURATION = 8000;
+// „Следващата надниква“ отдясно — подсказка, че снимките се сменят и могат да се дърпат. На всеки слайд:
+// влиза на PEEK_AT, стои PEEK_SHOW (от PEEK_PULSE_AFTER нататък пулсира), после се връща.
+// Времевата линия е и в hero-streak / hero-teaser в globals.css — при промяна се сменят и там.
+const PEEK_AT = 4000;
+const PEEK_IN = 0.5;
+const PEEK_PULSE_AFTER = 1.0;
+const PEEK_SHOW = 2.5;
+const PEEK_OUT = 0.45;
+const PEEK_TOTAL = PEEK_SHOW + PEEK_OUT;
+// Видеото се монтира малко след като слайдът стане активен — снимката (LCP) се зарежда първа.
+const VIDEO_DELAY = 1200;
+// Минимална част от ширината, която жестът трябва да „отнесе“ (с проектиран momentum), за да смени слайда.
+const COMMIT_RATIO = 0.3;
+// Таван за височината на надписа — късите имена (Перу) иначе биха заели половин екран.
+const WORD_MAX = '27svh';
+// Отстъп над съдържанието в цветното поле: долната половина на най-голямото възможно име + въздух.
+const BAND_PAD = `calc(min(${WORD_MAX}, (100vw - 3rem) / 3.25) * 0.43 + 0.75rem)`;
+// Плътност на цветното поле (върху снимка, притъмнена с 40% черно). Под 0.78 белият текст губи контраст.
+const BAND_OPACITY = 0.78;
+// Паралакс при влачене: снимката изостава, името изпреварва.
+const IMG_PARALLAX = 0.12;
+const WORD_PARALLAX = 0.35;
+
+// Spring без отскок — прекъсваем и наследява скоростта на жеста.
+const springTo = (duration: number, velocity = 0) => ({ type: 'spring' as const, bounce: 0, duration, velocity });
+
+// Проекция на мястото, където жестът би спрял (exponential decay, decelerationRate 0.998).
+function project(velocity: number, decelerationRate = 0.998) {
+  return ((velocity / 1000) * decelerationRate) / (1 - decelerationRate);
+}
+
+// Позиция в кръга спрямо текущия слайд: -2..2 (при 5 слайда).
+function ringOffset(i: number, current: number, n: number) {
+  let d = (i - current) % n;
+  if (d > n / 2) d -= n;
+  if (d < -n / 2) d += n;
+  return d;
+}
 
 function subscribeNoop() {
   return () => {};
 }
+function getServerFalse() {
+  return false;
+}
+// Клиповете са тежки — пускат се само на широк екран, при нормална връзка и без „намалено движение“.
 function getCanPlayVideo() {
   const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
   const slowNetwork = !!conn && (conn.saveData === true || /(^|-)2g$/.test(conn.effectiveType ?? ''));
@@ -79,499 +162,671 @@ function getCanPlayVideo() {
     !slowNetwork
   );
 }
-function getCanPlayVideoServer() {
-  return false;
+
+// Media query през useSyncExternalStore: при hydration връща сървърната стойност (false), иначе
+// условно рендираните части се разминават със сървърния HTML.
+function useMedia(query: string) {
+  const subscribe = useCallback((cb: () => void) => {
+    const mq = window.matchMedia(query);
+    mq.addEventListener('change', cb);
+    return () => mq.removeEventListener('change', cb);
+  }, [query]);
+  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, getServerFalse);
 }
 
+// Текущата минута — за местното време в дестинацията. На сървъра е -1 (часът се показва само в браузъра).
+function subscribeMinute(cb: () => void) {
+  const id = setInterval(cb, 15000);
+  return () => clearInterval(id);
+}
+const getMinute = () => Math.floor(Date.now() / 60000);
+const getMinuteServer = () => -1;
+
+type Jump = { target: number; dir: 1 | -1 };
+
 export default function Hero() {
+  const reduceMotion = useMedia('(prefers-reduced-motion: reduce)');
+  const canPlayVideo = useSyncExternalStore(subscribeNoop, getCanPlayVideo, getServerFalse);
+  const minute = useSyncExternalStore(subscribeMinute, getMinute, getMinuteServer);
+
   const [current, setCurrent] = useState(0);
-  // Проследява последния РЕНДВАН current — служи за синхронно засичане на смяна ПО ВРЕМЕ НА render (не в useEffect).
-  // Официален React pattern за "adjust state when a value changes" (React docs), различен от useEffect, който
-  // винаги изостава с поне един render цикъл.
-  const [renderedCurrent, setRenderedCurrent] = useState(0);
-  const [showVideoEl, setShowVideoEl] = useState(false); // след PHOTO_DURATION: дали <video> елементът вече е монтиран
-  const [videoVisible, setVideoVisible] = useState(false); // дали видеото реално свири и трябва да е видимо (насложено върху снимката)
-  // Индекс на слайда, чието видео все още трябва да остане монтирано, докато външният crossfade не завърши. Пазим
-  // И дали видеото му реално е било потвърдено като играещо (wasVideoVisible) преди смяната — без това, ако
-  // потребителят смени слайда РЪЧНО (стрелките), докато старият слайд все още беше в 3s photo-only фазата
-  // (видеото му НИКОГА не е играло), lingering логиката безусловно го показваше при смяна, дори това видео да не
-  // беше потвърдено като играещо нито веднъж — точно това е било "проблясването" на видеото на стария слайд.
-  const [lingeringSlide, setLingeringSlide] = useState<{ index: number; wasVideoVisible: boolean } | null>(null);
+  // Скок към несъседна дестинация: целта временно заема мястото на съседа от съответната страна,
+  // за да се плъзне като обикновена смяна (без да „прелита“ през пропуснатите).
+  const [jump, setJump] = useState<Jump | null>(null);
+  const jumpRef = useRef<Jump | null>(null);
+  // Съседните слайдове се монтират малко след първия кадър, за да не си конкурират трафика с LCP снимката;
+  // останалите — малко по-късно. Така всяка снимка е заредена, преди да потрябва (иначе при смяна или
+  // скок към далечна дестинация за миг се вижда тъмен фон).
+  const [neighborsReady, setNeighborsReady] = useState(false);
+  const [allReady, setAllReady] = useState(false);
+  // При намалено движение смяната е кръстосано избледняване: старият слайд остава отдолу, докато новият
+  // се появи върху него — без тъмен кадър помежду им.
+  const [fadeFrom, setFadeFrom] = useState<number | null>(null);
+  const currentRef = useRef(0);
+  // Подсказката „следващата надниква“: 'slide' — трактът се дръпва леко наляво и се връща;
+  // 'fade' (намалено движение) — ивица от следващата снимка се показва за миг в десния край.
+  const [peek, setPeek] = useState<'slide' | 'fade' | null>(null);
+  // Докъде е стигнала смяната: щом идващият слайд мине средата, текстът и кръгчетата вече са за него.
+  const [shownDir, setShownDir] = useState<0 | 1 | -1>(0);
+  // Входната анимация (цветното поле изплува отдолу) е само за първото показване.
+  const [introDone, setIntroDone] = useState(false);
+  const [trackWidth, setTrackWidth] = useState(0);
 
-  // При отваряне се зареждат само снимките на текущия, предишния и следващия слайд. Преди това всичките снимки
-  // на цял екран се теглеха едновременно (са в viewport-а, само с opacity 0, така че lazy loading не помагаше)
-  // и забавяха първата снимка. След 4s монтираме и останалите. Предишният слайд е нужен, защото вече
-  // има стрелка "назад" — иначе при бърз клик снимката би изскочила от празно.
-  const [preloadAll, setPreloadAll] = useState(false);
+  // Източници на пауза. Слайдшоуто върви само когато НИТО ЕДИН от тях не е активен (WCAG 2.2.2).
+  const [userPaused, setUserPaused] = useState(false);
+  const [hoverPaused, setHoverPaused] = useState(false);
+  const [focusPaused, setFocusPaused] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [tabHidden, setTabHidden] = useState(false);
+  const [inView, setInView] = useState(true);
+  const paused = userPaused || hoverPaused || focusPaused || dragging || tabHidden || !inView;
 
-  // Клиповете са тежки (дори 720p са няколко MB всеки), затова се пускат само на широк екран и при нормална връзка.
-  // На телефон, при „Пестене на данни“ или бавна мобилна мрежа hero-то остава със снимки (без изтегляне на видео).
-  // useSyncExternalStore: на сървъра и при hydration стойността е false (еднакъв първи render, без hydration разлика),
-  // после веднага се превключва към реалната стойност на клиента.
-  const canPlayVideo = useSyncExternalStore(subscribeNoop, getCanPlayVideo, getCanPlayVideoServer);
+  const sectionRef = useRef<HTMLElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragX = useMotionValue(0);
+  const anim = useRef<ReturnType<typeof animate> | null>(null);
+  const committing = useRef(false);
+  // Подсказката не излиза, ако посетителят е спрял смяната, влачи, или секцията не се вижда.
+  // Мишката върху кръгчетата НЕ я спира (спира само самата смяна).
+  const peekBlocked = useRef(false);
+
+  useLayoutEffect(() => {
+    currentRef.current = current;
+  }, [current]);
+
+  useLayoutEffect(() => {
+    peekBlocked.current = userPaused || dragging || tabHidden || !inView;
+  }, [userPaused, dragging, tabHidden, inView]);
+
+  useEffect(() => dragX.on('change', v => {
+    const w = trackRef.current?.offsetWidth ?? 0;
+    if (w) setShownDir(v < -w / 2 ? 1 : v > w / 2 ? -1 : 0);
+  }), [dragX]);
+
   useEffect(() => {
-    const t = setTimeout(() => setPreloadAll(true), 4000);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => setNeighborsReady(true), 2000);
+    const t2 = setTimeout(() => setAllReady(true), 4500);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
-  // СИНХРОННО по време на render (НЕ useEffect!) — засича смяна на current в СЪЩИЯ render цикъл, преди браузърът
-  // изобщо да нарисува нещо. Точно тук беше бъгът от преди: useEffect винаги изпълнява един render кадър по-късно,
-  // оставяйки видим момент, в който старият слайд вече не е current, но lingeringIndex още не е наваксал — видеото
-  // му мигновено се демонтираше, разкривайки снимката му за части от секундата, преди crossfade-ът изобщо да
-  // започне. С тази синхронна проверка React прихваща новото състояние и пре-рендва веднага, преди да нарисува
-  // каквото и да е — така че бъгливият междинен кадър никога не се вижда.
-  if (current !== renderedCurrent) {
-    setLingeringSlide({ index: renderedCurrent, wasVideoVisible: videoVisible });
-    setShowVideoEl(false);
-    setVideoVisible(false);
-    setRenderedCurrent(current);
-  }
-
-  // Таймерите остават в useEffect — setTimeout е неизбежен side effect, не може да се случи по време на render.
   useEffect(() => {
-    const startVideoTimer = canPlayVideo ? setTimeout(() => setShowVideoEl(true), PHOTO_DURATION) : undefined;
-    const lingerTimer = setTimeout(() => setLingeringSlide(null), CROSSFADE_DURATION);
-    // Fallback — само ако onEnded никога не стреля (грешка, видео липсва за този слайд, браузърът блокира автоплей).
-    // За работещо видео никога не трябва да се стига дотук — handleVideoEnded винаги ще стреля първо и ще го анулира.
-    // Без видео (телефон/бавна връзка) слайдовете се сменят на фиксиран интервал.
-    const fallbackTimer = setTimeout(() => {
-      setCurrent(c => (c + 1) % SLIDES.length);
-    }, canPlayVideo ? PHOTO_DURATION + FALLBACK_VIDEO_CEILING : PHOTO_ONLY_DURATION);
+    const onVis = () => setTabHidden(document.hidden);
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
 
-    return () => {
-      if (startVideoTimer) clearTimeout(startVideoTimer);
-      clearTimeout(fallbackTimer);
-      clearTimeout(lingerTimer);
+  // Извън екрана нищо не се сменя и не върви видео — пести батерия и трафик.
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.25 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  // Ширината на тракта — за паралакса на снимката и името.
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setTrackWidth(el.offsetWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Смяна към съседен слайд (dir = +1 следващ, -1 предишен). Анимира се ТРАКТЪТ (dragX) до ±ширината, а в края
+  // current се сменя и dragX се връща в 0 в същия кадър (flushSync) — слайдовете са позиционирани спрямо current,
+  // затова няма видим скок. Ако има „скок“ в същата посока, целта вече стои на мястото на съседа.
+  // byHand: смяна, започната с жест — тя винаги довършва плъзгането до другия край (и при намалено
+  // движение), защото ръката вече е задвижила снимката. Автоматичната смяна и бутоните при намалено
+  // движение са кръстосано избледняване.
+  const commit = useCallback((dir: 1 | -1, velocity = 0, byHand = false) => {
+    const track = trackRef.current;
+    if (!track) return;
+    anim.current?.stop();
+    committing.current = true;
+    setPeek(null);
+    const j = jumpRef.current;
+    const target = j && j.dir === dir ? j.target : null;
+    const crossfade = reduceMotion && !byHand;
+    const finish = () => {
+      const from = currentRef.current;
+      flushSync(() => {
+        setFadeFrom(crossfade ? from : null);
+        setCurrent(target ?? (from + dir + SLIDES.length) % SLIDES.length);
+        setShownDir(0);
+        jumpRef.current = null;
+        setJump(null);
+        setIntroDone(true);
+      });
+      dragX.set(0);
+      committing.current = false;
     };
-  }, [current, canPlayVideo]);
+    if (crossfade) {
+      finish();
+      return;
+    }
+    anim.current = animate(dragX, -dir * track.offsetWidth, {
+      ...springTo(0.6, velocity),
+      onComplete: finish,
+    });
+  }, [dragX, reduceMotion]);
 
-  const handleVideoPlaying = () => setVideoVisible(true);
-  // Основният двигател на прехода към следващата държава — стреля точно когато видеото реално свърши,
-  // без изкуствена пауза между края на видеото и самия преход.
-  const handleVideoEnded = () => setCurrent(c => (c + 1) % SLIDES.length);
+  const next = useCallback(() => {
+    setNeighborsReady(true);
+    if (!committing.current) commit(1);
+  }, [commit]);
+  const prev = useCallback(() => {
+    setNeighborsReady(true);
+    if (!committing.current) commit(-1);
+  }, [commit]);
 
-  // Стрелките сменят държавата ръчно (вместо предишната лента с миниатюри отдолу).
-  const goNext = useCallback(() => setCurrent(c => (c + 1) % SLIDES.length), []);
-  const goPrev = useCallback(() => setCurrent(c => (c - 1 + SLIDES.length) % SLIDES.length), []);
+  const goTo = useCallback((i: number) => {
+    if (i === current || committing.current) return;
+    setNeighborsReady(true);
+    // Посоката следва реда на кръгчетата: вдясно → идва отдясно.
+    const dir: 1 | -1 = i > current ? 1 : -1;
+    if (ringOffset(i, current, SLIDES.length) !== dir) {
+      const j = { target: i, dir };
+      jumpRef.current = j;
+      flushSync(() => setJump(j));
+    }
+    commit(dir);
+  }, [commit, current]);
 
-  // JS-контролиран скрол вместо чист CSS anchor (scroll-behavior: smooth в globals.css) — на iOS/mobile Safari
-  // нативната hash-навигация инога влиза в конфликт със CSS smooth scroll (особено с scroll-mt-*
-  // отстъп на целта) — точно оттам идва видимото "бавно, после рязъв скок". scrollIntoView()
-  // изчислява позицията наново в момента на самия клик, заобикаля това взаимодействие изцяло.
+  // „Следващата надниква“: на PEEK_AT от всеки слайд следващата снимка влиза малко отдясно, след секунда
+  // започва да „дърпа“ (пулсира), а след PEEK_SHOW се връща — с линии на шева. Подсказва и че предстои
+  // смяна, и че снимката се дърпа отстрани. Повтаря се на всеки слайд.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (peekBlocked.current || committing.current || dragX.get() !== 0) return;
+      setNeighborsReady(true);
+      if (reduceMotion) {
+        setPeek('fade');
+        return;
+      }
+      const w = trackRef.current?.offsetWidth ?? 0;
+      const a = -Math.min(130, Math.max(64, w * 0.09));
+      const pull = a * 1.3;
+      const pulse = (PEEK_SHOW - 0.18 - PEEK_PULSE_AFTER) / 6;
+      const at = [
+        0, PEEK_IN, PEEK_PULSE_AFTER,
+        PEEK_PULSE_AFTER + pulse, PEEK_PULSE_AFTER + pulse * 2,
+        PEEK_PULSE_AFTER + pulse * 3, PEEK_PULSE_AFTER + pulse * 4,
+        PEEK_PULSE_AFTER + pulse * 5, PEEK_PULSE_AFTER + pulse * 6,
+        PEEK_SHOW, PEEK_TOTAL,
+      ];
+      const out: [number, number, number, number] = [0.22, 1, 0.36, 1];
+      const inOut: [number, number, number, number] = [0.45, 0, 0.55, 1];
+      setPeek('slide');
+      anim.current = animate(dragX, [0, a, a, pull, a, pull, a, pull, a, a, 0], {
+        duration: PEEK_TOTAL,
+        times: at.map(s => s / PEEK_TOTAL),
+        ease: [out, 'linear', inOut, inOut, inOut, inOut, inOut, inOut, 'linear', [0.65, 0, 0.35, 1]],
+        onComplete: () => setPeek(null),
+      });
+    }, PEEK_AT);
+    return () => clearTimeout(t);
+  }, [current, reduceMotion, dragX]);
+
+  const handleDragStart = () => {
+    setNeighborsReady(true);
+    setPeek(null);
+    setDragging(true);
+    // Хващане по време на анимация: спираме я и продължаваме от текущата позиция.
+    anim.current?.stop();
+    committing.current = false;
+  };
+
+  const handleDragEnd = (_: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
+    setDragging(false);
+    const width = trackRef.current?.offsetWidth ?? window.innerWidth;
+    const v = info.velocity.x;
+    const projected = dragX.get() + project(v);
+    if (projected < -width * COMMIT_RATIO) commit(1, v, true);
+    else if (projected > width * COMMIT_RATIO) commit(-1, v, true);
+    else anim.current = animate(dragX, 0, springTo(0.45, v));
+  };
+
+  // JS-контролиран скрол: нативната hash-навигация на iOS Safari се бие със CSS smooth scroll.
   const scrollToTours = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    document.getElementById('tours-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
+    document.getElementById('tours-grid')?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }, [reduceMotion]);
 
-  const slide = SLIDES[current];
-  const nextIndex = (current + 1) % SLIDES.length;
-  const prevIndex = (current - 1 + SLIDES.length) % SLIDES.length;
+  // Дестинацията, за която са текстът и кръгчетата — по време на плъзгане сменя се още в средата.
+  const shown = shownDir === 0
+    ? current
+    : jump && jump.dir === shownDir ? jump.target : (current + shownDir + SLIDES.length) % SLIDES.length;
+  const slide = SLIDES[shown];
+  const nextSlide = SLIDES[(current + 1) % SLIDES.length];
+  const localTime = minute < 0 ? null : TIME_FORMATS[shown].format(minute * 60000);
+
+  // Къде стои всеки слайд (в ширини от текущия): текущият в 0, съседите на ±1, далечните на ±2 (извън екрана,
+  // но заредени), целта на скок — на мястото на съседа. null = още не е в DOM.
+  const slideOffset = (i: number): number | null => {
+    if (i === current || i === fadeFrom) return 0;
+    if (jump && i === jump.target) return jump.dir;
+    const off = ringOffset(i, current, SLIDES.length);
+    if (jump && off === jump.dir) return off * 2;
+    if (Math.abs(off) === 1) return neighborsReady ? off : null;
+    return allReady ? off : null;
+  };
 
   return (
-    // Височината вече не е фиксирана: на мобилни hero-то е УДЪЛЖЕНО надолу (екран с държавата + блок за Поли),
-    // на desktop (lg) е един екран, като Поли е до името на държавата.
-    // За височината на екрана се ползва 100svh (small viewport height), не 100dvh — dvh се преизчислява в реално
-    // време, докато адресната линия на мобилния браузър се скрива/показва при скрол, и точно това е видимото
-    // „разтягане“ на hero-то за момент при скрол. svh е фиксирана стойност, не се преизчислява по време на скрол.
-    <section className="relative w-full overflow-hidden bg-[#fcf9f2] lg:bg-brand-dark">
+    <section
+      ref={sectionRef}
+      aria-roledescription="carousel"
+      aria-label="Дестинации на Beliva VIP Tour"
+      className="relative isolate h-[100svh] min-h-[34rem] overflow-hidden bg-brand-dark text-white [--band:15.5rem] sm:[--band:36%] lg:[--band:34%] lg:[@media(min-height:820px)]:[--band:31%]"
+      onFocus={e => { if (e.target.matches(':focus-visible')) setFocusPaused(true); }}
+      onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocusPaused(false); }}
+    >
+      {/* ─── ТРАКТ: снимка + цветно поле + име за всяка дестинация. Влачи се 1:1 с пръста;
+           touch-action: pan-y запазва вертикалния скрол. ─── */}
+      <motion.div
+        ref={trackRef}
+        drag="x"
+        dragMomentum={false}
+        dragElastic={0}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        style={{ x: dragX, touchAction: 'pan-y' }}
+        className="absolute inset-0 z-0 cursor-grab active:cursor-grabbing"
+      >
+        {SLIDES.map((s, i) => {
+          const offset = slideOffset(i);
+          if (offset === null) return null;
+          return (
+            <HeroSlide
+              key={s.img}
+              slide={s}
+              offset={offset}
+              isCurrent={i === current}
+              isFirst={i === 0}
+              intro={i === 0 && !introDone}
+              // Новият слайд избледнява ВЪРХУ стария (fadeFrom стои отдолу), не върху тъмния фон.
+              layer={i === current ? 2 : i === fadeFrom ? 1 : 0}
+              fadeIn={i === current && fadeFrom !== null}
+              onFadeEnd={() => setFadeFrom(null)}
+              streaks={peek === 'slide' && i === current}
+              fadingOut={i === fadeFrom}
+              paused={paused}
+              canPlayVideo={canPlayVideo}
+              parallax={!reduceMotion}
+              dragX={dragX}
+              width={trackWidth}
+            />
+          );
+        })}
+      </motion.div>
 
-      {/* ─── ФОН: снимки и клипчета на държавите. На мобилни покрива само първия екран (100svh) и се
-          стопява в тъмния фон отдолу — така снимката не се разтяга/реже върху цялото удължено hero. ─── */}
-      <div className="absolute inset-x-0 top-0 z-0 h-[54svh] max-lg:overflow-hidden lg:h-full">
-
-        {/* images — pure CSS transition, no framer-motion flash */}
-        <div className="absolute inset-0">
-          {SLIDES.map((s, i) => {
-            const isCurrent = i === current;
-            const isLingering = lingeringSlide?.index === i;
-            // Видеото се монтира: (а) за активния слайд, след PHOTO_DURATION, или (б) за слайда, който тъкмо
-            // престана да е активен, докато crossfade-ът му не завърши — НО само ако това видео реално е било
-            // потвърдено като играещо преди смяната (wasVideoVisible).
-            const lingeringWasPlaying = isLingering && !!lingeringSlide?.wasVideoVisible;
-            const shouldMountVideo = canPlayVideo && ((isCurrent && showVideoEl) || lingeringWasPlaying);
-            // За lingering слайда, видимостта зависи само от това дали видеото му реално беше потвърдено преди смяната.
-            const isVideoVisible = lingeringWasPlaying || (isCurrent && videoVisible);
-            const shouldMountImage = isCurrent || isLingering || i === nextIndex || i === prevIndex || preloadAll;
-
-            return (
-              <div
-                key={s.img}
-                className="absolute inset-0"
-                style={{
-                  opacity: isCurrent ? 1 : 0,
-                  transition: 'opacity 1.4s ease-in-out',
-                }}
-              >
-                {shouldMountImage && (
-                  <Image
-                    src={s.img}
-                    alt={`${s.destination} — ${s.subtitle}`}
-                    fill
-                    className="object-cover"
-                    style={{ objectPosition: 'center 40%' }}
-                    priority={i === 0}
-                    sizes="100vw"
-                    quality={80}
-                    fetchPriority={i === 0 ? 'high' : 'auto'}
-                  />
-                )}
-
-                {/* Монтира се точно {PHOTO_DURATION / 1000}s след като слайдът стане активен, автоматично стартира, и се появява
-                    плавно едва когато onPlaying реално стреля. БЕЗ loop — onEnded веднага превключва към следващата държава,
-                    без пауза след края на видеото. */}
-                {shouldMountVideo && s.video && (
-                  <video
-                    key={s.video}
-                    src={s.video}
-                    autoPlay={isCurrent}
-                    muted
-                    playsInline
-                    preload="metadata"
-                    className="absolute inset-0 h-full w-full object-cover"
-                    style={{
-                      objectPosition: 'center 35%',
-                      opacity: isVideoVisible ? 1 : 0,
-                      transition: 'opacity 0.8s ease-in-out',
-                    }}
-                    onPlaying={handleVideoPlaying}
-                    onEnded={isCurrent ? handleVideoEnded : undefined}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* aurora mesh wash — adds depth/color without fighting the photo */}
-        <div
-          className="aurora-mesh absolute inset-0 z-[5] pointer-events-none"
-          style={{ mixBlendMode: 'screen', opacity: 0.85 }}
-        />
-
-        {/* Top vignette — navbar readability */}
-        <div
-          className="absolute inset-x-0 top-0 z-10 h-32 pointer-events-none max-lg:opacity-60 lg:h-[35%]"
-          style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%)' }}
-        />
-        {/* Bottom vignette — завършва в точния цвят на фона (brand-dark #0f172a), за да няма видим шев между
-            снимката и удължената тъмна част отдолу, където е блокът за Поли. */}
-        {/* Мобилни: снимката се стопява в цвета на страницата (крем/бяло). По-изразено преливане — стартира рано
-            и минава през полупрозрачни стъпки, така че няма видим шев. */}
-        <div
-          className="absolute inset-x-0 bottom-0 z-10 h-[50%] pointer-events-none lg:hidden"
-          style={{ background: 'linear-gradient(to top, #fcf9f2 0%, rgba(252,249,242,0.96) 10%, rgba(252,249,242,0.86) 22%, rgba(252,249,242,0.68) 36%, rgba(252,249,242,0.46) 50%, rgba(252,249,242,0.26) 64%, rgba(252,249,242,0.1) 80%, rgba(252,249,242,0.02) 92%, transparent 100%)' }}
-        />
-        {/* Desktop: затъмняване към brand-dark (под hero-то е тъмната секция „Топ 3“). */}
-        <div
-          className="absolute inset-x-0 bottom-0 z-10 hidden h-[60%] pointer-events-none lg:block"
-          style={{ background: 'linear-gradient(to top, #0f172a 0%, rgba(15,23,42,0.85) 25%, rgba(0,0,0,0.45) 60%, transparent 100%)' }}
-        />
-        {/* Side vignettes for depth */}
-        <div
-          className="absolute inset-y-0 left-0 z-10 hidden pointer-events-none lg:block"
-          style={{ width: '20%', background: 'linear-gradient(to right, rgba(0,0,0,0.35), transparent)' }}
-        />
-        <div
-          className="absolute inset-y-0 right-0 z-10 hidden pointer-events-none lg:block"
-          style={{ width: '20%', background: 'linear-gradient(to left, rgba(0,0,0,0.35), transparent)' }}
-        />
-      </div>
-
-      {/* ─── СЪДЪРЖАНИЕ: мобилни = колона (държава → Поли), desktop = две колони (държава | Поли) ─── */}
-      <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-col px-6 lg:min-h-[100svh] lg:flex-row lg:items-end lg:justify-between lg:gap-12 lg:px-10 lg:pb-14 lg:pt-28 xl:pl-6">
-
-        {/* Дестинацията */}
-        <div className="flex flex-col items-center pb-5 text-center lg:min-h-0 lg:flex-1 lg:items-start lg:p-0 lg:text-left">
-
-          {/* ── МОБИЛНИ: голяма снимка (фон) → карусел → (име + описание) → бутони → Поли ──
-              Карусел: и петте държави в един и същ кръгов ред. В средата е текущата (най-голяма), отстрани са по-малки.
-              Ред отляво надясно: предишна → ТЕКУЩА → следваща, така че автоматичната смяна (current + 1) „влачи“ снимките
-              отдясно наляво: тази отдясно идва в средата, средната отива вляво. Клик върху снимка я прави текуща. ── */}
-          {/* Разстояние, през което се вижда голямата снимка (фонът горе); каруселът леко влиза в стопения ѝ край. */}
-          {/* Мобилни: името на държавата стои ВЪРХУ голямата снимка (без подзаглавие и без друг текст около него). */}
-          <div className="relative h-[calc(54svh-44px)] w-full shrink-0 lg:hidden">
-            <div className="hero-enter absolute inset-x-0 bottom-[84px] flex justify-center px-4" style={{ animationDelay: '0.15s' }}>
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={`dest-m-${current}`}
-                  initial={{ opacity: 0, y: 30, filter: 'blur(8px)' }}
-                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, y: -20, filter: 'blur(4px)' }}
-                  transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-                  className="text-center font-serif italic leading-none text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.8),0_0_3px_rgba(0,0,0,0.6)]"
-                  style={{ fontSize: 'clamp(3rem, 15vw, 5rem)', letterSpacing: '-0.01em' }}
-                >
-                  {slide.destination}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </div>
-          <div className="hero-enter -mx-6 w-screen overflow-hidden lg:hidden" style={{ animationDelay: '0.1s' }}>
-            <div className="relative mx-auto h-[128px] w-full">
-              {SLIDES.map((t, i) => (
-                <CarouselItem
-                  key={t.img}
-                  slide={t}
-                  offset={ringOffset(i, current, SLIDES.length)}
-                  onSelect={() => setCurrent(i)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Име + подзаглавие. На мобилни заема горната част (над снимката), на desktop е `contents`. */}
-          <div className="mt-3 flex w-full flex-col items-center lg:mt-0 lg:contents">
-
-          <HeroIntro />
-
-          {/* Истински H1 за SEO/screen readers — визуално скрит, защото видимата дестинация се сменя автоматично
-              и сама по себе си не описва бизнеса пред търсачки/асистивни технологии. */}
-          <h1 className="sr-only">
-            Beliva VIP Tour - Групови пътувания, екскурзии и почивки по света с опитен водач
+      {/* ─── СЪДЪРЖАНИЕ. pointer-events-none, за да може жестът да минава през текста; само интерактивните са auto. ─── */}
+      <div className="pointer-events-none relative z-10 h-full">
+        {/* Горе, върху снимката: какво правим и двете действия */}
+        <div className="container mx-auto px-6 pt-24 lg:pt-28 lg:[@media(max-height:780px)]:pt-24">
+          <h1
+            className="hero-enter max-w-[11.8em] font-display font-normal text-white"
+            style={{
+              fontSize: 'min(3.25rem, (100vw - 3rem) / 11.4)',
+              lineHeight: 1.08,
+              letterSpacing: '-0.03em',
+              animationDelay: '0.05s',
+            }}
+          >
+            Групови екскурзии по света с водач
           </h1>
 
-          {/* Име на държавата. На мобилни стрелките са от двете страни на името, на desktop са при бутоните. */}
-          <div
-            className="hero-enter mb-4 flex w-full items-center justify-center py-2 max-lg:hidden lg:mt-0 lg:w-auto lg:justify-start"
-            style={{ animationDelay: '0.15s' }}
+          <p
+            className="hero-enter mt-4 hidden max-w-[34rem] text-lg leading-relaxed text-white sm:[@media(min-height:781px)]:block"
+            style={{ animationDelay: '0.12s' }}
           >
-            <div data-hero-name className="min-w-0 flex-1 lg:flex-none">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={`dest-${current}`}
-                  initial={{ opacity: 0, y: 50, filter: 'blur(8px)' }}
-                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, y: -30, filter: 'blur(4px)' }}
-                  transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-                  className="font-serif italic leading-none text-brand-dark lg:text-white lg:[text-shadow:0_4px_40px_rgba(0,0,0,0.5)]"
-                  style={{
-                    fontSize: 'clamp(2.75rem, 14vw, 9rem)',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  {slide.destination}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </div>
+            Подбираме най-добрите екскурзии на българския пазар и ви съпровождаме от първото запитване до завръщането.
+          </p>
 
-          {/* Subtitle — фиксирана височина, за да не мърдат бутоните при смяна на държава */}
-          <div
-            className="hero-enter relative mb-3 h-11 w-full max-lg:hidden lg:mb-8 lg:h-14"
-            style={{ animationDelay: '0.25s' }}
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.p
-                key={`sub-${current}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="absolute inset-x-0 top-0 text-sm font-normal leading-snug tracking-wide text-slate-600 md:text-base lg:font-light lg:text-white lg:[text-shadow:0_1px_10px_rgba(0,0,0,0.95),0_2px_20px_rgba(0,0,0,0.8)]"
-              >
-                {slide.subtitle}
-              </motion.p>
-            </AnimatePresence>
-          </div>
-
-          </div>
-
-          {/* Бутони върху снимката, без панел отзад. На мобилни са избутани към дъното (mt-auto).
-              Полето с името на държавата е с фиксирана ширина, за да не мърдат стрелките при смяна. */}
-          <div
-            className="hero-enter mt-auto flex w-full max-w-sm flex-col items-center gap-3 rounded-[1.5rem] border border-brand-dark/10 bg-white px-3 py-3 shadow-xl shadow-brand-dark/10 lg:mt-0 lg:max-w-none lg:items-start lg:gap-6 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
-            style={{ animationDelay: '0.35s' }}
-          >
-            <div className="flex w-full flex-row items-center gap-2 lg:w-auto lg:gap-3">
-              <Link
-                href="/#tours-grid"
-                onClick={scrollToTours}
-                className="group inline-flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-brand-gold text-sm font-bold text-brand-dark shadow-xl shadow-black/30 transition-all hover:bg-amber-400 active:scale-95 lg:w-auto lg:flex-none lg:px-8"
-              >
-                Всички екскурзии
-                <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5 max-lg:hidden" aria-hidden="true" />
-              </Link>
-
-              <div className="flex min-w-0 flex-1 items-center lg:w-auto lg:flex-none">
-              <Link
-                href={slide.filterHref}
-                aria-label={`Екскурзии до ${slide.destination}`}
-                className="inline-flex h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full border border-brand-dark/70 text-sm font-bold text-brand-dark transition-all hover:bg-brand-dark hover:text-white lg:w-44 lg:flex-none lg:border-white/80 lg:text-white lg:[text-shadow:0_1px_8px_rgba(0,0,0,0.5)] lg:hover:bg-white lg:hover:text-brand-dark"
-              >
-                {slide.destination}
-              </Link>
-              </div>
-
-              <div className="hidden items-center gap-2 pl-3 lg:flex">
-                <ArrowButton dir="prev" onClick={goPrev} />
-                <ArrowButton dir="next" onClick={goNext} />
-              </div>
-            </div>
-
-            {/* Мобилни: три колони (число над етикет). От sm нагоре: един ред с разделители. */}
-            <ul
-              className="grid w-full grid-cols-3 gap-2 text-center sm:hidden"
+          <div className="hero-enter mt-5 lg:mt-7" style={{ animationDelay: '0.18s' }}>
+            {/* Главното действие на страницата — единственият плътен златен бутон (в менюто „Запитване“ е с контур).
+                По-голям, със златно сияние и тъмносиня стрелка; след появата на героса през него минава отблясък
+                два пъти (.hero-cta-shine в globals.css; без него при „намалено движение“). */}
+            <Link
+              href="/#tours-grid"
+              onClick={scrollToTours}
+              className="group relative cursor-pointer touch-manipulation overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white pointer-events-auto inline-flex h-12 shrink-0 items-center justify-center gap-3 rounded-full bg-brand-gold pl-6 pr-1.5 text-[15px] font-semibold text-brand-dark shadow-[0_10px_30px_-6px_rgba(212,175,55,0.7)] ring-4 ring-brand-gold/30 transition-[background-color,box-shadow,transform] duration-200 hover:bg-amber-300 hover:shadow-[0_14px_40px_-6px_rgba(212,175,55,0.85)] active:scale-[0.97] sm:h-14 sm:pl-8 sm:pr-2 sm:text-base"
             >
-              {[
-                { v: '60+', l: 'дестинации' },
-                { v: '150+', l: 'водени групи' },
-                { v: '4.9 ★', l: 'оценка' },
-              ].map(({ v, l }) => (
-                <li key={l} className="flex flex-col">
-                  <span className="font-serif text-xl font-bold leading-none text-[#9a7611]">{v}</span>
-                  <span className="mt-1 text-[11px] text-slate-600">{l}</span>
-                </li>
-              ))}
-            </ul>
-            <p
-              className="hidden text-sm font-semibold tracking-wide text-[#e6c76a] sm:block lg:text-left"
-              style={{ textShadow: '0 1px 10px rgba(0,0,0,0.85)' }}
-            >
-              60+ дестинации
-              <span className="mx-3 text-[#e6c76a]/50" aria-hidden="true">|</span>
-              150+ водени групи
-              <span className="mx-3 text-[#e6c76a]/50" aria-hidden="true">|</span>
-              оценка 4.9 ★
-            </p>
+              <span aria-hidden="true" className="hero-cta-shine pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+              <span className="relative">Разгледай екскурзиите</span>
+              <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-brand-dark text-brand-gold transition-transform duration-200 group-hover:translate-x-0.5 sm:h-10 sm:w-10" aria-hidden="true">
+                <ArrowRight size={18} />
+              </span>
+            </Link>
           </div>
         </div>
 
-        {/* Поли — на мобилни под дестинацията, на desktop до името на държавата */}
-        <PoliWelcome />
+        {/* Долу, в цветното поле: за дестинацията и управлението */}
+        <div className="absolute inset-x-0 bottom-0 h-[var(--band)]">
+          <div
+            className="container mx-auto flex h-full flex-col px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pb-8"
+            style={{ paddingTop: BAND_PAD }}
+          >
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
+              <div key={shown} aria-live={paused ? "polite" : "off"} className="hero-fade order-2 min-w-0 lg:order-1">
+                <p className="text-base font-semibold leading-snug sm:text-lg lg:text-2xl lg:font-medium lg:tracking-[-0.01em]">
+                  {slide.subtitle}
+                </p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-5 text-sm text-white lg:mt-2 lg:text-[15px]">
+                  {localTime && <span>В {slide.city} е {localTime}</span>}
+                  <span className="hidden min-[380px]:inline">{formatKm(slide.km)} от София</span>
+                  <Link
+                    href={slide.filterHref}
+                    className="cursor-pointer touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white pointer-events-auto hidden min-h-11 items-center font-semibold text-white underline decoration-2 underline-offset-[6px] transition-opacity hover:opacity-80 lg:inline-flex"
+                  >
+                    Екскурзии до {slide.destination}
+                  </Link>
+                </p>
+              </div>
+
+              <div
+                role="group"
+                aria-label="Избор на дестинация"
+                className="hero-enter pointer-events-auto order-1 flex items-center gap-1 self-start sm:gap-3 lg:order-2 lg:shrink-0"
+                style={{ animationDelay: '0.5s' }}
+                // Докато мишката е върху управлението, не сменяме — да не „избяга“ кръгчето изпод курсора.
+                onPointerEnter={e => { if (e.pointerType === 'mouse') setHoverPaused(true); }}
+                onPointerLeave={() => setHoverPaused(false)}
+                onKeyDown={e => {
+                  if (e.key === 'ArrowRight') next();
+                  if (e.key === 'ArrowLeft') prev();
+                }}
+              >
+                <ArrowButton label="Предишна дестинация" onClick={prev}>
+                  <ChevronLeft size={22} strokeWidth={2.5} aria-hidden="true" />
+                </ArrowButton>
+                <ul className="flex items-start gap-1 sm:gap-3 lg:gap-4">
+                  {SLIDES.map((s, i) => (
+                    <li key={s.img}>
+                      <DestinationDot
+                        slide={s}
+                        active={i === shown}
+                        paused={paused}
+                        userPaused={userPaused}
+                        onSelect={() => goTo(i)}
+                        onTogglePause={() => setUserPaused(p => !p)}
+                        onRingEnd={next}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                <ArrowButton label="Следваща дестинация" onClick={next}>
+                  <ChevronRight size={22} strokeWidth={2.5} aria-hidden="true" />
+                </ArrowButton>
+              </div>
+            </div>
+
+            {/* На телефон и таблет линкът стои най-долу, по средата — между бутоните за бисквитки и чата */}
+            <div className="mt-auto flex justify-center lg:hidden">
+              <Link
+                key={shown}
+                href={slide.filterHref}
+                className="hero-fade cursor-pointer touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white pointer-events-auto inline-flex min-h-11 items-center text-sm font-semibold text-white underline decoration-2 underline-offset-[6px] sm:text-[15px]"
+              >
+                Екскурзии до {slide.destination}
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* „Следващата надниква“ при намалено движение: без плъзгане — ивица от следващата дестинация
+           (снимка + цвят) се показва за миг в десния край, с линиите до нея. */}
+      {peek === 'fade' && (
+        <div
+          aria-hidden="true"
+          className="hero-teaser pointer-events-none absolute inset-y-0 right-0 z-[5] w-16 sm:w-24"
+          style={{ animationDuration: `${PEEK_TOTAL}s` }}
+          onAnimationEnd={e => { if (e.target === e.currentTarget) setPeek(null); }}
+        >
+          <div className="absolute inset-x-0 bottom-[var(--band)] top-0 overflow-hidden">
+            <Image src={nextSlide.img} alt="" fill sizes="96px" quality={60} className="object-cover" />
+          </div>
+          <div className="absolute inset-x-0 bottom-0 h-[var(--band)] bg-black">
+            <div className="absolute inset-0" style={{ backgroundColor: nextSlide.color, opacity: BAND_OPACITY }} />
+          </div>
+          <Streaks animated={false} />
+        </div>
+      )}
     </section>
   );
 }
 
+// Един слайд: снимка (с видео на широк екран), цветно поле и името на дестинацията на шева между тях.
+// Позиционира се с left: offset*100% спрямо тракта. Паралаксът се смята от реалната позиция на слайда
+// (offset*ширина + dragX), която не се променя при смяната на current — затова и паралаксът няма скок.
+function HeroSlide({
+  slide, offset, isCurrent, isFirst, intro, layer, fadeIn, onFadeEnd, streaks, fadingOut, paused, canPlayVideo, parallax, dragX, width,
+}: {
+  slide: Slide;
+  offset: number;
+  isCurrent: boolean;
+  isFirst: boolean;
+  intro: boolean;
+  layer: number;
+  fadeIn: boolean;
+  onFadeEnd: () => void;
+  streaks: boolean;
+  fadingOut: boolean;
+  paused: boolean;
+  canPlayVideo: boolean;
+  parallax: boolean;
+  dragX: MotionValue<number>;
+  width: number;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoOn, setVideoOn] = useState(false);
+  const [videoShown, setVideoShown] = useState(false);
+  const imgX = useMotionValue(0);
+  const wordX = useMotionValue(0);
 
-// Представяне на фирмата на мобилни (под карусела). На desktop същото се казва в картата на Поли (COMPANY_ABOUT).
-const COMPANY_ABOUT = {
-  name: 'Beliva VIP Tour',
-  kind: 'туристическа агенция',
-  text: 'Подбираме най-добрите екскурзии и почивки на българския пазар, водим организирани групи с личен водач и ви съпровождаме от първото запитване до завръщането.',
-};
+  // useLayoutEffect: при смяна на слайда (flushSync) новият offset е в сила, преди dragX да се върне в 0.
+  useLayoutEffect(() => {
+    const update = (v: number) => {
+      const p = offset * width + v;
+      imgX.set(parallax ? -p * IMG_PARALLAX : 0);
+      wordX.set(parallax ? p * WORD_PARALLAX : 0);
+    };
+    update(dragX.get());
+    return dragX.on('change', update);
+  }, [dragX, offset, width, parallax, imgX, wordX]);
 
-const INTRO = {
-  eyebrow: 'Туристическа агенция',
-  title: 'Групови екскурзии и почивки по света с водач',
-};
+  useEffect(() => {
+    if (!isCurrent || !canPlayVideo) return;
+    const t = setTimeout(() => setVideoOn(true), VIDEO_DELAY);
+    return () => clearTimeout(t);
+  }, [isCurrent, canPlayVideo]);
 
-function HeroIntro() {
+  // При връщане към вече гледан слайд клипът почва отначало.
+  useEffect(() => {
+    if (isCurrent && videoRef.current) videoRef.current.currentTime = 0;
+  }, [isCurrent]);
+
+  // Паузата на слайдшоуто спира и клипа — иначе картината и обръчът за прогрес се разминават.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (isCurrent && !paused) v.play().catch(() => {});
+    else v.pause();
+  }, [isCurrent, paused, videoOn]);
+
+  const fontSize = `min(calc(100cqw / ${((slide.em - slide.lsb) * 1.01).toFixed(3)}), ${WORD_MAX})`;
+
   return (
-    <div className="hero-enter mb-4 flex w-full max-w-sm flex-col items-center px-2 text-center lg:hidden" style={{ animationDelay: '0.25s' }}>
-      <div className="flex items-center gap-3">
-        <div className="h-px w-8 bg-brand-gold" />
-        <span className="text-xs font-semibold tracking-[0.12em] text-brand-goldDeep">{INTRO.eyebrow}</span>
-        <div className="h-px w-8 bg-brand-gold" />
+    <div
+      className={`absolute top-0 h-full w-full ${fadeIn ? 'hero-crossfade' : ''}`}
+      style={{ left: `${offset * 100}%`, zIndex: layer }}
+      aria-hidden="true"
+      onAnimationEnd={e => { if (fadeIn && e.target === e.currentTarget) onFadeEnd(); }}
+    >
+      {/* Снимката — по цялата височина (прозира през полето) и малко по-широка, за да има място за паралакса */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div className="absolute inset-y-0 -inset-x-[12%]" style={{ x: imgX }}>
+          {/* Бавно приближаване, докато дестинацията е на екран (спира заедно с паузата) */}
+          <div
+            className={`absolute inset-0 ${isCurrent ? 'hero-kenburns' : ''}`}
+            style={{ animationDuration: `${SLIDE_DURATION + 2000}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+          >
+            <Image
+              src={slide.img}
+              alt=""
+              fill
+              sizes="124vw"
+              quality={75}
+              priority={isFirst}
+              loading="eager"
+              fetchPriority={isFirst ? 'high' : 'auto'}
+              draggable={false}
+              className="select-none object-cover"
+              style={{ objectPosition: 'center 40%' }}
+            />
+            {canPlayVideo && videoOn && (
+              <video
+                ref={videoRef}
+                src={slide.video}
+                muted
+                playsInline
+                preload="auto"
+                onPlaying={() => setVideoShown(true)}
+                className="absolute inset-0 h-full w-full select-none object-cover transition-opacity duration-700"
+                style={{ objectPosition: 'center 35%', opacity: videoShown ? 1 : 0 }}
+              />
+            )}
+          </div>
+        </motion.div>
+        {/* Неутрални затъмнения: горе — под менюто и заглавието; долу — под горната половина на името */}
+        <div className="absolute inset-x-0 top-0 h-3/4 bg-gradient-to-b from-black/60 via-black/25 to-transparent" /* taste-skill-ignore: неутрално затъмнение върху снимка */ />
+        <div className="absolute inset-x-0 bottom-[var(--band)] h-1/4 bg-gradient-to-t from-black/45 to-transparent" /* taste-skill-ignore: неутрално затъмнение върху снимка */ />
       </div>
-      <h2 className="mt-2 font-serif text-[1.3rem] italic leading-snug text-brand-dark">{INTRO.title}</h2>
+
+      {/* Цветното поле на дестинацията — полупрозрачно върху притъмнената снимка: цветът остава наситен,
+          но не крещи, а снимката леко прозира. Тъмният слой отдолу пази контраста на белия текст (≥ 4.5:1). */}
+      <div className={`absolute inset-x-0 bottom-0 h-[var(--band)] ${intro ? 'hero-intro-band' : ''}`}>
+        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0" style={{ backgroundColor: slide.color, opacity: BAND_OPACITY }} />
+      </div>
+
+      {/* Линиите в десния край, докато следващият слайд „надниква“ — движат се заедно с тракта */}
+      {streaks && <Streaks animated inside />}
+
+      {/* Името — на шева между снимката и полето, запълва ширината на контейнера */}
+      <div className="container absolute inset-x-0 bottom-[var(--band)] mx-auto px-6">
+        <div className="translate-y-1/2 [container-type:inline-size]">
+          <div className={intro ? 'hero-intro-word' : fadingOut ? 'hero-fade-out' : undefined}>
+            <motion.p
+              className="whitespace-nowrap font-display font-bold uppercase text-white"
+              style={{
+                x: wordX,
+                fontSize,
+                lineHeight: 0.86,
+                letterSpacing: '-0.035em',
+                marginLeft: `${-slide.lsb}em`,
+              }}
+            >
+              {slide.destination}
+            </motion.p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-// Позиция в кръга: -2..2 спрямо текущата. Положителен offset = „следваща“ (стои отдясно).
-function ringOffset(i: number, current: number, n: number) {
-  let d = (i - current) % n;
-  if (d > n / 2) d -= n;
-  if (d < -n / 2) d += n;
-  return d;
-}
-
-const CAROUSEL_X = [0, 94, 168]; // |offset| 0,1,2 → отместване от центъра (px)
-const CAROUSEL_SCALE = [1, 0.78, 0.58];
-const CAROUSEL_OPACITY = [1, 0.92, 0.7];
-
-function CarouselItem({ slide, offset, onSelect }: { slide: (typeof SLIDES)[number]; offset: number; onSelect: () => void }) {
-  const abs = Math.min(Math.abs(offset), 2);
-  const sign = offset > 0 ? 1 : -1; // следващата (offset > 0) е вдясно
-  const x = offset === 0 ? 0 : sign * CAROUSEL_X[abs];
-  // Ако снимката „прескача“ от единия край на другия (кръгов ред), местим я мигновено, а не през цялата лента.
-  const [prevOffset, setPrevOffset] = useState(offset);
-  const [jumped, setJumped] = useState(false);
-  if (prevOffset !== offset) {
-    setJumped(Math.abs(offset - prevOffset) > 2);
-    setPrevOffset(offset);
-  }
-  return (
-    <motion.button
-      type="button"
-      onClick={onSelect}
-      aria-label={offset === 0 ? `${slide.destination} (избрана)` : `Покажи ${slide.destination}`}
-      aria-current={offset === 0}
-      initial={false}
-      animate={{ x, scale: CAROUSEL_SCALE[abs], opacity: CAROUSEL_OPACITY[abs] }}
-      transition={jumped ? { duration: 0 } : { duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
-      className="absolute left-1/2 top-2 -ml-12 h-[120px] w-24 overflow-hidden rounded-2xl border-2 border-white"
-      style={{ zIndex: 10 - abs * 3, willChange: 'transform' }}
-    >
-      <Image src={slide.img} alt="" fill sizes="120px" quality={60} className="object-cover" />
-    </motion.button>
-  );
-}
-
-// Стрелка за смяна на държавата — 44x44px (минимален размер за докосване на телефон)
-function ArrowButton({ dir, onClick }: { dir: 'prev' | 'next'; onClick: () => void }) {
-  const Icon = dir === 'prev' ? ChevronLeft : ChevronRight;
+// Кръгче с дестинация: снимка + обръч. Активното показва прогреса до следващата смяна; натискане върху него
+// спира/пуска автоматичната смяна (WCAG 2.2.2). Обръчът продължава и при намалено движение — той отмерва
+// времето, а смяната тогава е кратко избледняване, не плъзгане.
+function DestinationDot({
+  slide, active, paused, userPaused, onSelect, onTogglePause, onRingEnd,
+}: {
+  slide: Slide;
+  active: boolean;
+  paused: boolean;
+  userPaused: boolean;
+  onSelect: () => void;
+  onTogglePause: () => void;
+  onRingEnd: () => void;
+}) {
+  const label = active
+    ? `${slide.destination}: ${userPaused ? 'пусни' : 'спри'} автоматичната смяна`
+    : `Покажи ${slide.destination}`;
   return (
     <button
       type="button"
-      onClick={onClick}
-      aria-label={dir === 'prev' ? 'Предишна дестинация' : 'Следваща дестинация'}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/80 bg-black/30 text-white backdrop-blur-sm transition-all hover:bg-white hover:text-brand-dark active:scale-90 lg:bg-transparent lg:backdrop-blur-none"
+      onClick={active ? onTogglePause : onSelect}
+      aria-label={label}
+      aria-current={active}
+      className="group flex cursor-pointer touch-manipulation flex-col items-center gap-1.5 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:rounded-2xl"
     >
-      <Icon size={22} aria-hidden="true" />
+      <span className="relative block h-10 w-10 sm:h-14 sm:w-14 lg:h-16 lg:w-16">
+        <span className="absolute inset-[4px] overflow-hidden rounded-full bg-white/20 transition-transform duration-200 ease-out group-hover:scale-[1.07] group-active:scale-95">
+          <Image src={slide.img} alt="" fill sizes="64px" quality={40} className="object-cover" />
+        </span>
+        <svg viewBox="0 0 48 48" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
+          <circle cx="24" cy="24" r="22.5" fill="none" stroke="white" strokeOpacity={active ? 0.35 : 0.5} strokeWidth="2" />
+          {active && (
+            <circle
+              key={slide.img}
+              cx="24"
+              cy="24"
+              r="22.5"
+              fill="none"
+              stroke="white"
+              strokeWidth="3"
+              strokeLinecap="round"
+              pathLength={1}
+              strokeDasharray="1"
+              className="hero-ring"
+              style={{ animationDuration: `${SLIDE_DURATION}ms`, animationPlayState: paused ? 'paused' : 'running' }}
+              onAnimationEnd={onRingEnd}
+            />
+          )}
+        </svg>
+
+      </span>
+      <span className={`hidden text-[13px] leading-none text-white sm:block lg:text-sm lg:[@media(max-height:780px)]:hidden ${active ? 'font-bold' : 'font-medium'}`}>
+        {slide.destination}
+      </span>
     </button>
   );
 }
 
-// Блок "Посреща ви Поли": кръгла снимка и под нея описание. Текстът е съставен от вече съществуващото
-// съдържание на сайта (картата на Поли в MeetGuides.tsx), без нови твърдения.
-function PoliWelcome() {
+// Стрелка — бял плътен кръг, видим върху всеки цвят на полето. Реагира още при натискане.
+function ArrowButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
   return (
-    <aside
-      aria-label="Вашият водач Поли"
-      className="hero-enter relative z-20 mx-auto flex w-full max-w-md flex-col items-center pb-14 pt-4 text-center lg:mx-0 lg:mt-0 lg:w-[340px] lg:max-w-none lg:shrink-0 lg:pb-0 xl:w-[380px]"
-      style={{ animationDelay: '0.45s' }}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="grid h-10 w-10 shrink-0 cursor-pointer touch-manipulation place-items-center rounded-full bg-white text-brand-dark transition-transform duration-150 ease-out hover:scale-[1.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:scale-90 sm:h-12 sm:w-12"
     >
-      {/* Снимка — застъпва горния ръб на картата (-mb-12) */}
-      <div className="relative z-10 -mb-12 h-28 w-28 shrink-0 rounded-full bg-gradient-to-br from-brand-gold to-[#f0d58a] p-1 shadow-2xl sm:h-32 sm:w-32 lg:h-36 lg:w-36">
-        <div className="relative h-full w-full overflow-hidden rounded-full bg-brand-dark">
-          <Image
-            src={POLI_PHOTO.src}
-            alt={POLI_PHOTO.alt}
-            fill
-            priority
-            quality={80}
-            // По-голям sizes от видимите ~140px — снимката е приближена (scale), затова се иска по-висока резолюция
-            sizes="320px"
-            className="object-cover"
-            style={{
-              objectPosition: POLI_PHOTO.objectPosition,
-              transform: `scale(${POLI_PHOTO.zoom})`,
-              transformOrigin: POLI_PHOTO.origin,
-            }}
-          />
-        </div>
-      </div>
+      {children}
+    </button>
+  );
+}
 
-      {/* Описание */}
-      <div className="glass-panel glass-panel-hero-clear hero-card-light flex w-full flex-col items-center rounded-[2rem] px-6 pb-7 pt-16 lg:!border-white/20 lg:!bg-[rgba(15,23,42,0.84)] lg:pt-[4.75rem] lg:shadow-2xl lg:shadow-black/40">
-        <h2 className="font-serif text-2xl italic leading-tight text-brand-dark lg:text-3xl lg:text-white">Паулина Алексиева</h2>
-        <p className="mt-1 text-sm text-slate-500 lg:text-[#e6c76a]">Основател и водач</p>
-        <p className="mt-4 text-sm leading-relaxed italic text-slate-700 lg:font-normal lg:text-white">
-        &quot;Здравейте! Казвам се Поли и създадох тази агенция с цел да Ви представя най-добрите екскурзии и почивки на българския пазар. Основавам се на личния си опит, който е вече над 12 години. Ако имате въпроси - насреща съм!&quot;
-        </p>
-
-        <Link
-          href="/about-us"
-          className="group mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-brand-gold px-6 text-sm font-bold text-[#8a6a0f] transition-all hover:bg-brand-gold hover:text-brand-dark lg:border-brand-gold/70 lg:text-brand-gold"
-        >
-          Научете повече за мен
-          <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-        </Link>
-
-        
-      </div>
-    </aside>
+// Линиите на шева: три къси черти, които подсказват посоката на смяната (отдясно наляво).
+// Стоят вляво от ръба на следващия слайд и се движат с него.
+function Streaks({ animated, inside = false }: { animated: boolean; inside?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute top-[calc((100%_-_var(--band))*0.72)] flex ${inside ? 'right-6' : 'right-full mr-4'} -translate-y-1/2 flex-col items-end gap-2`}
+    >
+      {[30, 48, 22].map((w, k) => (
+        <span
+          key={k}
+          className={`block h-[3px] rounded-full bg-white ${animated ? 'hero-streak' : ''}`}
+          style={{ width: w, animationDelay: `${k * 80}ms`, animationDuration: `${PEEK_TOTAL}s` }}
+        />
+      ))}
+    </span>
   );
 }

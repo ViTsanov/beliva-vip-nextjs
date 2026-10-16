@@ -15,7 +15,12 @@ export const COMPANY_INFO = {
   socials: {
     facebook: "https://www.facebook.com/profile.php?id=61587126843041", // Сложи реалния линк ако е друг
     instagram: "https://www.instagram.com/belivavip/", // Сложи реалния линк ако е друг
-    whatsapp: "https://wa.me/359887616100"
+    whatsapp: "https://wa.me/359887616100",
+    // TikTok профилът на Поли и затворената ѝ Facebook група. Празен низ = картата не се показва на сайта
+    // (в режим на разработка се вижда като чернова, за да се знае какво липсва). Страница „За нас“.
+    tiktok: "https://www.tiktok.com/@poly3202",
+    tiktokHandle: "poly3202",      // без @, напр. "poli.travels"
+    poliGroup: "https://www.facebook.com/groups/393078841554353?locale=bg_BG",         // линк към затворената група във Facebook
   },
 
   // Допълнителни данни (по желание, за да са под ръка)

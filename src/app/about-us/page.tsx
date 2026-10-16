@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import AboutUsClient from './AboutUsClient';
+import { COMPANY_INFO } from '@/lib/companyInfo';
+
+const { socials } = COMPANY_INFO;
 
 export const metadata: Metadata = {
   title: { absolute: 'За Нас — Поли | Beliva VIP Tour' },
@@ -14,7 +17,13 @@ const schemaData = {
     "@type": "TravelAgency",
     name: "Beliva VIP Tour",
     foundingDate: "2010",
-    founder: { "@type": "Person", name: "Паулина Алексиева" },
+    founder: {
+      "@type": "Person",
+      name: "Паулина Алексиева",
+      // Профилите на Поли — празните се пропускат
+      ...(socials.tiktok ? { sameAs: [socials.tiktok] } : {}),
+    },
+    sameAs: [socials.facebook, socials.instagram].filter(Boolean),
     description: "Лицензирана туристическа агенция с лично отношение и над 15 години опит.",
     url: "https://belivavip.bg",
   },

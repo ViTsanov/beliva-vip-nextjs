@@ -26,10 +26,12 @@ import { IClient } from '@/types';
 import ClientsTab from '@/components/admin/ClientsTab';
 import ReservationsTab from '@/components/admin/ReservationsTab';
 import GroupsTab from '@/components/admin/GroupsTab';
+import ReviewRequestsPanel from '@/components/admin/ReviewRequestsPanel';
 import ClientDetailModal from '@/components/admin/ClientDetailModal';
 import SettingsTab from '@/components/admin/SettingsTab';
 import MarketingAnalytics from '@/components/admin/MarketingAnalytics';
 import CountryMultiSelect from '@/components/admin/CountryMultiSelect';
+import TourPicker, { type TourChoice } from '@/components/tours/TourPicker';
 
 // ==========================================
 // ТУРОПЕРАТОРИ ЗА „АВТОМАТИЧНАТА МАШИНА“
@@ -96,8 +98,6 @@ export default function AdminDashboardClient() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
 
   // Търсачка за добавяне на пътуване
-  const [tripSearchCountry, setTripSearchCountry] = useState('');
-  const [tripSearchMonth, setTripSearchMonth] = useState('');
   
   // За таб "Минали групи"
   const [groupTourId, setGroupTourId] = useState('');
@@ -115,18 +115,16 @@ export default function AdminDashboardClient() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
-  const [editingCampaign, setEditingCampaign] = useState<any>({ name: '', startDate: '', endDate: '', label: 'ПРОМОЦИЯ', bgColor: '#dc2626', textColor: '#ffffff', effect: 'none' });
+  const [editingCampaign, setEditingCampaign] = useState<any>({ name: '', startDate: '', endDate: '', label: 'ПРОМОЦИЯ', bgColor: '#dc2626', textColor: '#ffffff', effect: 'none', discountPercent: '' });
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
   const [isEditCustomerModalOpen, setIsEditCustomerModalOpen] = useState(false);
   const [isEditInquiryModalOpen, setIsEditInquiryModalOpen] = useState(false);
   const [isAddTripModalOpen, setIsAddTripModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null); 
 
   const [manualInquiry, setManualInquiry] = useState({ clientName: '', clientPhone: '', clientEmail: '', tourTitle: '', tourDate: '', tourId: '' });
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', vipDiscount: 0, initialTourId: '', initialTourTitle: '', initialDate: '' });
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [editingInquiry, setEditingInquiry] = useState<any>(null);
   const [selectedCustomerForTrip, setSelectedCustomerForTrip] = useState<any>(null);
@@ -156,6 +154,11 @@ export default function AdminDashboardClient() {
     setScoutResults({}); // броят „Нови“ зависи от оператора — старите числа вече не важат
   };
   const operatorsLabel = automationOperators.map(o => OPERATOR_LABEL[o]).join(' и ');
+
+  // „Създай тур от линк“ (таб Архив): линкове, поставени ръчно, по един на ред, и резултатът за всеки
+  const [linkImportText, setLinkImportText] = useState('');
+  const [linkImportStatus, setLinkImportStatus] = useState('');
+  const [linkImportResults, setLinkImportResults] = useState<{ url: string; ok: boolean; title?: string; message?: string }[]>([]);
 
   // Зареждаме запазените държави и минималната дата от localStorage при отваряне
   useEffect(() => {
@@ -354,6 +357,24 @@ export default function AdminDashboardClient() {
     }
   };
 
+  // TourPicker в модалите за запитване: от полетата на запитването към избора и обратно.
+  // Турът е „конкретен“, само ако ID-то му е сред заредените турове; „Дестинация: …“ пази и държавата.
+  const inquiryChoice = (inq: any): TourChoice =>
+    inq?.tourId && allTours.some(t => t.id === inq.tourId)
+      ? { kind: 'tour', tourId: inq.tourId, ...(/^\d{4}-\d{2}-\d{2}/.test(inq.tourDate || '') ? { date: inq.tourDate } : {}) }
+      : inq?.destination
+        ? { kind: 'destination', country: inq.destination }
+        : { kind: 'general' };
+  const inquiryFieldsFromChoice = (c: TourChoice) => {
+    if (c.kind === 'tour') {
+      const t = allTours.find(x => x.id === c.tourId);
+      // Датата идва директно от бутоните с дати в реда на тура (ако е натисната).
+      return { tourId: c.tourId, tourTitle: t?.title || 'Общо запитване', destination: '', tourDate: c.date || '' };
+    }
+    if (c.kind === 'destination') return { tourId: 'general', tourTitle: `Дестинация: ${c.country}`, destination: c.country, tourDate: '' };
+    return { tourId: 'general', tourTitle: 'Общо запитване', destination: '', tourDate: '' };
+  };
+
   const handleUpdateInquiry = async (e: React.FormEvent) => { e.preventDefault(); await updateDoc(doc(db, "inquiries", editingInquiry.id), editingInquiry); setIsEditInquiryModalOpen(false); };
   const handleUpdateCustomer = async (e: React.FormEvent) => { e.preventDefault(); await updateDoc(doc(db, "customers", editingCustomer.id), editingCustomer); setIsEditCustomerModalOpen(false); };
   const handleAddManualTrip = async (e: React.FormEvent) => {
@@ -369,14 +390,7 @@ export default function AdminDashboardClient() {
       setIsAddTripModalOpen(false); 
       setNewTrip({ tourId: '', tourTitle: '', date: '', tourOperator: '' });
   };
-  const handleSaveManualInquiry = async (e: React.FormEvent) => { e.preventDefault(); await addDoc(collection(db, "inquiries"), { ...manualInquiry, status: 'new', createdAt: serverTimestamp() }); setIsManualModalOpen(false); };
-  const handleSaveNewCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const history = [];
-    if (newCustomer.initialTourTitle) history.push({ tourTitle: newCustomer.initialTourTitle, date: newCustomer.initialDate || "Не е избрана", addedAt: new Date().toISOString() });
-    await addDoc(collection(db, "customers"), { name: newCustomer.name, phone: newCustomer.phone, email: newCustomer.email, vipDiscount: newCustomer.vipDiscount, totalTrips: history.length, tripHistory: history, createdAt: serverTimestamp() });
-    setIsAddCustomerModalOpen(false); setNewCustomer({ name: '', phone: '', email: '', vipDiscount: 0, initialTourId: '', initialTourTitle: '', initialDate: '' });
-  };
+  const handleSaveManualInquiry = async (e: React.FormEvent) => { e.preventDefault(); await addDoc(collection(db, "inquiries"), { ...manualInquiry, clientEmail: manualInquiry.clientEmail.trim(), status: 'new', createdAt: serverTimestamp() }); setManualInquiry({ clientName: '', clientPhone: '', clientEmail: '', tourTitle: '', tourDate: '', tourId: '' }); setIsManualModalOpen(false); };
 
   const handleLogout = async () => { await signOut(auth); await logoutAction(); router.push('/'); };
   const openModal = (item: any = null) => { setEditingItem(item); setIsModalOpen(true); };
@@ -485,9 +499,11 @@ export default function AdminDashboardClient() {
 
   const handleSaveCampaign = async (e: React.FormEvent) => {
       e.preventDefault();
+      // Отстъпката (%) се ползва в Резервации → Платено: при избор на промоция сумата се смята автоматично.
+      const campaignData = { ...editingCampaign, discountPercent: Math.min(100, Math.max(0, Number(editingCampaign.discountPercent) || 0)) };
       if (editingCampaign.id) {
           // 1. Обновяваме самата кампания
-          await updateDoc(doc(db, "campaigns", editingCampaign.id), editingCampaign);
+          await updateDoc(doc(db, "campaigns", editingCampaign.id), campaignData);
           
           // 2. ⚡ МАГИЯТА: Автоматично обновяваме всички екскурзии, които използват тази кампания!
           const q = query(collection(db, "tours"), where("campaignId", "==", editingCampaign.id));
@@ -503,7 +519,7 @@ export default function AdminDashboardClient() {
               });
           });
       } else {
-          await addDoc(collection(db, "campaigns"), { ...editingCampaign, createdAt: serverTimestamp() });
+          await addDoc(collection(db, "campaigns"), { ...campaignData, createdAt: serverTimestamp() });
       }
       setIsCampaignModalOpen(false);
   };
@@ -578,6 +594,316 @@ export default function AdminDashboardClient() {
       setTimeout(() => setAutoProcessStatus(''), 5000);
     }
     setBusyCountry(null);
+    setIsAutoProcessing(false);
+  };
+
+  // Общата част за един тур — от вече скрейпнатите данни до запис в базата като „Чакащ одобрение“:
+  // AI пренаписва текста, избират се снимки от библиотеката, генерира се tourId. Ползва се и от машината
+  // (за всеки нов линк), и от „Създай тур от линк“ (за линк, поставен ръчно).
+  // linkObj: { url, title, operator: '2mko' | 'dari', countryMatched?: държавата, за която търсим снимки }
+  // generatedIdsThisRun: tourId-тата, създадени в същото пускане (allTours още не ги вижда).
+  const aiFormatAndSaveTour = async (scrapedData: any, linkObj: any, allMedia: any[], generatedIdsThisRun: Set<string>, report: (msg: string) => void = setAutoProcessStatus) => {
+    // Б) Пращаме на GPT-4o за пренаписване — с автоматичен retry, ако ударим на OpenAI rate limit (големи
+    // много-дестинационни турове като този могат лесно да изчерпат 30 000 токена/минута в едно
+    // единствено извикване). OpenAI само ни казва точно колко да изчакаме в самото съобщение за грешка.
+    report(`GPT-4o пише текст за: ${linkObj.countryMatched || linkObj.title}...`);
+    let aiData: any;
+    let aiAttempts = 0;
+    const maxAiAttempts = 2; // до 2 повторни опита след първоначалния, при rate limit
+    while (true) {
+      const aiRes = await fetch('/api/ai-format-tour', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scrapedData })
+      });
+      aiData = await aiRes.json();
+      if (aiData.success) break;
+
+      const isRateLimit = typeof aiData.error === 'string' && aiData.error.toLowerCase().includes('rate limit');
+      if (isRateLimit && aiAttempts < maxAiAttempts) {
+        const waitMs = parseRetryDelayMs(aiData.error);
+        aiAttempts++;
+        report(`OpenAI лимит достигнат — изчакваме ${Math.ceil(waitMs / 1000)}с преди повторен опит (${aiAttempts}/${maxAiAttempts})...`);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        continue;
+      }
+      // ВАЖНО: преди тук хвърляхме винаги generic "AI грешка" — реалната причина (от aiData.error,
+      // връщана от сървъра) се губеше, затова всяка грешка (permission, JSON parse, rate limit...)
+      // изглежда еднакво в конзолата, налагайки диагностиката всеки път.
+      throw new Error(aiData.error || "AI грешка (няма подробности от сървъра)");
+    }
+
+    let finalTour = aiData.tour;
+
+    // ФАЛБЕК: ако AI не върне country (празен масив ␸ли липсва), използваме държавата,
+    // която САМИЯТ ти вече избра в панела (linkObj.countryMatched) — това е надежден източник.
+    // Без това цялата логика за избор на снимки по-долу се прескача, защото работи с finalTour.country
+    if (!finalTour.country || !Array.isArray(finalTour.country) || finalTour.country.length === 0) {
+      finalTour.country = linkObj.countryMatched ? [linkObj.countryMatched] : [];
+    } else if (linkObj.countryMatched && !finalTour.country.some((c: string) => c.toLowerCase() === linkObj.countryMatched.toLowerCase())) {
+      // AI е намерило други/допълнителни държави — добавяме и избраната, ако липсва
+      finalTour.country = [linkObj.countryMatched, ...finalTour.country];
+    }
+
+    // В) Умният Арт Директор: Избира снимки
+    // Правила:
+    // - Hero: снимка с име "<Държава> hero" (напр. "Япония hero")
+    // - Галерия: 6 СЛУЧАЙНИ снимки; при няколко държави — поравно от всяка;
+    //   ако за някоя държава няма снимки, квотата й се прехвърля към държавите със снимки
+    // - Ако няма НИКАКВИ снимки — не слагаме нищо (img и gallery остават празни)
+    const shuffle = (arr: any[]) => [...arr].sort(() => Math.random() - 0.5);
+
+    let heroImg = '';
+    let selectedImages: any[] = [];
+
+    if (finalTour.country && Array.isArray(finalTour.country) && finalTour.country.length > 0) {
+      // Винаги проверяваме ПЪРВО избраната в панела държава (linkObj.countryMatched) — тя е най-надеждната,
+      // тъй като ти лично я избра в автоматизацията; AI може да е добавило други държави след
+      const countrySearchOrder = [
+        linkObj.countryMatched,
+        ...finalTour.country.filter((c: string) => c?.toLowerCase() !== linkObj.countryMatched?.toLowerCase())
+      ].filter(Boolean);
+
+      // 1. HERO: събираме ВСИЧКИ съвпадащи hero снимки за държавата и избираме СЛУЧАЙНА —
+      // така различните турове за същата държава получават различни главни снимки
+      for (const c of countrySearchOrder) {
+        const cLower = c.toLowerCase();
+        const heroCandidates = allMedia.filter(m => {
+          if (!m.name) return false;
+          const n = m.name.toLowerCase();
+          return n.includes(cLower) && n.includes('hero');
+        });
+        if (heroCandidates.length > 0) {
+          heroImg = heroCandidates[Math.floor(Math.random() * heroCandidates.length)].url;
+          break;
+        }
+      }
+
+      // 2. ГАЛЕРИЯ: групираме наличните снимки по държава (без hero снимките), също по-гъвкаво съвпадане
+      const mediaByCountry: Record<string, any[]> = {};
+      countrySearchOrder.forEach((c: string) => {
+        const cLower = c.toLowerCase();
+        const matched = allMedia.filter(m => {
+          if (!m.name) return false;
+          const n = m.name.toLowerCase();
+          return n.includes(cLower) && !n.includes('hero');
+        });
+        if (matched.length > 0) mediaByCountry[c] = shuffle(matched);
+      });
+
+      const countriesWithImages = Object.keys(mediaByCountry);
+
+      if (countriesWithImages.length > 0) {
+        // Разпределяме квотата от 6 снимки между държавите СЪС снимки
+        // Първи пас: поравно; втори пас: остатъкът отива където има още налични
+        const target = 6;
+        const picked: any[] = [];
+        const pools = countriesWithImages.map(c => [...mediaByCountry[c]]);
+
+        // Round-robin: взимаме по 1 от всяка държава докато стигнем 6 или свършат
+        let poolIdx = 0;
+        let emptyRounds = 0;
+        while (picked.length < target && emptyRounds < pools.length) {
+          const pool = pools[poolIdx % pools.length];
+          if (pool.length > 0) {
+            const media = pool.shift();
+            picked.push({ url: media.url, alt: media.name });
+            emptyRounds = 0;
+          } else {
+            emptyRounds++;
+          }
+          poolIdx++;
+        }
+
+        selectedImages = shuffle(picked); // разбъркваме финалния ред
+      }
+    }
+
+    // ВАЖНО: сайтът (TourClient) чете 'galleryWithCaptions' с ключ 'caption' — не 'gallery' с 'alt'!
+    finalTour.galleryWithCaptions = selectedImages.map((s: any) => ({ url: s.url, caption: s.alt || '' }));
+    finalTour.images = selectedImages.map((s: any) => s.url).join(', '); // legacy поле за съвместимост
+    if (heroImg) finalTour.img = heroImg;
+    // Ако няма hero снимка, но има галерия — първата от галерията става главна
+    else if (selectedImages.length > 0) finalTour.img = selectedImages[0].url;
+    // Ако няма никакви снимки — img остава празно (не слагаме нищо)
+
+    // ДЕБАГ в конзолата — помага веднага дали снимките са намерени или защо не
+    console.log(`[СНИМКИ] ${finalTour.title}: country=${JSON.stringify(finalTour.country)}, hero=${heroImg ? ('✓ ' + heroImg) : '✗'}, галерия=${selectedImages.length} снимки`);
+    if (!heroImg || selectedImages.length === 0) {
+      // Ако нещо липсва, показваме ВСИЧКИ имена в библиотеката, за да се види точно как са кръстени
+      console.log(`[СНИМКИ] Всички имена в библиотеката (${allMedia.length}): ${allMedia.map((m: any) => m.name).join(', ')}`);
+    }
+
+    // Г) КОНВЕРСИЯ: AI формат → формат на сайта
+    // AI връща масиви (includes/excludes/docs/info), сайтът очаква стрингове с нови редове
+    const joinArr = (arr: any) => Array.isArray(arr) ? arr.join('\n') : (arr || '');
+
+    // Генерираме tourId: countrySlug-MM-YYYY-N
+    const firstCountry = Array.isArray(finalTour.country) ? finalTour.country[0] : finalTour.country;
+    const countrySlug = slugify(firstCountry || 'tour') || 'tour';
+    // MM-YYYY в ID-то = месец/година на ОТПЪТУВАНЕТО, НЕ на импорта!
+    // Източници по приоритет: 1) първата скрейпната дата, 2) датата от заглавието на Ден 1, 3) днешна дата (fallback)
+    const now = new Date();
+    let mm = String(now.getMonth() + 1).padStart(2, '0');
+    let yyyy = String(now.getFullYear());
+    const firstDateStr = String((scrapedData.dates && scrapedData.dates[0]) || '');
+    let dm;
+    if ((dm = firstDateStr.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/))) {
+      // ISO: YYYY-MM-DD
+      yyyy = dm[1]; mm = dm[2].padStart(2, '0');
+    } else if ((dm = firstDateStr.match(/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})/))) {
+      // BG: DD.MM.YYYY
+      mm = dm[2].padStart(2, '0'); yyyy = dm[3];
+    } else {
+      // Пробваме от заглавието на Ден 1 (формат "DD.MM.YY Заглавие")
+      const day1Title = String(finalTour.program?.[0]?.title || '');
+      const tm = day1Title.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+      if (tm) { mm = tm[2].padStart(2, '0'); yyyy = tm[3].length === 2 ? '20' + tm[3] : tm[3]; }
+    }
+    const idPrefix = `${countrySlug}-${mm}-${yyyy}`;
+    const existingIds = new Set<string>(
+      allTours.filter((t: any) => t.tourId?.startsWith(idPrefix)).map((t: any) => t.tourId)
+    );
+    // Слагаме и ID-тата, генерирани по-рано в СЪЩИЯ цикъл (allTours не ги вижда още)
+    generatedIdsThisRun.forEach(id => { if (id.startsWith(idPrefix)) existingIds.add(id); });
+    // Търсим първия свободен номер (гарантирано уникален, дори при дупки в номерацията)
+    let counter = existingIds.size + 1;
+    while (existingIds.has(`${idPrefix}-${counter}`)) counter++;
+    const genTourId = `${idPrefix}-${counter}`;
+    generatedIdsThisRun.add(genTourId);
+
+    const tourDoc: any = {
+      title: finalTour.title || linkObj.title,
+      intro: finalTour.intro || '',
+      country: finalTour.country || [linkObj.countryMatched],
+      continent: '', // попълва се ръчно при одобрение — но полето трябва да СЪЩЕСТВУВА (where(undefined) гърми в SimilarTours)
+      price: finalTour.price || '',
+      duration: finalTour.days ? String(finalTour.days) : '',
+      durationDays: finalTour.days ? String(finalTour.days) : '', // TourForm и сайтът четат 'Дни' от това поле!
+      nights: finalTour.nights ? String(finalTour.nights) : '',
+      route: finalTour.route || '',
+      // ВАЖНО: сайтът (TourTabs) и TourForm четат поле 'itinerary' с ключ 'content' —
+      // AI връща 'program' с 'description', затова мапваме тук.
+      // Също почистваме евентуален префикс "1 ДЕН – 28.08.2026" от описанието (дублира заглавието)
+      itinerary: (finalTour.program || []).map((p: any, idx: number) => {
+        let content = p.description || p.content || '';
+        // Махаме водещ "N ден" / "N-ти ДЕН" + евентуална дата от началото на текста
+        content = content.replace(/^\s*\d{1,2}\s*(?:-?\s*(?:ви|ри|ти|ми|ва))?\s*ден\s*[–\-—]?\s*(?:\d{2}\.\d{2}\.\d{4})?\s*[–\-—:]?\s*/i, '');
+        return {
+          day: p.day || idx + 1,
+          title: p.title || `Ден ${p.day || idx + 1}`,
+          content
+        };
+      }),
+      included: joinArr(finalTour.includes),
+      notIncluded: joinArr(finalTour.excludes),
+      documents: joinArr(finalTour.docs),
+      generalInfo: joinArr(finalTour.info),
+      img: finalTour.img || '',
+      galleryWithCaptions: finalTour.galleryWithCaptions || [],
+      images: finalTour.images || '',
+      tourId: genTourId,
+      slug: genTourId,
+      operator: OPERATOR_LABEL[linkObj.operator as ScanOperator] || '2МКО',
+      date: '', // датите се добавят ръчно при одобрение (или от scraped dates ако има)
+      dates: [],
+      categories: [],
+      originalUrl: linkObj.url, // ЗА ДЕДУПЛИКАЦИЯ — за да не го теглим пак утре
+      externalSourceLink: linkObj.url, // СЪЩОТО, НО за "Провери с бот" полето в TourForm — за да е предпопълнено при редактиране
+      status: 'pending', // СТАТУС ЧАКАЩА!
+      createdAt: serverTimestamp()
+    };
+
+    // Ако scrape-ът е намерил дати — НОРМАЛИЗИРАМЕ ги към ISO (YYYY-MM-DD)!
+    // Скрейпърът ги връща като "27.11.2026" (с точки), а целият сайт филтрира/сортира по ISO —
+    // без конверсия турът се брои "без валидни дати" и НЕ се показва на началната страница!
+    if (scrapedData.dates && scrapedData.dates.length > 0) {
+      const isoDates = scrapedData.dates.map(toISO).filter(Boolean);
+      if (isoDates.length > 0) {
+        tourDoc.dates = isoDates;
+        tourDoc.date = isoDates[0];
+      }
+    }
+
+    // Д) Записваме във Firebase като PENDING!
+    report(`Записване на ${tourDoc.title} в базата...`);
+    await addDoc(collection(db, "tours"), tourDoc);
+    return tourDoc;
+  };
+
+  // „Създай тур от линк“: за всеки поставен линк — проверка на туроператора и дали вече го имаме, после
+  // скрейп → AI → снимки → запис като „Чакащ одобрение“ (същото като машината, но без търсене и без датов филтър —
+  // линкът е избран ръчно). Машината и този бутон не вървят едновременно (общ isAutoProcessing), за да не
+  // делят лимита на OpenAI.
+  const importToursFromLinks = async () => {
+    const urls = [...new Set(linkImportText.split(/\s+/).map(s => s.trim()).filter(Boolean))];
+    if (urls.length === 0) return;
+
+    setIsAutoProcessing(true);
+    setLinkImportResults([]);
+    const results: { url: string; ok: boolean; title?: string; message?: string }[] = [];
+    const statusLabel: Record<string, string> = { public: 'публикуван', pending: 'чака одобрение', draft: 'чернова', archived: 'в архива' };
+
+    try {
+      setLinkImportStatus('Зареждам библиотеката със снимки...');
+      const mediaSnap = await getDocs(collection(db, "media"));
+      const allMedia = mediaSnap.docs.map(d => d.data());
+      const generatedIdsThisRun = new Set<string>();
+
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        const report = (msg: string) => setLinkImportStatus(urls.length > 1 ? `(${i + 1}/${urls.length}) ${msg}` : msg);
+        let reachedAi = false;
+        try {
+          let host = '';
+          try { host = new URL(url).hostname.replace(/^www\./, ''); } catch { throw new Error('Това не е валиден линк.'); }
+          const operator: ScanOperator | null = host === '2mko.com' ? '2mko' : host === 'dari-tour.com' ? 'dari' : null;
+          if (!operator) throw new Error('Засега могат само линкове от 2mko.com и dari-tour.com.');
+
+          const existing = allTours.find((t: any) =>
+            [t.originalUrl, t.externalSourceLink].some((u: string) => u && normalizeUrl(u) === normalizeUrl(url)));
+          if (existing && !confirm(`Вече имаме този тур: „${existing.title}“ (${statusLabel[existing.status] || existing.status}).\n\nДа създам ли още един?`)) {
+            results.push({ url, ok: false, message: `Пропуснат — вече го имаме („${existing.title}“)` });
+            continue;
+          }
+
+          report('Чета страницата на туроператора...');
+          const scrapeRes = await fetch('/api/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+          });
+          const scrapedData = await scrapeRes.json();
+          if (!scrapeRes.ok || scrapedData.error) throw new Error(scrapedData.error || `Грешка ${scrapeRes.status} при четенето на страницата`);
+          if (!scrapedData.title && !(scrapedData.program?.length > 0)) throw new Error('Не успях да прочета тура от страницата — провери линка.');
+
+          reachedAi = true;
+          const linkObj = {
+            url,
+            title: scrapedData.title || url,
+            operator,
+            // Държавата, по която се търсят снимки — първата, която скрейпърът разпозна (машината я знае от търсенето)
+            countryMatched: scrapedData.detectedCountries?.[0] || '',
+          };
+          const tourDoc = await aiFormatAndSaveTour(scrapedData, linkObj, allMedia, generatedIdsThisRun, report);
+          results.push({ url, ok: true, title: tourDoc.title });
+        } catch (err: any) {
+          console.warn('Грешка при създаване на тур от', url, err);
+          results.push({ url, ok: false, message: err?.message || 'Неизвестна грешка' });
+        }
+        setLinkImportResults([...results]);
+        // Пауза между два тура, които стигат до OpenAI — като в машината
+        if (reachedAi && i < urls.length - 1) await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    } catch (err: any) {
+      results.push({ url: '', ok: false, message: `Грешка: ${err?.message || ''}` });
+    }
+
+    setLinkImportResults(results);
+    // В полето остават само неуспелите линкове — за повторен опит
+    setLinkImportText(results.filter(r => !r.ok && r.url).map(r => r.url).join('\n'));
+    if (results.some(r => r.ok)) setArchivedSubTab('pending');
+    setLinkImportStatus('');
     setIsAutoProcessing(false);
   };
 
@@ -660,231 +986,7 @@ export default function AdminDashboardClient() {
           attemptedCount++;
           setAutoProcessStatus(`Обработка ${attemptedCount}${automationLimit ? `/${automationLimit}` : ''}: ${linkObj.title}...`);
 
-          // Б) Пращаме на GPT-4o за пренаписване — с автоматичен retry, ако ударим на OpenAI rate limit (големи
-          // много-дестинационни турове като този могат лесно да изчерпат 30 000 токена/минута в едно
-          // единствено извикване). OpenAI само ни казва точно колко да изчакаме в самото съобщение за грешка.
-          setAutoProcessStatus(`GPT-4o пише текст за: ${linkObj.countryMatched}...`);
-          let aiData: any;
-          let aiAttempts = 0;
-          const maxAiAttempts = 2; // до 2 повторни опита след първоначалния, при rate limit
-          while (true) {
-            const aiRes = await fetch('/api/ai-format-tour', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ scrapedData })
-            });
-            aiData = await aiRes.json();
-            if (aiData.success) break;
-
-            const isRateLimit = typeof aiData.error === 'string' && aiData.error.toLowerCase().includes('rate limit');
-            if (isRateLimit && aiAttempts < maxAiAttempts) {
-              const waitMs = parseRetryDelayMs(aiData.error);
-              aiAttempts++;
-              setAutoProcessStatus(`OpenAI лимит достигнат — изчакваме ${Math.ceil(waitMs / 1000)}с преди повторен опит (${aiAttempts}/${maxAiAttempts})...`);
-              await new Promise(resolve => setTimeout(resolve, waitMs));
-              continue;
-            }
-            // ВАЖНО: преди тук хвърляхме винаги generic "AI грешка" — реалната причина (от aiData.error,
-            // връщана от сървъра) се губеше, затова всяка грешка (permission, JSON parse, rate limit...)
-            // изглежда еднакво в конзолата, налагайки диагностиката всеки път.
-            throw new Error(aiData.error || "AI грешка (няма подробности от сървъра)");
-          }
-
-          let finalTour = aiData.tour;
-
-          // ФАЛБЕК: ако AI не върне country (празен масив ␸ли липсва), използваме държавата,
-          // която САМИЯТ ти вече избра в панела (linkObj.countryMatched) — това е надежден източник.
-          // Без това цялата логика за избор на снимки по-долу се прескача, защото работи с finalTour.country
-          if (!finalTour.country || !Array.isArray(finalTour.country) || finalTour.country.length === 0) {
-            finalTour.country = linkObj.countryMatched ? [linkObj.countryMatched] : [];
-          } else if (linkObj.countryMatched && !finalTour.country.some((c: string) => c.toLowerCase() === linkObj.countryMatched.toLowerCase())) {
-            // AI е намерило други/допълнителни държави — добавяме и избраната, ако липсва
-            finalTour.country = [linkObj.countryMatched, ...finalTour.country];
-          }
-
-          // В) Умният Арт Директор: Избира снимки
-          // Правила:
-          // - Hero: снимка с име "<Държава> hero" (напр. "Япония hero")
-          // - Галерия: 6 СЛУЧАЙНИ снимки; при няколко държави — поравно от всяка;
-          //   ако за някоя държава няма снимки, квотата й се прехвърля към държавите със снимки
-          // - Ако няма НИКАКВИ снимки — не слагаме нищо (img и gallery остават празни)
-          const shuffle = (arr: any[]) => [...arr].sort(() => Math.random() - 0.5);
-
-          let heroImg = '';
-          let selectedImages: any[] = [];
-
-          if (finalTour.country && Array.isArray(finalTour.country) && finalTour.country.length > 0) {
-            // Винаги проверяваме ПЪРВО избраната в панела държава (linkObj.countryMatched) — тя е най-надеждната,
-            // тъй като ти лично я избра в автоматизацията; AI може да е добавило други държави след
-            const countrySearchOrder = [
-              linkObj.countryMatched,
-              ...finalTour.country.filter((c: string) => c?.toLowerCase() !== linkObj.countryMatched?.toLowerCase())
-            ].filter(Boolean);
-
-            // 1. HERO: събираме ВСИЧКИ съвпадащи hero снимки за държавата и избираме СЛУЧАЙНА —
-            // така различните турове за същата държава получават различни главни снимки
-            for (const c of countrySearchOrder) {
-              const cLower = c.toLowerCase();
-              const heroCandidates = allMedia.filter(m => {
-                if (!m.name) return false;
-                const n = m.name.toLowerCase();
-                return n.includes(cLower) && n.includes('hero');
-              });
-              if (heroCandidates.length > 0) {
-                heroImg = heroCandidates[Math.floor(Math.random() * heroCandidates.length)].url;
-                break;
-              }
-            }
-
-            // 2. ГАЛЕРИЯ: групираме наличните снимки по държава (без hero снимките), също по-гъвкаво съвпадане
-            const mediaByCountry: Record<string, any[]> = {};
-            countrySearchOrder.forEach((c: string) => {
-              const cLower = c.toLowerCase();
-              const matched = allMedia.filter(m => {
-                if (!m.name) return false;
-                const n = m.name.toLowerCase();
-                return n.includes(cLower) && !n.includes('hero');
-              });
-              if (matched.length > 0) mediaByCountry[c] = shuffle(matched);
-            });
-
-            const countriesWithImages = Object.keys(mediaByCountry);
-
-            if (countriesWithImages.length > 0) {
-              // Разпределяме квотата от 6 снимки между държавите СЪС снимки
-              // Първи пас: поравно; втори пас: остатъкът отива където има още налични
-              const target = 6;
-              const picked: any[] = [];
-              const pools = countriesWithImages.map(c => [...mediaByCountry[c]]);
-
-              // Round-robin: взимаме по 1 от всяка държава докато стигнем 6 или свършат
-              let poolIdx = 0;
-              let emptyRounds = 0;
-              while (picked.length < target && emptyRounds < pools.length) {
-                const pool = pools[poolIdx % pools.length];
-                if (pool.length > 0) {
-                  const media = pool.shift();
-                  picked.push({ url: media.url, alt: media.name });
-                  emptyRounds = 0;
-                } else {
-                  emptyRounds++;
-                }
-                poolIdx++;
-              }
-
-              selectedImages = shuffle(picked); // разбъркваме финалния ред
-            }
-          }
-
-          // ВАЖНО: сайтът (TourClient) чете 'galleryWithCaptions' с ключ 'caption' — не 'gallery' с 'alt'!
-          finalTour.galleryWithCaptions = selectedImages.map((s: any) => ({ url: s.url, caption: s.alt || '' }));
-          finalTour.images = selectedImages.map((s: any) => s.url).join(', '); // legacy поле за съвместимост
-          if (heroImg) finalTour.img = heroImg;
-          // Ако няма hero снимка, но има галерия — първата от галерията става главна
-          else if (selectedImages.length > 0) finalTour.img = selectedImages[0].url;
-          // Ако няма никакви снимки — img остава празно (не слагаме нищо)
-
-          // ДЕБАГ в конзолата — помага веднага дали снимките са намерени или защо не
-          console.log(`[СНИМКИ] ${finalTour.title}: country=${JSON.stringify(finalTour.country)}, hero=${heroImg ? ('✓ ' + heroImg) : '✗'}, галерия=${selectedImages.length} снимки`);
-          if (!heroImg || selectedImages.length === 0) {
-            // Ако нещо липсва, показваме ВСИЧКИ имена в библиотеката, за да се види точно как са кръстени
-            console.log(`[СНИМКИ] Всички имена в библиотеката (${allMedia.length}): ${allMedia.map((m: any) => m.name).join(', ')}`);
-          }
-
-          // Г) КОНВЕРСИЯ: AI формат → формат на сайта
-          // AI връща масиви (includes/excludes/docs/info), сайтът очаква стрингове с нови редове
-          const joinArr = (arr: any) => Array.isArray(arr) ? arr.join('\n') : (arr || '');
-
-          // Генерираме tourId: countrySlug-MM-YYYY-N
-          const firstCountry = Array.isArray(finalTour.country) ? finalTour.country[0] : finalTour.country;
-          const countrySlug = slugify(firstCountry || 'tour') || 'tour';
-          // MM-YYYY в ID-то = месец/година на ОТПЪТУВАНЕТО, НЕ на импорта!
-          // Източници по приоритет: 1) първата скрейпната дата, 2) датата от заглавието на Ден 1, 3) днешна дата (fallback)
-          const now = new Date();
-          let mm = String(now.getMonth() + 1).padStart(2, '0');
-          let yyyy = String(now.getFullYear());
-          const firstDateStr = String((scrapedData.dates && scrapedData.dates[0]) || '');
-          let dm;
-          if ((dm = firstDateStr.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/))) {
-            // ISO: YYYY-MM-DD
-            yyyy = dm[1]; mm = dm[2].padStart(2, '0');
-          } else if ((dm = firstDateStr.match(/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})/))) {
-            // BG: DD.MM.YYYY
-            mm = dm[2].padStart(2, '0'); yyyy = dm[3];
-          } else {
-            // Пробваме от заглавието на Ден 1 (формат "DD.MM.YY Заглавие")
-            const day1Title = String(finalTour.program?.[0]?.title || '');
-            const tm = day1Title.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
-            if (tm) { mm = tm[2].padStart(2, '0'); yyyy = tm[3].length === 2 ? '20' + tm[3] : tm[3]; }
-          }
-          const idPrefix = `${countrySlug}-${mm}-${yyyy}`;
-          const existingIds = new Set<string>(
-            allTours.filter((t: any) => t.tourId?.startsWith(idPrefix)).map((t: any) => t.tourId)
-          );
-          // Слагаме и ID-тата, генерирани по-рано в СЪЩИЯ цикъл (allTours не ги вижда още)
-          generatedIdsThisRun.forEach(id => { if (id.startsWith(idPrefix)) existingIds.add(id); });
-          // Търсим първия свободен номер (гарантирано уникален, дори при дупки в номерацията)
-          let counter = existingIds.size + 1;
-          while (existingIds.has(`${idPrefix}-${counter}`)) counter++;
-          const genTourId = `${idPrefix}-${counter}`;
-          generatedIdsThisRun.add(genTourId);
-
-          const tourDoc: any = {
-            title: finalTour.title || linkObj.title,
-            intro: finalTour.intro || '',
-            country: finalTour.country || [linkObj.countryMatched],
-            continent: '', // попълва се ръчно при одобрение — но полето трябва да СЪЩЕСТВУВА (where(undefined) гърми в SimilarTours)
-            price: finalTour.price || '',
-            duration: finalTour.days ? String(finalTour.days) : '',
-            durationDays: finalTour.days ? String(finalTour.days) : '', // TourForm и сайтът четат 'Дни' от това поле!
-            nights: finalTour.nights ? String(finalTour.nights) : '',
-            route: finalTour.route || '',
-            // ВАЖНО: сайтът (TourTabs) и TourForm четат поле 'itinerary' с ключ 'content' —
-            // AI връща 'program' с 'description', затова мапваме тук.
-            // Също почистваме евентуален префикс "1 ДЕН – 28.08.2026" от описанието (дублира заглавието)
-            itinerary: (finalTour.program || []).map((p: any, idx: number) => {
-              let content = p.description || p.content || '';
-              // Махаме водещ "N ден" / "N-ти ДЕН" + евентуална дата от началото на текста
-              content = content.replace(/^\s*\d{1,2}\s*(?:-?\s*(?:ви|ри|ти|ми|ва))?\s*ден\s*[–\-—]?\s*(?:\d{2}\.\d{2}\.\d{4})?\s*[–\-—:]?\s*/i, '');
-              return {
-                day: p.day || idx + 1,
-                title: p.title || `Ден ${p.day || idx + 1}`,
-                content
-              };
-            }),
-            included: joinArr(finalTour.includes),
-            notIncluded: joinArr(finalTour.excludes),
-            documents: joinArr(finalTour.docs),
-            generalInfo: joinArr(finalTour.info),
-            img: finalTour.img || '',
-            galleryWithCaptions: finalTour.galleryWithCaptions || [],
-            images: finalTour.images || '',
-            tourId: genTourId,
-            slug: genTourId,
-            operator: OPERATOR_LABEL[linkObj.operator as ScanOperator] || '2МКО',
-            date: '', // датите се добавят ръчно при одобрение (или от scraped dates ако има)
-            dates: [],
-            categories: [],
-            originalUrl: linkObj.url, // ЗА ДЕДУПЛИКАЦИЯ — за да не го теглим пак утре
-            externalSourceLink: linkObj.url, // СЪЩОТО, НО за "Провери с бот" полето в TourForm — за да е предпопълнено при редактиране
-            status: 'pending', // СТАТУС ЧАКАЩА!
-            createdAt: serverTimestamp()
-          };
-
-          // Ако scrape-ът е намерил дати — НОРМАЛИЗИРАМЕ ги към ISO (YYYY-MM-DD)!
-          // Скрейпърът ги връща като "27.11.2026" (с точки), а целият сайт филтрира/сортира по ISO —
-          // без конверсия турът се брои "без валидни дати" и НЕ се показва на началната страница!
-          if (scrapedData.dates && scrapedData.dates.length > 0) {
-            const isoDates = scrapedData.dates.map(toISO).filter(Boolean);
-            if (isoDates.length > 0) {
-              tourDoc.dates = isoDates;
-              tourDoc.date = isoDates[0];
-            }
-          }
-
-          // Д) Записваме във Firebase като PENDING!
-          setAutoProcessStatus(`Записване на ${tourDoc.title} в базата...`);
-          await addDoc(collection(db, "tours"), tourDoc);
+          await aiFormatAndSaveTour(scrapedData, linkObj, allMedia, generatedIdsThisRun);
 
           successCount++;
         } catch (err) {
@@ -966,11 +1068,6 @@ export default function AdminDashboardClient() {
               <h1 className="text-3xl font-serif italic text-brand-dark">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h1>
             </div>
             <div className="flex gap-3">
-                {activeTab === 'customers' && (
-                    <button onClick={() => setIsAddCustomerModalOpen(true)} className="bg-brand-dark text-white px-8 py-4 rounded-2xl font-bold uppercase text-[10px] flex items-center gap-2 shadow-xl hover:bg-brand-gold transition-all active:scale-95">
-                        <UserCheck size={16}/> Добави Клиент
-                    </button>
-                )}
                 {activeTab === 'bookings' && (
                     <button onClick={() => setIsManualModalOpen(true)} className="bg-brand-gold text-brand-dark px-8 py-4 rounded-2xl font-bold uppercase text-[10px] flex items-center gap-2 shadow-xl hover:bg-brand-dark hover:text-white transition-all active:scale-95">
                         <PhoneIncoming size={16}/> Телефонно запитване
@@ -991,7 +1088,7 @@ export default function AdminDashboardClient() {
                         <h2 className="text-2xl font-serif italic text-brand-dark">Маркетинг Кампании</h2>
                         <p className="text-gray-400 text-sm mt-1">Управлявайте глобалните разпродажби (напр. Black Friday)</p>
                     </div>
-                    <button onClick={() => { setEditingCampaign({ name: '', startDate: '', endDate: '', label: 'ПРОМО', bgColor: '#dc2626', textColor: '#ffffff', effect: 'none' }); setIsCampaignModalOpen(true); }} className="bg-brand-dark text-white px-8 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-brand-gold transition-all shadow-lg">+ Нова Кампания</button>
+                    <button onClick={() => { setEditingCampaign({ name: '', startDate: '', endDate: '', label: 'ПРОМО', bgColor: '#dc2626', textColor: '#ffffff', effect: 'none', discountPercent: '' }); setIsCampaignModalOpen(true); }} className="bg-brand-dark text-white px-8 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-brand-gold transition-all shadow-lg">+ Нова Кампания</button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1008,6 +1105,7 @@ export default function AdminDashboardClient() {
                             <div className="space-y-2 text-xs text-gray-500 font-medium mb-6">
                                 <p>От: {new Date(camp.startDate).toLocaleString('bg-BG')}</p>
                                 <p>До: {new Date(camp.endDate).toLocaleString('bg-BG')}</p>
+                                {Number(camp.discountPercent) > 0 && <p className="text-emerald-600 font-bold">Отстъпка при плащане: {camp.discountPercent}%</p>}
                             </div>
                             
                             {/* ПРЕВЮ В СПИСЪКА */}
@@ -1028,7 +1126,7 @@ export default function AdminDashboardClient() {
         )}
 
         {/* TABS CONTENT */}
-        {activeTab === 'dashboard' && <div className="space-y-8 animate-in fade-in duration-500"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><StatCard icon={Inbox} color="emerald" count={stats.newInquiries} label="Нови Запитвания" highlight /><StatCard icon={UserCheck} color="blue" count={stats.totalCustomers} label="Клиенти (CRM)" /><StatCard icon={Map} color="orange" count={stats.activeTours} label="Активни Оферти" /><StatCard icon={Users} color="purple" count={stats.totalSubscribers} label="Абонати" /></div><DashboardCharts
+        {activeTab === 'dashboard' && <div className="space-y-8 animate-in fade-in duration-500"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><StatCard icon={Inbox} color="emerald" count={stats.newInquiries} label="Нови Запитвания" highlight /><StatCard icon={UserCheck} color="blue" count={stats.totalCustomers} label="Клиенти (CRM)" /><StatCard icon={Map} color="orange" count={stats.activeTours} label="Активни Оферти" /><StatCard icon={Users} color="purple" count={stats.totalSubscribers} label="Абонати" /></div><ReviewRequestsPanel groups={groups} allTours={allTours} customers={customers} /><DashboardCharts
                     inquiries={inquiries}
                     tours={allTours}
                     clients={customers}
@@ -1037,7 +1135,7 @@ export default function AdminDashboardClient() {
                   /></div>}
 
         {activeTab === 'customers' && (
-            <ClientsTab onAddClient={() => setIsAddCustomerModalOpen(true)} onOpenGroup={handleOpenGroup} />
+            <ClientsTab onOpenGroup={handleOpenGroup} />
         )}
 
         {activeTab === 'bookings' && (
@@ -1082,6 +1180,62 @@ export default function AdminDashboardClient() {
         {/* ТАБ: АРХИВ И ЧЕРНОВИ (С ПОД-ТАБОВЕ) */}
         {activeTab === 'archived' && (
             <div className="space-y-6 animate-in fade-in">
+                {/* СЪЗДАЙ ТУР ОТ ЛИНК — видимо във всички под-табове; готовите турове отиват в „Чакащи одобрение“ */}
+                <div className="bg-white rounded-[2rem] p-6 md:p-8 shadow-sm border border-gray-100">
+                  <div className="flex flex-col gap-1 mb-4">
+                    <h3 className="font-serif italic text-xl text-brand-dark">Създай тур от линк</h3>
+                    <p className="text-xs text-gray-500">
+                      Постави линк към екскурзия от 2МКО или Дари Тур — AI ще я пренапише, ще ѝ избере снимки от библиотеката
+                      и ще я добави в „Чакащи одобрение“. Може и няколко линка, по един на ред.
+                    </p>
+                  </div>
+                  <label htmlFor="link-import" className="sr-only">Линк към екскурзия</label>
+                  <textarea
+                    id="link-import"
+                    rows={3}
+                    value={linkImportText}
+                    onChange={e => setLinkImportText(e.target.value)}
+                    disabled={isAutoProcessing}
+                    placeholder="https://www.2mko.com/..."
+                    className="w-full resize-y rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 font-mono text-sm text-brand-dark placeholder-gray-400 outline-none transition focus:border-brand-gold focus:bg-white focus:ring-2 focus:ring-brand-gold/20 disabled:opacity-60"
+                  />
+                  <div className="mt-4 flex flex-wrap items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={importToursFromLinks}
+                      disabled={isAutoProcessing || !linkImportText.trim()}
+                      className="inline-flex items-center gap-2 rounded-xl bg-brand-dark px-6 py-3 text-[11px] font-black uppercase tracking-widest text-brand-gold transition-all hover:bg-slate-800 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {linkImportStatus ? <RefreshCw size={14} className="animate-spin" aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
+                      Създай с AI
+                    </button>
+                    {linkImportStatus ? (
+                      <span className="text-sm text-gray-600" aria-live="polite">{linkImportStatus}</span>
+                    ) : isAutoProcessing ? (
+                      <span className="text-xs text-gray-400">Изчакай автоматичната машина да приключи.</span>
+                    ) : null}
+                  </div>
+
+                  {linkImportResults.length > 0 && (
+                    <ul className="mt-5 space-y-2" aria-live="polite">
+                      {linkImportResults.map((r, i) => (
+                        <li
+                          key={`${r.url}-${i}`}
+                          className={`flex items-start gap-3 rounded-xl px-4 py-3 text-sm ${r.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-red-50 text-red-900'}`}
+                        >
+                          {r.ok
+                            ? <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-600" aria-hidden="true" />
+                            : <XCircle size={18} className="mt-0.5 shrink-0 text-red-500" aria-hidden="true" />}
+                          <span className="min-w-0">
+                            <span className="font-bold">{r.ok ? `„${r.title}“ е създаден — виж го в „Чакащи одобрение“.` : r.message}</span>
+                            {r.url && <span className="block truncate text-xs opacity-60">{r.url}</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
                 <div className="flex flex-wrap gap-2 bg-white rounded-2xl p-2 shadow-sm border border-gray-100 w-fit mb-4">
                     <button onClick={() => setArchivedSubTab('pending')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${archivedSubTab === 'pending' ? 'bg-brand-gold text-brand-dark shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>
                         Чакащи одобрение ({allTours.filter((t: any) => t.status === 'pending').length})
@@ -1479,38 +1633,6 @@ export default function AdminDashboardClient() {
         </ModalWrapper>
       )}
 
-      {/* 2. Add New Customer Modal */}
-      {isAddCustomerModalOpen && (
-        <ModalWrapper onClose={() => setIsAddCustomerModalOpen(false)}>
-            <ModalHeader icon={UserCheck} color="bg-emerald-50 text-emerald-600" title="Нов Клиент" subtitle="Директно вписване в CRM" />
-            <form onSubmit={handleSaveNewCustomer} className="space-y-6">
-                <input className={inputClass} required placeholder="Име и Фамилия *" value={newCustomer.name} onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} />
-                <div className="grid grid-cols-2 gap-6">
-                    <input className={inputClass} required placeholder="Телефон *" value={newCustomer.phone} onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})} />
-                    <input type="number" className={inputClass} placeholder="Начална Отстъпка %" value={newCustomer.vipDiscount} onChange={e => setNewCustomer({...newCustomer, vipDiscount: parseInt(e.target.value) || 0})} />
-                </div>
-                <input className={inputClass} placeholder="Имейл адрес (по избор)" value={newCustomer.email} onChange={e => setNewCustomer({...newCustomer, email: e.target.value})} />
-                <div className="pt-8 border-t border-gray-50">
-                    <label className={labelClass}>Първо пътуване</label>
-                    <select className={inputClass} onChange={e => {
-                        const tour = allTours.find(t => t.id === e.target.value);
-                        setNewCustomer({...newCustomer, initialTourId: e.target.value, initialTourTitle: tour?.title || '', initialDate: ''});
-                    }}>
-                        <option value="">-- Избери екскурзия (по избор) --</option>
-                        {allTours.filter(t => t.status === 'public').map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                    </select>
-                    {newCustomer.initialTourId && (
-                        <select className={`${inputClass} mt-4 bg-brand-gold/5 border-brand-gold/10`} value={newCustomer.initialDate} onChange={e => setNewCustomer({...newCustomer, initialDate: e.target.value})}>
-                            <option value="">-- Избери дата --</option>
-                            {allTours.find(t => t.id === newCustomer.initialTourId)?.dates?.map((d: string) => <option key={d} value={d}>{d.split('-').reverse().join('.')}</option>)}
-                        </select>
-                    )}
-                </div>
-                <button type="submit" className="w-full bg-brand-dark text-white py-6 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-brand-gold transition-all shadow-xl">ЗАПИСИ В CRM</button>
-            </form>
-        </ModalWrapper>
-      )}
-
       {/* 3. Edit Inquiry Modal */}
       {isEditInquiryModalOpen && editingInquiry && (
           <ModalWrapper onClose={() => setIsEditInquiryModalOpen(false)}>
@@ -1521,17 +1643,13 @@ export default function AdminDashboardClient() {
                       <div><label className={labelClass}>Телефон</label><input className={inputClass} required value={editingInquiry.clientPhone} onChange={e => setEditingInquiry({...editingInquiry, clientPhone: e.target.value})} /></div>
                   </div>
                   <div className="pt-8 border-t border-gray-50 space-y-6">
-                    <div>
-                        <label className={labelClass}>Екскурзия</label>
-                        <select className={inputClass} value={editingInquiry.tourId} onChange={e => {
-                            const t = allTours.find(x => x.id === e.target.value);
-                            setEditingInquiry({...editingInquiry, tourTitle: t?.title || 'Общо запитване', tourId: e.target.value, tourDate: ''});
-                        }}>
-                            <option value="general">Общо запитване</option>
-                            {allTours.filter(t => t.status === 'public').map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                        </select>
-                    </div>
-                    {editingInquiry.tourId !== 'general' && (
+                    <TourPicker
+                        label="Екскурзия"
+                        tours={allTours.filter(t => t.status === 'public')}
+                        value={inquiryChoice(editingInquiry)}
+                        onChange={c => setEditingInquiry({...editingInquiry, ...inquiryFieldsFromChoice(c)})}
+                    />
+                    {allTours.some(t => t.id === editingInquiry.tourId) && (
                         <select className={inputClass} value={editingInquiry.tourDate} onChange={e => setEditingInquiry({...editingInquiry, tourDate: e.target.value})}>
                             <option value="">-- Избери дата --</option>
                             {allTours.find(t => t.id === editingInquiry.tourId)?.dates?.map((d: string) => <option key={d} value={d}>{d.split('-').reverse().join('.')}</option>)}
@@ -1554,6 +1672,11 @@ export default function AdminDashboardClient() {
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className={labelClass}>Начало</label><input type="datetime-local" className={inputClass} required value={editingCampaign.startDate} onChange={e => setEditingCampaign({...editingCampaign, startDate: e.target.value})} /></div>
                         <div><label className={labelClass}>Край</label><input type="datetime-local" className={inputClass} required value={editingCampaign.endDate} onChange={e => setEditingCampaign({...editingCampaign, endDate: e.target.value})} /></div>
+                    </div>
+                    <div>
+                        <label className={labelClass}>Отстъпка % (по избор)</label>
+                        <input type="number" min={0} max={100} className={inputClass} placeholder="пр. 10" value={editingCampaign.discountPercent ?? ''} onChange={e => setEditingCampaign({...editingCampaign, discountPercent: e.target.value})} />
+                        <p className="text-[11px] text-gray-400 mt-2 ml-2">Ползва се в Резервации, когато маркирате запитване като Платено — сумата се изчислява автоматично. Не променя цените по екскурзиите в сайта.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                         <div><label className={labelClass}>Текст на етикета</label><input className={inputClass} required value={editingCampaign.label} onChange={e => setEditingCampaign({...editingCampaign, label: e.target.value})} /></div>
@@ -1603,45 +1726,20 @@ export default function AdminDashboardClient() {
               <ModalHeader icon={History} color="bg-brand-gold text-white shadow-brand-gold/20" title="Добави пътуване" subtitle={`Към досието на ${selectedCustomerForTrip.name}`} />
               <form onSubmit={handleAddManualTrip} className="space-y-6">
                   
-                  {/* Търсачка за екскурзия */}
-                  <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                      <div>
-                          <label className={labelClass}>Търси по държава</label>
-                          <input className={inputClass} placeholder="пр. Япония" value={tripSearchCountry} onChange={e => setTripSearchCountry(e.target.value)} />
-                      </div>
-                      <div>
-                          <label className={labelClass}>Месец (число)</label>
-                          <input type="number" min="1" max="12" className={inputClass} placeholder="пр. 5 за Май" value={tripSearchMonth} onChange={e => setTripSearchMonth(e.target.value)} />
-                      </div>
-                  </div>
-
-                  <div>
-                      <label className={labelClass}>Избери Екскурзия (Вкл. Архивирани)</label>
-                      <select className={inputClass} required onChange={e => {
-                           const tour = allTours.find(t => t.id === e.target.value);
-                           setNewTrip({...newTrip, tourId: e.target.value, tourTitle: tour?.title || '', date: '', tourOperator: tour?.operator || 'Неизвестен'});
-                      }}>
-                          <option value="">-- Избери от списъка --</option>
-                          {allTours.filter(t => {
-                              // Търсачка по държава — country може да е стринг (ръчни турове) ИЛИ масив (скрейпнати) — .toLowerCase() върху масив гърми!
-                              if (tripSearchCountry) {
-                                const countryStr = Array.isArray(t.country) ? t.country.join(' ') : (t.country || '');
-                                if (!countryStr.toLowerCase().includes(tripSearchCountry.toLowerCase())) return false;
-                              }
-                              
-                              // ⚠️ ВАЖНО: Тук сме премахнали проверката за status === 'public', 
-                              // за да показва АБСОЛЮТНО ВСИЧКИ екскурзии (и активни, и архивни).
-                              // Махаме само черновите (draft), защото те не са реални пътувания.
-                              if (t.status === 'draft') return false;
-
-                              return true; 
-                          }).map(t => (
-                              <option key={t.id} value={t.id}>
-                                  {t.title} {t.status === 'archived' ? '(В Архив)' : ''}
-                              </option>
-                          ))}
-                      </select>
-                  </div>
+                  {/* Избор на екскурзия: по държава, месец (вкл. минали дати) или търсене. Без черновите — те не са реални пътувания. */}
+                  <TourPicker
+                      label="Екскурзия (вкл. архивирани)"
+                      tours={allTours.filter(t => t.status !== 'draft')}
+                      value={newTrip.tourId ? { kind: 'tour', tourId: newTrip.tourId, ...(newTrip.date ? { date: newTrip.date } : {}) } : { kind: 'general' }}
+                      onChange={c => {
+                          if (c.kind !== 'tour') return;
+                          const tour = allTours.find(t => t.id === c.tourId);
+                          setNewTrip({...newTrip, tourId: c.tourId, tourTitle: tour?.title || '', date: c.date || '', tourOperator: tour?.operator || 'Неизвестен'});
+                      }}
+                      allowGeneral={false}
+                      allowDestination={false}
+                      showMonthFilter
+                  />
                   {newTrip.tourId && (
                       <div className="animate-in slide-in-from-top-4 duration-300 space-y-6">
                         <div>
@@ -1680,15 +1778,15 @@ export default function AdminDashboardClient() {
                     <input className={inputClass} required placeholder="Име *" value={manualInquiry.clientName} onChange={e => setManualInquiry({...manualInquiry, clientName: e.target.value})} />
                     <input className={inputClass} required placeholder="Телефон *" value={manualInquiry.clientPhone} onChange={e => setManualInquiry({...manualInquiry, clientPhone: e.target.value})} />
                 </div>
+                <input type="email" className={inputClass} placeholder="Имейл (по избор)" value={manualInquiry.clientEmail} onChange={e => setManualInquiry({...manualInquiry, clientEmail: e.target.value})} />
                 <div className="pt-8 border-t border-gray-50 space-y-6">
-                    <select className={inputClass} onChange={e => { 
-                        const t = allTours.find(x => x.id === e.target.value); 
-                        setManualInquiry({...manualInquiry, tourTitle: t?.title || 'Общо запитване', tourId: e.target.value, tourDate: ''}); 
-                    }}>
-                        <option value="">-- Избери оферта --</option>
-                        {allTours.filter(t => t.status === 'public').map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                    </select>
-                    {manualInquiry.tourId && (
+                    <TourPicker
+                        label="Какво търси клиентът?"
+                        tours={allTours.filter(t => t.status === 'public')}
+                        value={inquiryChoice(manualInquiry)}
+                        onChange={c => setManualInquiry({...manualInquiry, ...inquiryFieldsFromChoice(c)})}
+                    />
+                    {allTours.some(t => t.id === manualInquiry.tourId) && (
                         <select className={inputClass} value={manualInquiry.tourDate} onChange={e => setManualInquiry({...manualInquiry, tourDate: e.target.value})}>
                             <option value="">-- Избери дата --</option>
                             {allTours.find(t => t.id === manualInquiry.tourId)?.dates?.map((d: string) => <option key={d} value={d}>{d.split('-').reverse().join('.')}</option>)}

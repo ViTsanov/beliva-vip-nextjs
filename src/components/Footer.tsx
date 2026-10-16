@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Facebook, Instagram, Phone, Mail, MapPin, Send, CheckCircle2, Sparkles, ShieldCheck } from 'lucide-react';
+import { Facebook, Instagram, Phone, Mail, MapPin, Send, CheckCircle2, Sparkles, ShieldCheck, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { COMPANY_INFO } from '@/lib/companyInfo';
+import { useRevealOnce } from '@/components/ui/Reveal';
 
 export default function Footer() {
   const [email, setEmail] = useState('');
@@ -198,7 +199,38 @@ export default function Footer() {
           </div>
 
         </div>
+
+        <SiteCredit />
       </div>
     </footer>
+  );
+}
+
+// Подписът на автора на сайта — най-долу във футъра. При появата си златна линия под името се „изписва“
+// отляво надясно (CSS .credit-line в globals.css); при посочване стрелката леко отскача навън.
+// При „намалено движение“ линията само се появява плавно.
+function SiteCredit() {
+  const [ref, revealed] = useRevealOnce<HTMLDivElement>({ rootMargin: '0px' });
+  return (
+    <div ref={ref} className={`mt-8 flex justify-center border-t border-white/5 pt-6 ${revealed ? 'revealed' : ''}`}>
+      <a
+        href="https://www.facebook.com/viktor.tsanov"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group inline-flex min-h-11 items-center gap-1.5 text-[12px] text-gray-400 transition-colors hover:text-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-gold"
+      >
+        Created by
+        <span className="relative font-semibold text-white">
+          Viktor Tsanov
+          <span aria-hidden="true" className="credit-line absolute -bottom-0.5 left-0 h-px w-full bg-brand-gold" />
+        </span>
+        <ArrowUpRight
+          size={13}
+          aria-hidden="true"
+          className="text-brand-gold transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+        />
+        <span className="sr-only">(профил във Facebook, отваря се в нов прозорец)</span>
+      </a>
+    </div>
   );
 }

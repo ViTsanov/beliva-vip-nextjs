@@ -100,6 +100,7 @@ export default function ScrollToTop() {
 
   return (
     <button
+      data-floating-button
       onClick={handleClick}
       aria-label={isAboveGrid && pathname === "/" ? "Иди към офертите" : "Върни се в началото"}
       className={`

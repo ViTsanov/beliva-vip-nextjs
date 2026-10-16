@@ -3,18 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
-import { Search, Plus, Trash2, Edit, User, Eye } from 'lucide-react';
+import { Search, Trash2, User, Eye } from 'lucide-react';
 import { IClient } from '@/types';
 import ClientDetailModal from './ClientDetailModal';
-// Ако имаш AddClientModal в същата папка, импортирай го. Засега ще го оставим коментиран или ще го имплементираме после.
-// import AddClientModal from './AddClientModal';
 
+// Клиенти НЕ се добавят директно оттук. Клиентски профил се създава само през Резервации → Запитване,
+// когато запитване бъде маркирано като „Платено“ (така всеки клиент има източник и пътуване).
 interface ClientsTabProps {
-  onAddClient: () => void;
   onOpenGroup?: (tourId: string, date?: string) => void;
 }
 
-export default function ClientsTab({ onAddClient, onOpenGroup }: ClientsTabProps) {
+export default function ClientsTab({ onOpenGroup }: ClientsTabProps) {
   const [clients, setClients] = useState<IClient[]>([]);
   const [filteredClients, setFilteredClients] = useState<IClient[]>([]);
   const [clientSearch, setClientSearch] = useState('');
@@ -23,7 +22,6 @@ export default function ClientsTab({ onAddClient, onOpenGroup }: ClientsTabProps
   // Модали
   const [selectedClient, setSelectedClient] = useState<IClient | null>(null);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false); // За разглеждане
-  // const [isAddModalOpen, setIsAddModalOpen] = useState(false); // За добавяне/редакция
 
   // 1. Извличане на клиентите
   const fetchClients = async () => {
@@ -90,12 +88,9 @@ export default function ClientsTab({ onAddClient, onOpenGroup }: ClientsTabProps
             />
           </div>
         </div>
-        <button 
-            onClick={onAddClient}
-            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-black transition-colors font-bold text-sm"
-        >
-            <Plus size={18} /> Добави Клиент
-        </button>
+        <p className="text-xs text-gray-400 md:text-right md:max-w-xs">
+          Нови клиенти се създават от <span className="font-bold text-gray-500">Резервации → Запитване</span>, когато запитване стане „Платено“.
+        </p>
       </div>
 
       {/* ТАБЛИЦА */}

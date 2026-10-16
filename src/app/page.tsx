@@ -1,6 +1,6 @@
 import Hero from "@/components/sections/Hero";
+import PoliIntro from "@/components/sections/PoliIntro";
 import ToursGrid from "@/components/sections/ToursGrid";
-import ParadiseQuote from "@/components/sections/ParadiseQuote";
 import FeaturedTours from "@/components/FeaturedTours";
 import MeetGuides from "@/components/MeetGuides";
 import { LazyTestimonials } from "@/components/LazyClient";
@@ -45,11 +45,11 @@ export default async function HomePage() {
       {/* 1. Херо */}
       <Hero />
 
-      {/* 2. Топ 3 екскурзии — веднага след героса */}
-      <FeaturedTours tours={tours} />
+      {/* 1.5 Цитатът за залеза + кратко представяне на Поли; подробната секция за нея е по-долу (MeetGuides) */}
+      <PoliIntro />
 
-      {/* 2.5 Емоционална пауза преди утилитарната решетка с оферти */}
-      <ParadiseQuote />
+      {/* 2. Топ 3 екскурзии — веднага след героса */}
+      <FeaturedTours tours={tours} todayStr={todayStr} />
 
       {/* 3. Дестинации */}
       <DestinationsSection tours={tours} adminCountries={destinationsSectionCountries} />

@@ -1,6 +1,7 @@
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, orderBy, doc, getDoc, DocumentData, Timestamp } from "firebase/firestore";
 import { ITour } from "@/types";
+import { splitListText } from "@/lib/listItems";
 
 /**
  * 1. АДАПТЕР (Normalizer) 
@@ -8,16 +9,12 @@ import { ITour } from "@/types";
  * в перфектен, строго типизиран обект за фронтенда.
  */
 export const normalizeTour = (docData: DocumentData, docId: string): ITour => {
-  // 1. Гарантираме, че included е ВИНАГИ масив
-  let includedArr: string[] = [];
-  if (Array.isArray(docData.included)) includedArr = docData.included;
-  else if (typeof docData.included === 'string') includedArr = docData.included.split(',').map((s: string) => s.trim());
+  // 1. Гарантираме, че included е ВИНАГИ масив от отделни точки. Текстът е „по една точка на нов ред“ (скрейпър,
+  //    TourForm) — делим по нови редове/булети, а не по запетаи (иначе целият списък ставаше една точка).
+  const includedArr: string[] = splitListText(docData.included);
 
   // 2. Обединяваме notIncluded и excluded в един единствен масив (excluded)
-  let excludedArr: string[] = [];
-  const rawExcluded = docData.excluded || docData.notIncluded;
-  if (Array.isArray(rawExcluded)) excludedArr = rawExcluded;
-  else if (typeof rawExcluded === 'string') excludedArr = rawExcluded.split(',').map((s: string) => s.trim());
+  const excludedArr: string[] = splitListText(docData.excluded || docData.notIncluded);
 
   // 3. Гарантираме, че gallery винаги е масив
   let galleryArr: string[] = [];

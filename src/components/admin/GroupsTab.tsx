@@ -165,6 +165,7 @@ export default function GroupsTab({ onOpenClient, allTours, pendingGroupOpenId, 
       {selectedGroup && (
         <GroupDetailModal 
           group={selectedGroup} 
+          tour={allTours.find(x => x.id === selectedGroup.tourId)}
           onClose={() => { setSelectedGroup(null); fetchGroups(); }} 
           onOpenClient={onOpenClient}
         />

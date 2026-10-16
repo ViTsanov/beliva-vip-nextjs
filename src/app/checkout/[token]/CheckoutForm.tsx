@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Plus, Trash2, CheckCircle2, Loader2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Loader2, Camera, ImagePlus } from 'lucide-react';
 import { submitCheckoutData } from './actions';
 
 interface Traveler {
@@ -9,9 +9,62 @@ interface Traveler {
   egn: string;
   passportNumber: string;
   passportValidity: string;
+  // Снимка на паспорта (по избор): избраният файл, превю за екрана и път в Storage, след като е качена.
+  photoFile: File | null;
+  photoPreview: string;
+  photoPath: string;
 }
 
-const EMPTY_TRAVELER: Traveler = { latinName: '', egn: '', passportNumber: '', passportValidity: '' };
+const EMPTY_TRAVELER: Traveler = {
+  latinName: '', egn: '', passportNumber: '', passportValidity: '',
+  photoFile: null, photoPreview: '', photoPath: '',
+};
+
+// Свива снимката преди качване: най-дългата страна до 1800px, JPEG. Телефонните снимки са по 3–8 MB, а за
+// четим паспорт са достатъчни ~0.5 MB. Презаписването през canvas маха и EXIF данните (напр. GPS позиция).
+async function compressImage(file: File): Promise<Blob> {
+  const MAX_SIDE = 1800;
+  let source: CanvasImageSource;
+  let width: number;
+  let height: number;
+  try {
+    const bitmap = await createImageBitmap(file);
+    source = bitmap; width = bitmap.width; height = bitmap.height;
+  } catch {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error('Снимката не може да бъде прочетена. Опитайте с друга (JPG или PNG).'));
+        el.src = url;
+      });
+      source = img; width = img.naturalWidth; height = img.naturalHeight;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  const scale = Math.min(1, MAX_SIDE / Math.max(width, height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Снимката не може да бъде обработена на това устройство.');
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Снимката не може да бъде обработена.'))), 'image/jpeg', 0.82);
+  });
+}
+
+async function uploadPassportPhoto(token: string, blob: Blob): Promise<string> {
+  const fd = new FormData();
+  fd.append('token', token);
+  fd.append('file', new File([blob], 'passport.jpg', { type: 'image/jpeg' }));
+  const res = await fetch('/api/checkout/upload-passport', { method: 'POST', body: fd });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.success) throw new Error(json?.error || 'Снимката не можа да бъде качена.');
+  return json.path as string;
+}
 
 interface CheckoutFormProps {
   inquiry: any;
@@ -23,7 +76,14 @@ export default function CheckoutForm({ inquiry, token, paymentInfo }: CheckoutFo
   // Стартираме с ЕДИН пътник (самия клиент) — бутонът "Добави пътник" позволява семейни/групови
   // резервации, без администраторът да трябва предварително да знае/задава брой пътници при създаване
   // на линка.
-  const [travelers, setTravelers] = useState<Traveler[]>([{ ...EMPTY_TRAVELER }]);
+  // При корекция (админът е поискал данните отново) предварително попълваме името и валидността от предишния опит.
+  const isCorrection = !!inquiry.isCorrection;
+  const [travelers, setTravelers] = useState<Traveler[]>(
+    isCorrection && Array.isArray(inquiry.prefill) && inquiry.prefill.length > 0
+      ? inquiry.prefill.map((p: any) => ({ ...EMPTY_TRAVELER, latinName: p.latinName || '', passportValidity: p.passportValidity || '' }))
+      : [{ ...EMPTY_TRAVELER }]
+  );
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -34,7 +94,30 @@ export default function CheckoutForm({ inquiry, token, paymentInfo }: CheckoutFo
   };
 
   const addTraveler = () => setTravelers(prev => [...prev, { ...EMPTY_TRAVELER }]);
-  const removeTraveler = (idx: number) => setTravelers(prev => prev.filter((_, i) => i !== idx));
+  const removeTraveler = (idx: number) => {
+    const preview = travelers[idx]?.photoPreview;
+    if (preview) URL.revokeObjectURL(preview);
+    setTravelers(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const pickPhoto = (idx: number, file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Моля, изберете снимка (JPG или PNG).');
+      return;
+    }
+    setError('');
+    const old = travelers[idx]?.photoPreview;
+    if (old) URL.revokeObjectURL(old);
+    const preview = URL.createObjectURL(file);
+    setTravelers(prev => prev.map((t, i) => (i === idx ? { ...t, photoFile: file, photoPreview: preview, photoPath: '' } : t)));
+  };
+
+  const removePhoto = (idx: number) => {
+    const old = travelers[idx]?.photoPreview;
+    if (old) URL.revokeObjectURL(old);
+    setTravelers(prev => prev.map((t, i) => (i === idx ? { ...t, photoFile: null, photoPreview: '', photoPath: '' } : t)));
+  };
 
   const handleSubmit = async () => {
     setError('');
@@ -52,7 +135,41 @@ export default function CheckoutForm({ inquiry, token, paymentInfo }: CheckoutFo
     }
 
     setSubmitting(true);
-    const result = await submitCheckoutData(token, travelers);
+
+    // 1) Качваме снимките (ако има) — една по една, свити. Вече качена снимка не се качва втори път.
+    const photoPaths: string[] = travelers.map(t => t.photoPath);
+    if (travelers.some(t => t.photoFile && !t.photoPath)) {
+      setUploadingPhotos(true);
+      try {
+        for (let i = 0; i < travelers.length; i++) {
+          const t = travelers[i];
+          if (t.photoFile && !t.photoPath) {
+            const blob = await compressImage(t.photoFile);
+            const path = await uploadPassportPhoto(token, blob);
+            photoPaths[i] = path;
+            setTravelers(prev => prev.map((x, j) => (j === i ? { ...x, photoPath: path } : x)));
+          }
+        }
+      } catch (e) {
+        setUploadingPhotos(false);
+        setSubmitting(false);
+        setError(e instanceof Error ? e.message : 'Снимката не можа да бъде качена. Опитайте отново.');
+        return;
+      }
+      setUploadingPhotos(false);
+    }
+
+    // 2) Изпращаме данните (само чист текст — файловете вече са качени).
+    const result = await submitCheckoutData(
+      token,
+      travelers.map((t, i) => ({
+        latinName: t.latinName,
+        egn: t.egn,
+        passportNumber: t.passportNumber,
+        passportValidity: t.passportValidity,
+        passportPhoto: photoPaths[i] || '',
+      }))
+    );
     setSubmitting(false);
 
     if (result.success) {
@@ -63,6 +180,20 @@ export default function CheckoutForm({ inquiry, token, paymentInfo }: CheckoutFo
   };
 
   // ЕКРАН СЛЕД УСПЕШНО ИЗПРАЩАНЕ — показва инструкциите за банков превод
+  if (submitted && isCorrection) {
+    return (
+      <div className="min-h-screen bg-brand-dark flex items-center justify-center p-6">
+        <div className="bg-white rounded-[2.5rem] p-8 md:p-12 max-w-lg w-full shadow-2xl text-center animate-in zoom-in-95">
+          <CheckCircle2 className="mx-auto text-emerald-500 mb-6" size={56} />
+          <h1 className="font-serif italic text-2xl text-brand-dark mb-3">Данните са обновени!</h1>
+          <p className="text-gray-500 text-sm">
+            Благодарим! Получихме коригираните данни и екипът ни ще продължи с резервацията ти.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (submitted) {
     return (
       <div className="min-h-screen bg-brand-dark flex items-center justify-center p-6">
@@ -111,6 +242,12 @@ export default function CheckoutForm({ inquiry, token, paymentInfo }: CheckoutFo
             <p className="text-gray-400 text-sm mt-1">{inquiry.tourDate}</p>
           </div>
 
+          {isCorrection && (
+            <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-2xl p-4">
+              Агенцията поиска данните да бъдат попълнени отново. Името и валидността са попълнени от предишния път —
+              провери ги и въведи пак ЕГН и номер на паспорт (от съображения за сигурност не ги показваме).
+            </div>
+          )}
           <p className="text-sm text-gray-500 mb-6">
             Попълни данните по паспорт на всеки пътуващ. Ако резервираш за повече хора (напр. цялото семейство),
             добави всеки един отделно с бутона по-долу.
@@ -164,6 +301,38 @@ export default function CheckoutForm({ inquiry, token, paymentInfo }: CheckoutFo
                       className="w-full p-3.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-brand-gold transition-colors"
                     />
                   </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1 mb-1.5 block">
+                      Снимка на паспорта (по избор)
+                    </label>
+                    {traveler.photoPreview ? (
+                      <div className="flex items-center gap-4">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={traveler.photoPreview} alt={`Снимка на паспорт на пътник ${idx + 1}`} className="h-24 w-32 object-cover rounded-xl border border-gray-200" />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(idx)}
+                          className="text-xs font-bold text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          Премахни снимката
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <label className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl border border-gray-200 bg-white text-sm font-bold text-brand-dark cursor-pointer hover:border-brand-gold transition-colors">
+                          <Camera size={16} /> Заснеми
+                          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { pickPhoto(idx, e.target.files?.[0]); e.target.value = ''; }} />
+                        </label>
+                        <label className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl border border-gray-200 bg-white text-sm font-bold text-brand-dark cursor-pointer hover:border-brand-gold transition-colors">
+                          <ImagePlus size={16} /> Избери от галерията
+                          <input type="file" accept="image/*" className="hidden" onChange={e => { pickPhoto(idx, e.target.files?.[0]); e.target.value = ''; }} />
+                        </label>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-gray-400 mt-1.5 ml-1">
+                      Страницата с твоята снимка и данни. Снимката се съхранява криптирана и се вижда само от екипа на агенцията.
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -200,7 +369,7 @@ export default function CheckoutForm({ inquiry, token, paymentInfo }: CheckoutFo
           >
             {submitting ? (
               <>
-                <Loader2 size={16} className="animate-spin" /> Изпращане...
+                <Loader2 size={16} className="animate-spin" /> {uploadingPhotos ? 'Качване на снимките...' : 'Изпращане...'}
               </>
             ) : (
               'Изпрати данните'

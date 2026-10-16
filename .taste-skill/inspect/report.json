@@ -1,0 +1,3686 @@
+{
+ "url": "http://localhost:3000/",
+ "at": "2026-10-14T17:20:25.802Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1440,
+   "height": 900,
+   "load": "load",
+   "screens": 12,
+   "filled": [
+    0.88,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "motion": {
+    "elements": 17,
+    "css": 2,
+    "transitions": 11,
+    "scripted": 4,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "page": {
+     "height": 15237,
+     "screens": 16.9,
+     "words": 1329,
+     "img": 66,
+     "video": 0,
+     "canvas": 0,
+     "svg": 223,
+     "sections": 7,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 49,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [
+      "image?url=%2Fhero%2Fthailand.webp&w=1920&q=75",
+      "image?url=%2Fhero%2Faustralia.webp&w=1920&q=75",
+      "image?url=%2Fhero%2Fsingapore.webp&w=1920&q=75",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap",
+      "image?url=%2Fhero%2Fhero-bg.webp&w=1920&q=80",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [
+      "✦",
+      "★"
+     ]
+    },
+    "hero": {
+     "text": "ТАЙЛАНД",
+     "words": 1,
+     "chars": 7,
+     "lines": 1,
+     "size": 192.4,
+     "vw": 13.4,
+     "font": "Unbounded",
+     "weight": 700,
+     "tracking": -0.035,
+     "leading": 0.86,
+     "upper": true,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "center",
+     "widthRatio": 0.86,
+     "top": 538,
+     "tag": "p",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Групови екскурзии по света с водач",
+     "words": 6,
+     "lines": 2,
+     "size": 52,
+     "font": "Unbounded"
+    },
+    "headings": [
+     {
+      "text": "Beliva VIP Tour",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 30,
+      "vw": 2.1,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": -0.027,
+      "leading": 1.2,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.18,
+      "top": 24,
+      "tag": "a",
+      "kind": "heading"
+     },
+     {
+      "text": "Групови екскурзии по света с водач",
+      "words": 6,
+      "chars": 34,
+      "lines": 2,
+      "size": 52,
+      "vw": 3.6,
+      "font": "Unbounded",
+      "weight": 400,
+      "tracking": -0.03,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.43,
+      "top": 112,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "ТАЙЛАНД",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 192.4,
+      "vw": 13.4,
+      "font": "Unbounded",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 0.86,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.86,
+      "top": 538,
+      "tag": "p",
+      "kind": "heading"
+     },
+     {
+      "text": "СИНГАПУР",
+      "words": 1,
+      "chars": 8,
+      "lines": 1,
+      "size": 182.3,
+      "vw": 12.7,
+      "font": "Unbounded",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 0.86,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.86,
+      "top": 543,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "АВСТРАЛИЯ",
+      "words": 1,
+      "chars": 9,
+      "lines": 1,
+      "size": 156.7,
+      "vw": 10.9,
+      "font": "Unbounded",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 0.86,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.85,
+      "top": 554,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Топ 3 екскурзии",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 36,
+      "vw": 2.5,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1.11,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.19,
+      "top": 987,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Китайското величие: Пекин, Сиан и Шанхай",
+      "words": 6,
+      "chars": 40,
+      "lines": 2,
+      "size": 30,
+      "vw": 2.1,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.39,
+      "top": 1328,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Някъде отвъд хоризонта има залез, който вече ти принадлежи.",
+      "words": 9,
+      "chars": 59,
+      "lines": 4,
+      "size": 72,
+      "vw": 5,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1.15,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.62,
+      "top": 1715,
+      "tag": "blockquote",
+      "kind": "statement"
+     },
+     {
+      "text": "Дестинации за всеки вкус",
+      "words": 4,
+      "chars": 24,
+      "lines": 1,
+      "size": 41.6,
+      "vw": 2.9,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": -0.025,
+      "leading": 1.08,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.35,
+      "top": 2300,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "37",
+      "words": 1,
+      "chars": 2,
+      "lines": 1,
+      "size": 30,
+      "vw": 2.1,
+      "font": "Inter",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "right",
+      "position": "right",
+      "widthRatio": 0.04,
+      "top": 2936,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Всички Предложения",
+      "words": 2,
+      "chars": 18,
+      "lines": 1,
+      "size": 48,
+      "vw": 3.3,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.34,
+      "top": 2946,
+      "mixedFonts": [
+       "Playfair Display",
+       "Playfair Display italic"
+      ],
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "2026",
+      "words": 1,
+      "chars": 4,
+      "lines": 1,
+      "size": 60,
+      "vw": 4.2,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.09,
+      "top": 3167,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "2027",
+      "words": 1,
+      "chars": 4,
+      "lines": 1,
+      "size": 60,
+      "vw": 4.2,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.08,
+      "top": 4071,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Човекът зад пътуванията",
+      "words": 3,
+      "chars": 23,
+      "lines": 1,
+      "size": 48,
+      "vw": 3.3,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.86,
+      "top": 12778,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Паулина Алексиева",
+      "words": 2,
+      "chars": 17,
+      "lines": 2,
+      "size": 41.6,
+      "vw": 2.9,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.23,
+      "top": 13148,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Следващото ви пътуване ни чака",
+      "words": 5,
+      "chars": 30,
+      "lines": 2,
+      "size": 57.6,
+      "vw": 4,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": -0.025,
+      "leading": 1.05,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.47,
+      "top": 14332,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Beliva VIP Tour",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 30,
+      "vw": 2.1,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.2,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.33,
+      "top": 14768,
+      "tag": "a",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 17,
+     "maxLines": 4,
+     "over2Lines": 0,
+     "statements": 4,
+     "centered": 3,
+     "medianWords": 3,
+     "mixedFontHeadings": 1
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Inter",
+       "share": 0.64,
+       "mono": false
+      },
+      {
+       "family": "Playfair Display",
+       "share": 0.34,
+       "mono": false
+      },
+      {
+       "family": "Unbounded",
+       "share": 0.01,
+       "mono": false
+      },
+      {
+       "family": "ui-monospace",
+       "share": 0.01,
+       "mono": false
+      }
+     ],
+     "familyCount": 4,
+     "sizes": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      14,
+      15,
+      16,
+      18,
+      20,
+      23,
+      24,
+      30,
+      36,
+      42,
+      48,
+      52,
+      58,
+      60,
+      72,
+      157,
+      182,
+      192
+     ],
+     "sizeCount": 23,
+     "notLoaded": [],
+     "body": {
+      "font": "Playfair Display",
+      "size": 24,
+      "leading": 1.25,
+      "weight": 700,
+      "tracking": 0,
+      "contrast": 17.9
+     },
+     "measureChars": 96,
+     "max": {
+      "size": 192.4,
+      "vw": 13.4,
+      "font": "Unbounded",
+      "text": "Тайланд"
+     },
+     "monoShare": 0.01,
+     "monoProseShare": 0.01,
+     "monoFamilies": [
+      "ui-monospace"
+     ],
+     "monoSamples": [
+      "Просто трябва да отидеш да си го вземеш."
+     ],
+     "microLabels": 135,
+     "microLabelShare": 0.146,
+     "microSamples": [
+      "Горещи предложения",
+      "Философия",
+      "Открий",
+      "Пътешествия",
+      "Намерени",
+      "Оформяща група"
+     ],
+     "upperShare": 0.39,
+     "centerShare": 0.16,
+     "smallText": 116
+    },
+    "eyebrows": [
+     {
+      "text": "Горещи предложения",
+      "above": "Топ 3 екскурзии",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 964
+     },
+     {
+      "text": "Китай",
+      "above": "Китайското величие: Пекин, Сиан и Шанхай",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 1305
+     },
+     {
+      "text": "Философия",
+      "above": "Някъде отвъд хоризонта има залез, който ",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 1668
+     },
+     {
+      "text": "Открий",
+      "above": "Дестинации за всеки вкус",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 9,
+      "top": 2280
+     },
+     {
+      "text": "Пътешествия",
+      "above": "Всички Предложения",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 12,
+      "top": 2921
+     },
+     {
+      "text": "Вашият водач",
+      "above": "Човекът зад пътуванията",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 9,
+      "top": 12753
+     },
+     {
+      "text": "Основател & Водач",
+      "above": "Паулина Алексиева",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 13125
+     },
+     {
+      "text": "Готови ли сте?",
+      "above": "Следващото ви пътуване ни чака",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 9,
+      "top": 14307
+     }
+    ],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#fcf9f2",
+     "bodyBgHsl": {
+      "h": 42,
+      "s": 0.63,
+      "l": 0.97
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#0f172a",
+       "top": 0,
+       "hsl": {
+        "h": 222,
+        "s": 0.47,
+        "l": 0.11
+       }
+      },
+      {
+       "color": "#00737a",
+       "top": 621,
+       "hsl": {
+        "h": 183,
+        "s": 1,
+        "l": 0.24
+       }
+      },
+      {
+       "color": "#0b4f9c",
+       "top": 621,
+       "hsl": {
+        "h": 212,
+        "s": 0.87,
+        "l": 0.33
+       }
+      },
+      {
+       "color": "#c2410c",
+       "top": 621,
+       "hsl": {
+        "h": 17,
+        "s": 0.88,
+        "l": 0.4
+       }
+      },
+      {
+       "color": "#f7f0e4",
+       "top": 900,
+       "hsl": {
+        "h": 38,
+        "s": 0.54,
+        "l": 0.93
+       }
+      },
+      {
+       "color": "#f9fafb",
+       "top": 13651,
+       "hsl": {
+        "h": 210,
+        "s": 0.2,
+        "l": 0.98
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#0f172a",
+       "share": 0.53
+      },
+      {
+       "color": "#9ca3af",
+       "share": 0.15
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.1
+      },
+      {
+       "color": "#d4af37",
+       "share": 0.1
+      },
+      {
+       "color": "#4b5563",
+       "share": 0.03
+      }
+     ],
+     "button": {
+      "bg": "#0f172a",
+      "hsl": {
+       "h": 222,
+       "s": 0.47,
+       "l": 0.11
+      },
+      "fg": "#0f172a"
+     },
+     "lowContrast": [
+      {
+       "text": "Япония, Южна Корея",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Австралия, Нова Зеландия, Френска Полине",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Сингапур, Австралия, Нова Зеландия",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Сингапур, Австралия, Нова Зеландия, Френ",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Сингапур, Австралия",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Сингапур, Австралия",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 9,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 41,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 7,
+     "heroLabels": [
+      "Разгледай екскурзиите",
+      "AI АСИСТЕНТ",
+      "ОТКАЗВАМ",
+      "САМО НЕОБХОДИМИ",
+      "ПРИЕМАМ ВСИЧКИ"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 144,
+     "shadowOverlay": 5,
+     "shadowSamples": [
+      "a.tilt-card.group → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+      "div.relative.group/badge → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+      "a.group.relative → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+      "div.relative.group/badge → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0"
+     ],
+     "gradients": 8,
+     "scrims": 27,
+     "gradientSamples": [
+      "a.group.relative → linear-gradient(135deg, rgb(22, 163, 74), rgb(250, 204, 21))",
+      "a.group.relative → linear-gradient(135deg, rgb(245, 158, 11), rgb(239, 68, 68))",
+      "a.group.relative → linear-gradient(135deg, rgb(220, 38, 38), rgb(22, 163, 74))",
+      "a.group.relative → linear-gradient(135deg, rgb(139, 92, 246), rgb(249, 115, 22))"
+     ],
+     "gradientText": 0,
+     "hairlines": 47,
+     "hairlineSamples": [
+      "div.px-5.py-3 728px",
+      "div.flex.items-end 254px",
+      "div.flex.items-end 254px",
+      "div.flex.flex-col 1232px",
+      "div.mt-auto.pt-6 318px"
+     ],
+     "outlinedBoxes": 39,
+     "dashed": 0,
+     "blurred": 88,
+     "roundedBoxes": 78,
+     "boxRadius": 40,
+     "squareMedia": 4,
+     "roundedMedia": 51,
+     "mediaRadius": 40,
+     "textShadow": 2,
+     "cardRows": [
+      {
+       "count": 37,
+       "iconTopped": true,
+       "rounded": true,
+       "top": 3307
+      }
+     ]
+    },
+    "heroMedia": [
+     {
+      "type": "img",
+      "ratio": 0.69
+     },
+     {
+      "type": "img",
+      "ratio": 0.08
+     },
+     {
+      "type": "img",
+      "ratio": 0.08
+     }
+    ],
+    "nav": {
+     "links": 7,
+     "fixed": true,
+     "height": 96,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "inter",
+     "inter fallback",
+     "playfair display",
+     "unbounded"
+    ]
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 768,
+   "height": 1024,
+   "load": "load",
+   "screens": 12,
+   "filled": [
+    0.98,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "motion": {
+    "elements": 18,
+    "css": 3,
+    "transitions": 11,
+    "scripted": 4,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "page": {
+     "height": 20613,
+     "screens": 20.1,
+     "words": 1329,
+     "img": 66,
+     "video": 0,
+     "canvas": 0,
+     "svg": 223,
+     "sections": 7,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 44,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [
+      "image?url=%2Fhero%2Fthailand.webp&w=1080&q=75",
+      "image?url=%2Fhero%2Faustralia.webp&w=1080&q=75",
+      "image?url=%2Fhero%2Fsingapore.webp&w=1080&q=75",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap",
+      "image?url=%2Fhero%2Fhero-bg.webp&w=828&q=80",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [
+      "✦",
+      "★"
+     ]
+    },
+    "hero": {
+     "text": "ТАЙЛАНД",
+     "words": 1,
+     "chars": 7,
+     "lines": 1,
+     "size": 112.4,
+     "vw": 14.6,
+     "font": "Unbounded",
+     "weight": 700,
+     "tracking": -0.035,
+     "leading": 0.86,
+     "upper": true,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "center",
+     "widthRatio": 0.94,
+     "top": 607,
+     "tag": "p",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Групови екскурзии по света с водач",
+     "words": 6,
+     "lines": 2,
+     "size": 52,
+     "font": "Unbounded"
+    },
+    "headings": [
+     {
+      "text": "Групови екскурзии по света с водач",
+      "words": 6,
+      "chars": 34,
+      "lines": 2,
+      "size": 52,
+      "vw": 6.8,
+      "font": "Unbounded",
+      "weight": 400,
+      "tracking": -0.03,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.8,
+      "top": 96,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "ТАЙЛАНД",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 112.4,
+      "vw": 14.6,
+      "font": "Unbounded",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 0.86,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.94,
+      "top": 607,
+      "tag": "p",
+      "kind": "heading"
+     },
+     {
+      "text": "СИНГАПУР",
+      "words": 1,
+      "chars": 8,
+      "lines": 1,
+      "size": 106.6,
+      "vw": 13.9,
+      "font": "Unbounded",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 0.86,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.94,
+      "top": 610,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "АВСТРАЛИЯ",
+      "words": 1,
+      "chars": 9,
+      "lines": 1,
+      "size": 91.6,
+      "vw": 11.9,
+      "font": "Unbounded",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 0.86,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.94,
+      "top": 616,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Топ 3 екскурзии",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 36,
+      "vw": 4.7,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1.11,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.36,
+      "top": 1111,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Китайското величие: Пекин, Сиан и Шанхай",
+      "words": 6,
+      "chars": 40,
+      "lines": 2,
+      "size": 30,
+      "vw": 3.9,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.72,
+      "top": 1452,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Някъде отвъд хоризонта има залез, който вече ти принадлежи.",
+      "words": 9,
+      "chars": 59,
+      "lines": 2,
+      "size": 42.2,
+      "vw": 5.5,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1.15,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.93,
+      "top": 2331,
+      "tag": "blockquote",
+      "kind": "statement"
+     },
+     {
+      "text": "Дестинации за всеки вкус",
+      "words": 4,
+      "chars": 24,
+      "lines": 1,
+      "size": 27.2,
+      "vw": 3.5,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": -0.025,
+      "leading": 1.08,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.43,
+      "top": 2804,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "37",
+      "words": 1,
+      "chars": 2,
+      "lines": 1,
+      "size": 30,
+      "vw": 3.9,
+      "font": "Inter",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "right",
+      "position": "right",
+      "widthRatio": 0.08,
+      "top": 3629,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Всички Предложения",
+      "words": 2,
+      "chars": 18,
+      "lines": 1,
+      "size": 48,
+      "vw": 6.3,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.64,
+      "top": 3639,
+      "mixedFonts": [
+       "Playfair Display",
+       "Playfair Display italic"
+      ],
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "2026",
+      "words": 1,
+      "chars": 4,
+      "lines": 1,
+      "size": 60,
+      "vw": 7.8,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.16,
+      "top": 3860,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "2027",
+      "words": 1,
+      "chars": 4,
+      "lines": 1,
+      "size": 60,
+      "vw": 7.8,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.15,
+      "top": 4791,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Човекът зад пътуванията",
+      "words": 3,
+      "chars": 23,
+      "lines": 1,
+      "size": 48,
+      "vw": 6.3,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.94,
+      "top": 18060,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Паулина Алексиева",
+      "words": 2,
+      "chars": 17,
+      "lines": 1,
+      "size": 30.7,
+      "vw": 4,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.86,
+      "top": 18436,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Следващото ви пътуване ни чака",
+      "words": 5,
+      "chars": 30,
+      "lines": 1,
+      "size": 42.2,
+      "vw": 5.5,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": -0.025,
+      "leading": 1.05,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 19442,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Beliva VIP Tour",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 30,
+      "vw": 3.9,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.2,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.45,
+      "top": 19801,
+      "tag": "a",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 16,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 4,
+     "centered": 3,
+     "medianWords": 3,
+     "mixedFontHeadings": 1
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Inter",
+       "share": 0.64,
+       "mono": false
+      },
+      {
+       "family": "Playfair Display",
+       "share": 0.34,
+       "mono": false
+      },
+      {
+       "family": "Unbounded",
+       "share": 0.01,
+       "mono": false
+      },
+      {
+       "family": "ui-monospace",
+       "share": 0.01,
+       "mono": false
+      }
+     ],
+     "familyCount": 4,
+     "sizes": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      18,
+      20,
+      23,
+      24,
+      27,
+      30,
+      31,
+      36,
+      42,
+      48,
+      52,
+      60,
+      92,
+      107,
+      112
+     ],
+     "sizeCount": 24,
+     "notLoaded": [],
+     "body": {
+      "font": "Playfair Display",
+      "size": 24,
+      "leading": 1.25,
+      "weight": 700,
+      "tracking": 0,
+      "contrast": 17.9
+     },
+     "measureChars": 91,
+     "max": {
+      "size": 112.4,
+      "vw": 14.6,
+      "font": "Unbounded",
+      "text": "Тайланд"
+     },
+     "monoShare": 0.01,
+     "monoProseShare": 0.01,
+     "monoFamilies": [
+      "ui-monospace"
+     ],
+     "monoSamples": [
+      "Просто трябва да отидеш да си го вземеш."
+     ],
+     "microLabels": 135,
+     "microLabelShare": 0.146,
+     "microSamples": [
+      "Горещи предложения",
+      "Философия",
+      "Открий",
+      "Пътешествия",
+      "Намерени",
+      "Оформяща група"
+     ],
+     "upperShare": 0.39,
+     "centerShare": 0.16,
+     "smallText": 116
+    },
+    "eyebrows": [
+     {
+      "text": "Горещи предложения",
+      "above": "Топ 3 екскурзии",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 1088
+     },
+     {
+      "text": "Китай",
+      "above": "Китайското величие: Пекин, Сиан и Шанхай",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 1429
+     },
+     {
+      "text": "Философия",
+      "above": "Някъде отвъд хоризонта има залез, който ",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 2284
+     },
+     {
+      "text": "Открий",
+      "above": "Дестинации за всеки вкус",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 9,
+      "top": 2784
+     },
+     {
+      "text": "Пътешествия",
+      "above": "Всички Предложения",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 12,
+      "top": 3614
+     },
+     {
+      "text": "Вашият водач",
+      "above": "Човекът зад пътуванията",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 9,
+      "top": 18035
+     },
+     {
+      "text": "Основател & Водач",
+      "above": "Паулина Алексиева",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 18413
+     },
+     {
+      "text": "Готови ли сте?",
+      "above": "Следващото ви пътуване ни чака",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 9,
+      "top": 19417
+     }
+    ],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#fcf9f2",
+     "bodyBgHsl": {
+      "h": 42,
+      "s": 0.63,
+      "l": 0.97
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#0f172a",
+       "top": 0,
+       "hsl": {
+        "h": 222,
+        "s": 0.47,
+        "l": 0.11
+       }
+      },
+      {
+       "color": "#00737a",
+       "top": 655,
+       "hsl": {
+        "h": 183,
+        "s": 1,
+        "l": 0.24
+       }
+      },
+      {
+       "color": "#0b4f9c",
+       "top": 655,
+       "hsl": {
+        "h": 212,
+        "s": 0.87,
+        "l": 0.33
+       }
+      },
+      {
+       "color": "#c2410c",
+       "top": 655,
+       "hsl": {
+        "h": 17,
+        "s": 0.88,
+        "l": 0.4
+       }
+      },
+      {
+       "color": "#f7f0e4",
+       "top": 1024,
+       "hsl": {
+        "h": 38,
+        "s": 0.54,
+        "l": 0.93
+       }
+      },
+      {
+       "color": "#ffffff",
+       "top": 1191,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#f9fafb",
+       "top": 18761,
+       "hsl": {
+        "h": 210,
+        "s": 0.2,
+        "l": 0.98
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#0f172a",
+       "share": 0.53
+      },
+      {
+       "color": "#9ca3af",
+       "share": 0.15
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.1
+      },
+      {
+       "color": "#d4af37",
+       "share": 0.1
+      },
+      {
+       "color": "#4b5563",
+       "share": 0.03
+      }
+     ],
+     "button": {
+      "bg": "#0f172a",
+      "hsl": {
+       "h": 222,
+       "s": 0.47,
+       "l": 0.11
+      },
+      "fg": "#0f172a"
+     },
+     "lowContrast": [
+      {
+       "text": "Япония, Южна Корея",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Австралия, Нова Зеландия, Френска Полине",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Сингапур, Австралия, Нова Зеландия",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Сингапур, Австралия, Нова Зеландия, Френ",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Сингапур, Австралия",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Сингапур, Австралия",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 9,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 41,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 7,
+     "heroLabels": [
+      "Разгледай екскурзиите",
+      "AI АСИСТЕНТ",
+      "ОТКАЗВАМ",
+      "САМО НЕОБХОДИМИ",
+      "ПРИЕМАМ ВСИЧКИ"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 136,
+     "shadowOverlay": 5,
+     "shadowSamples": [
+      "a.tilt-card.group → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+      "div.relative.group/badge → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+      "a.group.relative → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+      "div.relative.group/badge → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0"
+     ],
+     "gradients": 8,
+     "scrims": 19,
+     "gradientSamples": [
+      "a.group.relative → linear-gradient(135deg, rgb(22, 163, 74), rgb(250, 204, 21))",
+      "a.group.relative → linear-gradient(135deg, rgb(245, 158, 11), rgb(239, 68, 68))",
+      "a.group.relative → linear-gradient(135deg, rgb(220, 38, 38), rgb(22, 163, 74))",
+      "a.group.relative → linear-gradient(135deg, rgb(139, 92, 246), rgb(249, 115, 22))"
+     ],
+     "gradientText": 0,
+     "hairlines": 49,
+     "hairlineSamples": [
+      "div.px-5.py-3 718px",
+      "div.flex.items-end 399px",
+      "div.flex.items-end 399px",
+      "div.flex.flex-col 720px",
+      "div.mt-auto.pt-6 274px"
+     ],
+     "outlinedBoxes": 39,
+     "dashed": 0,
+     "blurred": 88,
+     "roundedBoxes": 78,
+     "boxRadius": 40,
+     "squareMedia": 4,
+     "roundedMedia": 45,
+     "mediaRadius": 40,
+     "textShadow": 2,
+     "cardRows": [
+      {
+       "count": 37,
+       "iconTopped": true,
+       "rounded": true,
+       "top": 4000
+      }
+     ]
+    },
+    "heroMedia": [
+     {
+      "type": "img",
+      "ratio": 0.64
+     }
+    ],
+    "nav": {
+     "links": 7,
+     "fixed": true,
+     "height": 88,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "inter",
+     "inter fallback",
+     "playfair display",
+     "unbounded"
+    ]
+   },
+   "consoleErrors": []
+  },
+  {
+   "width": 390,
+   "height": 844,
+   "load": "load",
+   "screens": 12,
+   "filled": [
+    0.97,
+    0.99,
+    0.99,
+    1,
+    0.99,
+    0.99,
+    0.99,
+    0.99,
+    0.99,
+    0.99,
+    0.99,
+    0.99
+   ],
+   "motion": {
+    "elements": 8,
+    "css": 3,
+    "transitions": 3,
+    "scripted": 2,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "page": {
+     "height": 33010,
+     "screens": 39.1,
+     "words": 1303,
+     "img": 66,
+     "video": 0,
+     "canvas": 0,
+     "svg": 221,
+     "sections": 7,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 27,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [
+      "image?url=%2Fhero%2Fthailand.webp&w=828&q=75",
+      "image?url=%2Fhero%2Faustralia.webp&w=828&q=75",
+      "image?url=%2Fhero%2Fsingapore.webp&w=828&q=75",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap",
+      "image?url=%2Fhero%2Fhero-bg.webp&w=640&q=80",
+      "image?url=https%3A%2F%2Ffirebasestorage.googleap"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [
+      "✦",
+      "★"
+     ]
+    },
+    "hero": {
+     "text": "ТАЙЛАНД",
+     "words": 1,
+     "chars": 7,
+     "lines": 1,
+     "size": 53.4,
+     "vw": 13.7,
+     "font": "Unbounded",
+     "weight": 700,
+     "tracking": -0.035,
+     "leading": 0.86,
+     "upper": true,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "center",
+     "widthRatio": 0.88,
+     "top": 573,
+     "tag": "p",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Групови екскурзии по света с водач",
+     "words": 6,
+     "lines": 2,
+     "size": 30,
+     "font": "Unbounded"
+    },
+    "headings": [
+     {
+      "text": "Групови екскурзии по света с водач",
+      "words": 6,
+      "chars": 34,
+      "lines": 2,
+      "size": 30,
+      "vw": 7.7,
+      "font": "Unbounded",
+      "weight": 400,
+      "tracking": -0.03,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 96,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "ТАЙЛАНД",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 53.4,
+      "vw": 13.7,
+      "font": "Unbounded",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 0.86,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 573,
+      "tag": "p",
+      "kind": "heading"
+     },
+     {
+      "text": "СИНГАПУР",
+      "words": 1,
+      "chars": 8,
+      "lines": 1,
+      "size": 50.6,
+      "vw": 13,
+      "font": "Unbounded",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 0.86,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.88,
+      "top": 574,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "АВСТРАЛИЯ",
+      "words": 1,
+      "chars": 9,
+      "lines": 1,
+      "size": 43.5,
+      "vw": 11.2,
+      "font": "Unbounded",
+      "weight": 700,
+      "tracking": -0.035,
+      "leading": 0.86,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.88,
+      "top": 577,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Топ 3 екскурзии",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 30,
+      "vw": 7.7,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 915,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Китайското величие: Пекин, Сиан и Шанхай",
+      "words": 6,
+      "chars": 40,
+      "lines": 3,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.53,
+      "top": 1174,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Някъде отвъд хоризонта има залез,който вече ти принадлежи.",
+      "words": 8,
+      "chars": 58,
+      "lines": 4,
+      "size": 32,
+      "vw": 8.2,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1.15,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 1999,
+      "tag": "blockquote",
+      "kind": "statement"
+     },
+     {
+      "text": "Дестинации за всеки вкус",
+      "words": 4,
+      "chars": 24,
+      "lines": 1,
+      "size": 27.2,
+      "vw": 7,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": -0.025,
+      "leading": 1.08,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.84,
+      "top": 2470,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Япония",
+      "words": 1,
+      "chars": 6,
+      "lines": 1,
+      "size": 23.2,
+      "vw": 5.9,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.32,
+      "top": 2706,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Китай",
+      "words": 1,
+      "chars": 5,
+      "lines": 1,
+      "size": 23.2,
+      "vw": 5.9,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.32,
+      "top": 2706,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Сингапур",
+      "words": 1,
+      "chars": 8,
+      "lines": 1,
+      "size": 23.2,
+      "vw": 5.9,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.32,
+      "top": 2910,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Австралия",
+      "words": 1,
+      "chars": 9,
+      "lines": 1,
+      "size": 23.2,
+      "vw": 5.9,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.32,
+      "top": 2910,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Бразилия",
+      "words": 1,
+      "chars": 8,
+      "lines": 1,
+      "size": 23.2,
+      "vw": 5.9,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.32,
+      "top": 3114,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Аржентина",
+      "words": 1,
+      "chars": 9,
+      "lines": 1,
+      "size": 23.2,
+      "vw": 5.9,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.32,
+      "top": 3114,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Мексико",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 23.2,
+      "vw": 5.9,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.32,
+      "top": 3318,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Колумбия",
+      "words": 1,
+      "chars": 8,
+      "lines": 1,
+      "size": 23.2,
+      "vw": 5.9,
+      "font": "Playfair Display",
+      "weight": 600,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.32,
+      "top": 3318,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Всички Предложения",
+      "words": 2,
+      "chars": 18,
+      "lines": 2,
+      "size": 36,
+      "vw": 9.2,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 3542,
+      "mixedFonts": [
+       "Playfair Display",
+       "Playfair Display italic"
+      ],
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "37",
+      "words": 1,
+      "chars": 2,
+      "lines": 1,
+      "size": 30,
+      "vw": 7.7,
+      "font": "Inter",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "center",
+      "widthRatio": 0.16,
+      "top": 3685,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "2026",
+      "words": 1,
+      "chars": 4,
+      "lines": 1,
+      "size": 48,
+      "vw": 12.3,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.26,
+      "top": 3904,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "5521 €",
+      "words": 2,
+      "chars": 6,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.17,
+      "top": 4260,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Япония и Южна Корея: Пътешествие през векове и култури",
+      "words": 9,
+      "chars": 54,
+      "lines": 3,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.71,
+      "top": 4421,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "11156 €",
+      "words": 2,
+      "chars": 7,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.19,
+      "top": 4932,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Австралия и Нова Зеландия: Магията на Големия бариерен риф и Фиорди",
+      "words": 11,
+      "chars": 67,
+      "lines": 4,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.7,
+      "top": 5149,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "2027",
+      "words": 1,
+      "chars": 4,
+      "lines": 1,
+      "size": 48,
+      "vw": 12.3,
+      "font": "Playfair Display",
+      "weight": 400,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": true,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.24,
+      "top": 5495,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "8803 €",
+      "words": 2,
+      "chars": 6,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.19,
+      "top": 5851,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Вълшебството на Австралия и Нова Зеландия: Открийте Големия Бариерен Риф и Сингапур",
+      "words": 12,
+      "chars": 83,
+      "lines": 5,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.71,
+      "top": 6040,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "11366 €",
+      "words": 2,
+      "chars": 7,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.2,
+      "top": 6610,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Очарованието на Океания: Сингапур, Австралия, Нова Зеландия и Френска Полинезия",
+      "words": 10,
+      "chars": 79,
+      "lines": 5,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.71,
+      "top": 6827,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "6095 €",
+      "words": 2,
+      "chars": 6,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.19,
+      "top": 7434,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Екзотични приключения в Сингапур и Австралия: От модерния Сингапур до величието на Големия Бариерен Риф",
+      "words": 15,
+      "chars": 103,
+      "lines": 6,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.71,
+      "top": 7595,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "5318 €",
+      "words": 2,
+      "chars": 6,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.17,
+      "top": 8196,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Очарованието на Сингапур и Австралия",
+      "words": 5,
+      "chars": 36,
+      "lines": 2,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.71,
+      "top": 8357,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "8664 €",
+      "words": 2,
+      "chars": 6,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.19,
+      "top": 8837,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Австралия и Нова Зеландия: Великата красота на Големия бариерен риф",
+      "words": 10,
+      "chars": 67,
+      "lines": 4,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.71,
+      "top": 8998,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "11121 €",
+      "words": 2,
+      "chars": 7,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.18,
+      "top": 9575,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Открийте Австралия и Нова Зеландия: Големият бариерен риф и Милфорд Саунд",
+      "words": 11,
+      "chars": 73,
+      "lines": 4,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.71,
+      "top": 9764,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "6386 €",
+      "words": 2,
+      "chars": 6,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.19,
+      "top": 10305,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Ексклузивно пътешествие: Австралия и Големия бариерен риф",
+      "words": 7,
+      "chars": 57,
+      "lines": 4,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.71,
+      "top": 10438,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "8803 €",
+      "words": 2,
+      "chars": 6,
+      "lines": 1,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "center",
+      "position": "left",
+      "widthRatio": 0.19,
+      "top": 10978,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Сингапур и Австралия: Големият бариерен риф и Нова Зеландия",
+      "words": 9,
+      "chars": 59,
+      "lines": 3,
+      "size": 24,
+      "vw": 6.2,
+      "font": "Playfair Display",
+      "weight": 700,
+      "tracking": 0,
+      "leading": 1.25,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.71,
+      "top": 11167,
+      "tag": "h3",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 98,
+     "maxLines": 6,
+     "over2Lines": 27,
+     "statements": 49,
+     "centered": 42,
+     "medianWords": 4,
+     "mixedFontHeadings": 1
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Inter",
+       "share": 0.64,
+       "mono": false
+      },
+      {
+       "family": "Playfair Display",
+       "share": 0.35,
+       "mono": false
+      },
+      {
+       "family": "Unbounded",
+       "share": 0.01,
+       "mono": false
+      },
+      {
+       "family": "ui-monospace",
+       "share": 0.01,
+       "mono": false
+      }
+     ],
+     "familyCount": 4,
+     "sizes": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      14,
+      15,
+      16,
+      18,
+      20,
+      23,
+      24,
+      27,
+      29,
+      30,
+      32,
+      34,
+      36,
+      44,
+      48,
+      51,
+      53
+     ],
+     "sizeCount": 22,
+     "notLoaded": [],
+     "body": {
+      "font": "Playfair Display",
+      "size": 24,
+      "leading": 1.25,
+      "weight": 700,
+      "tracking": 0,
+      "contrast": 17.9
+     },
+     "measureChars": 49,
+     "max": {
+      "size": 53.4,
+      "vw": 13.7,
+      "font": "Unbounded",
+      "text": "Тайланд"
+     },
+     "monoShare": 0.01,
+     "monoProseShare": 0.01,
+     "monoFamilies": [
+      "ui-monospace"
+     ],
+     "monoSamples": [
+      "Просто трябва да отидеш да си го вземеш."
+     ],
+     "microLabels": 135,
+     "microLabelShare": 0.149,
+     "microSamples": [
+      "Горещи предложения",
+      "Философия",
+      "Открий",
+      "Пътешествия",
+      "Намерени",
+      "Оформяща група"
+     ],
+     "upperShare": 0.39,
+     "centerShare": 0.17,
+     "smallText": 116
+    },
+    "eyebrows": [
+     {
+      "text": "Горещи предложения",
+      "above": "Топ 3 екскурзии",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 892
+     },
+     {
+      "text": "Китай",
+      "above": "Китайското величие: Пекин, Сиан и Шанхай",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 1151
+     },
+     {
+      "text": "Философия",
+      "above": "Някъде отвъд хоризонта има залез,който в",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 1952
+     },
+     {
+      "text": "Открий",
+      "above": "Дестинации за всеки вкус",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 9,
+      "top": 2450
+     },
+     {
+      "text": "Пътешествия",
+      "above": "Всички Предложения",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 12,
+      "top": 3517
+     },
+     {
+      "text": "Цена от",
+      "above": "5521 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 4241
+     },
+     {
+      "text": "Цена от",
+      "above": "11156 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 4913
+     },
+     {
+      "text": "Цена от",
+      "above": "8803 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 5832
+     },
+     {
+      "text": "Цена от",
+      "above": "11366 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 6591
+     },
+     {
+      "text": "Цена от",
+      "above": "6095 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 7415
+     },
+     {
+      "text": "Цена от",
+      "above": "5318 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 8177
+     },
+     {
+      "text": "Цена от",
+      "above": "8664 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 8818
+     },
+     {
+      "text": "Цена от",
+      "above": "11121 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 9556
+     },
+     {
+      "text": "Цена от",
+      "above": "6386 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 10286
+     },
+     {
+      "text": "Цена от",
+      "above": "8803 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 10959
+     },
+     {
+      "text": "Цена от",
+      "above": "3359 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 11659
+     },
+     {
+      "text": "Цена от",
+      "above": "3900 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 12358
+     },
+     {
+      "text": "Цена от",
+      "above": "2039 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 13068
+     },
+     {
+      "text": "Цена от",
+      "above": "8803 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 13742
+     },
+     {
+      "text": "Цена от",
+      "above": "4790 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 14471
+     },
+     {
+      "text": "Цена от",
+      "above": "3825 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 15151
+     },
+     {
+      "text": "Цена от",
+      "above": "3325 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 15831
+     },
+     {
+      "text": "Цена от",
+      "above": "3978 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 16481
+     },
+     {
+      "text": "Цена от",
+      "above": "2559 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 17125
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 3899 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 17716
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 4265 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 18390
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 5210 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 19003
+     },
+     {
+      "text": "Цена от",
+      "above": "3359 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 19669
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 3927 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 20376
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 3929 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 20990
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 5900 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 21603
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 3927 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 22313
+     },
+     {
+      "text": "Цена от",
+      "above": "2169 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 22949
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 3927 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 23570
+     },
+     {
+      "text": "Цена от",
+      "above": "3359 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 24236
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 3899 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 24943
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 4689 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 25557
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 3753 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 26198
+     },
+     {
+      "text": "Цена от",
+      "above": "5851 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 26870
+     },
+     {
+      "text": "Стандартна цена",
+      "above": "Промоционална цена: 4689 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 27556
+     },
+     {
+      "text": "Цена от",
+      "above": "3950 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 28256
+     },
+     {
+      "text": "Цена от",
+      "above": "8803 €",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 28900
+     },
+     {
+      "text": "Вашият водач",
+      "above": "Човекът зад пътуванията",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 9,
+      "top": 29772
+     },
+     {
+      "text": "Основател & Водач",
+      "above": "Паулина Алексиева",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 10,
+      "top": 30141
+     },
+     {
+      "text": "Готови ли сте?",
+      "above": "Следващото ви пътуване ни чака",
+      "upper": true,
+      "tracked": true,
+      "mono": false,
+      "pill": false,
+      "size": 9,
+      "top": 31180
+     }
+    ],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#fcf9f2",
+     "bodyBgHsl": {
+      "h": 42,
+      "s": 0.63,
+      "l": 0.97
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#0f172a",
+       "top": 0,
+       "hsl": {
+        "h": 222,
+        "s": 0.47,
+        "l": 0.11
+       }
+      },
+      {
+       "color": "#f7f0e4",
+       "top": 844,
+       "hsl": {
+        "h": 38,
+        "s": 0.54,
+        "l": 0.93
+       }
+      },
+      {
+       "color": "#ffffff",
+       "top": 1019,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#f9fafb",
+       "top": 30524,
+       "hsl": {
+        "h": 210,
+        "s": 0.2,
+        "l": 0.98
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#0f172a",
+       "share": 0.54
+      },
+      {
+       "color": "#9ca3af",
+       "share": 0.15
+      },
+      {
+       "color": "#d4af37",
+       "share": 0.1
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.08
+      },
+      {
+       "color": "#4b5563",
+       "share": 0.03
+      }
+     ],
+     "button": {
+      "bg": "#0f172a",
+      "hsl": {
+       "h": 222,
+       "s": 0.47,
+       "l": 0.11
+      },
+      "fg": "#0f172a"
+     },
+     "lowContrast": [
+      {
+       "text": "Япония, Южна Корея",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Австралия, Нова Зеландия, Френска Полине",
+       "ratio": 2.1,
+       "need": 3,
+       "size": 20,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Прочетете пълната политика",
+       "ratio": 2.1,
+       "need": 4.5,
+       "size": 12,
+       "fg": "#d4af37",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Дати на отпътуване:",
+       "ratio": 2.5,
+       "need": 4.5,
+       "size": 12,
+       "fg": "#9ca3af",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Отказвам",
+       "ratio": 3.8,
+       "need": 4.5,
+       "size": 10,
+       "fg": "#ef4444",
+       "bg": "#ffffff"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 9,
+     "inHero": 5,
+     "radius": "pill",
+     "height": 42,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 7,
+     "heroLabels": [
+      "Разгледай екскурзиите",
+      "AI АСИСТЕНТ",
+      "ОТКАЗВАМ",
+      "САМО НЕОБХОДИМИ",
+      "ПРИЕМАМ ВСИЧКИ"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 136,
+     "shadowOverlay": 5,
+     "shadowSamples": [
+      "a.tilt-card.group → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+      "div.relative.group/badge → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+      "a.group.relative → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+      "div.relative.group/badge → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0"
+     ],
+     "gradients": 9,
+     "scrims": 19,
+     "gradientSamples": [
+      "a.group.relative → linear-gradient(135deg, rgb(22, 163, 74), rgb(250, 204, 21))",
+      "a.group.relative → linear-gradient(135deg, rgb(245, 158, 11), rgb(239, 68, 68))",
+      "a.group.relative → linear-gradient(135deg, rgb(220, 38, 38), rgb(22, 163, 74))",
+      "a.group.relative → linear-gradient(135deg, rgb(139, 92, 246), rgb(249, 115, 22))"
+     ],
+     "gradientText": 0,
+     "hairlines": 47,
+     "hairlineSamples": [
+      "a.inline-flex.items-center 358px",
+      "div.px-5.py-3 356px",
+      "div.flex.flex-col 342px",
+      "div.mt-auto.pt-6 276px",
+      "div.mt-auto.pt-6 274px"
+     ],
+     "outlinedBoxes": 39,
+     "dashed": 0,
+     "blurred": 88,
+     "roundedBoxes": 78,
+     "boxRadius": 40,
+     "squareMedia": 4,
+     "roundedMedia": 39,
+     "mediaRadius": 40,
+     "textShadow": 2,
+     "cardRows": [
+      {
+       "count": 37,
+       "iconTopped": true,
+       "rounded": true,
+       "top": 4032
+      }
+     ]
+    },
+    "heroMedia": [
+     {
+      "type": "img",
+      "ratio": 0.71
+     },
+     {
+      "type": "img",
+      "ratio": 0.08
+     },
+     {
+      "type": "img",
+      "ratio": 0.08
+     }
+    ],
+    "nav": {
+     "links": 2,
+     "fixed": true,
+     "height": 80,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "inter",
+     "inter fallback",
+     "playfair display",
+     "unbounded"
+    ]
+   },
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "FAIL",
+   "id": "headline-lines",
+   "width": 1440,
+   "message": "1 headline(s) wrap past two lines at 1440px: \"Някъде отвъд хоризонта има залез, който вече ти \" → 4 lines (9 words, 72px, a paragraph set above 36px)",
+   "fix": "Cut words first (a headline is a title, not a sentence). Then give it a wider measure. Lower the size only as a last resort and never below the scale you chose. A real statement paragraph belongs in a <p> or <blockquote> at 36px or less."
+  },
+  {
+   "level": "WARN",
+   "id": "mixed-font-headline",
+   "width": 1440,
+   "message": "1 headline(s) switch typeface or to italic mid-line (the \"one italic serif word\" move).",
+   "fix": "Set the whole headline in one face. Emphasis comes from the words.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "eyebrow",
+   "width": 1440,
+   "message": "8 eyebrow/kicker label(s) above headings: \"Горещи предложения\" above \"Топ 3 екскурзии\"; \"Китай\" above \"Китайското величие: Пекин, Сиан и Шанхай\"; \"Философия\" above \"Някъде отвъд хоризонта има залез, който \"; \"Открий\" above \"Дестинации за всеки вкус\"; \"Пътешествия\" above \"Всички Предложения\"",
+   "fix": "Delete them. If the label carried real information, fold it into the headline or the supporting sentence.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "mono",
+   "width": 1440,
+   "message": "Monospace type outside code: ui-monospace — e.g. \"Просто трябва да отидеш да си го вземеш.\"",
+   "fix": "Set it in the text face. Monospace is for literal code inside <pre>/<code> only.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "micro-label",
+   "width": 1440,
+   "message": "135 tiny uppercase letter-spaced labels (e.g. \"Горещи предложения\", \"Философия\", \"Открий\", \"Пътешествия\").",
+   "fix": "Use sentence-case text at a readable size, or delete the label.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "emoji",
+   "width": 1440,
+   "message": "Emoji in the page: ✦ ★",
+   "fix": "Remove. Use words or real imagery.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "gradient",
+   "width": 1440,
+   "message": "8 gradient fill(s): a.group.relative → linear-gradient(135deg, rgb(22, 163, 74), rgb(250, 204, 21)) | a.group.relative → linear-gradient(135deg, rgb(245, 158, 11), rgb(239, 68, 68)) | a.group.relative → linear-gradient(135deg, rgb(220, 38, 38), rgb(22, 163, 74))",
+   "fix": "Use a flat colour or a real image. The only gradient allowed by default is a neutral scrim over a photo for legibility.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "shadow",
+   "width": 1440,
+   "message": "144 box-shadow(s) on elements at rest: a.tilt-card.group → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0 | div.relative.group/badge → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0 | a.group.relative → rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0",
+   "fix": "Remove. Separate surfaces with a tone step or space. Shadows are for things that really float (menus, dialogs, sticky bars).",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "text-shadow",
+   "width": 1440,
+   "message": "2 text-shadow(s).",
+   "fix": "Remove; fix legibility with a scrim or a different crop.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "hairline",
+   "width": 1440,
+   "message": "47 thin rule(s)/divider line(s): div.px-5.py-3 728px | div.flex.items-end 254px | div.flex.items-end 254px | div.flex.flex-col 1232px",
+   "fix": "Delete. Separate with space, a tone change, or scale. Lines are only for real tables and form fields.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "outlined-box",
+   "width": 1440,
+   "message": "39 boxes drawn with a 1px outline.",
+   "fix": "Define a surface by its fill (one tone step from the page) or leave the content unboxed.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "glass",
+   "width": 1440,
+   "message": "88 backdrop-blur surfaces.",
+   "fix": "One blurred sticky bar at most; glass cards are a tell.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "icon-cards",
+   "width": 1440,
+   "message": "1 row(s) of identical cards each topped with a small icon (37 cards).",
+   "fix": "Replace with one composed section from the direction: a narrative split, a list set in large type, or real imagery per item.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "palette-cream",
+   "width": 1440,
+   "message": "Yellow-cream background (page background #fcf9f2, section #f7f0e4).",
+   "fix": "Use the drawn palette. If you want warmth, take a low-chroma stone or bone, not a yellow cream.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "contrast",
+   "width": 1440,
+   "message": "Unreadable text: \"Япония, Южна Корея\" 2.1:1 (#d4af37 on #ffffff); \"Австралия, Нова Зеландия, Френска Полине\" 2.1:1 (#d4af37 on #ffffff); \"Сингапур, Австралия, Нова Зеландия\" 2.1:1 (#d4af37 on #ffffff); \"Сингапур, Австралия, Нова Зеландия, Френ\" 2.1:1 (#d4af37 on #ffffff)",
+   "fix": "Raise contrast to at least 4.5:1 for text, 3:1 for large display.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "size-count",
+   "width": 1440,
+   "message": "23 different font sizes (8, 9, 10, 11, 12, 14, 15, 16, 18, 20, 23, 24, 30, 36, 42, 48, 52, 58, 60, 72, 157, 182, 192).",
+   "fix": "A page needs about five: display, heading, lead, body, small.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "no-footage",
+   "width": 1440,
+   "message": "No video anywhere on the page.",
+   "fix": "Look for one honest clip with scripts/assets.mjs --video (the place, the material, the process) and use it as a muted loop with a poster frame. Defend its absence only if no clip fits the subject."
+  },
+  {
+   "level": "WARN",
+   "id": "measure",
+   "width": 1440,
+   "message": "Longest paragraph runs about 96 characters per line.",
+   "fix": "Cap paragraphs at 45–75 characters (max-width: 60ch).",
+   "alsoAt": [
+    768
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "small-text",
+   "width": 1440,
+   "message": "116 text blocks under 13px.",
+   "fix": "Nothing meant to be read goes below 13px.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "covered-text",
+   "width": 1440,
+   "message": "Large text lies under another element at some scroll position: \"ТАЙЛАНД\" (screen 1, 100% hidden); \"Групови екскурзии по света с водач\" (screen 1, 100% hidden); \"Храмове, плажове и незабравими залези\" (screen 1, 100% hidden); \"Топ 3 екскурзии\" (screen 2, 100% hidden)",
+   "fix": "Nothing may sit on top of a headline or statement. Move the picture, shorten the pinned run, or raise the text above it (z-index) and give it a ground.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "headline-lines",
+   "width": 390,
+   "message": "11 headline(s) wrap past two lines at 390px: \"Китайското величие: Пекин, Сиан и Шанхай\" → 3 lines (6 words, 24px); \"Някъде отвъд хоризонта има залез,който вече ти п\" → 4 lines (8 words, 32px, a paragraph set above 24px); \"Япония и Южна Корея: Пътешествие през векове и к\" → 3 lines (9 words, 24px); \"Австралия и Нова Зеландия: Магията на Големия ба\" → 4 lines (11 words, 24px)",
+   "fix": "Cut words first (a headline is a title, not a sentence). Then give it a wider measure. Lower the size only as a last resort and never below the scale you chose. A real statement paragraph belongs in a <p> or <blockquote> at 24px or less."
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1440,
+   "fold": "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\desktop-fold.jpg",
+   "pages": [
+    "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\desktop-page-01.jpg",
+    "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\desktop-page-02.jpg",
+    "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\desktop-page-03.jpg"
+   ]
+  },
+  {
+   "viewport": "tablet",
+   "width": 768,
+   "fold": "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\tablet-fold.jpg",
+   "pages": [
+    "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\tablet-page-01.jpg",
+    "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\tablet-page-02.jpg"
+   ]
+  },
+  {
+   "viewport": "mobile",
+   "width": 390,
+   "fold": "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\mobile-fold.jpg",
+   "pages": [
+    "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\mobile-page-01.jpg",
+    "C:\\Users\\Lenovo\\Travel\\beliva-next\\.taste-skill\\inspect\\mobile-page-02.jpg"
+   ]
+  }
+ ]
+}

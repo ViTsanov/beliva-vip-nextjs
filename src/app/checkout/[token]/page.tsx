@@ -42,8 +42,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
 
       if (!data.checkoutTokenExpiry || Date.now() > data.checkoutTokenExpiry) {
         errorTitle = 'Линкът е изтекъл';
-        errorMessage = 'Валидността му е 7 дни. Свържи се с агенцията за нов линк.';
-      } else if (data.checkoutCompletedAt) {
+        errorMessage = 'Валидността му е 14 дни. Свържи се с агенцията за нов линк.';
+      } else if (data.checkoutCompletedAt && !data.checkoutReopened) {
         errorTitle = 'Данните вече са изпратени';
         errorMessage = 'Благодарим! Нашият екип вече обработва информацията, която си предоставил.';
       } else {
@@ -60,11 +60,24 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
   // Admin SDK връща Firestore Timestamp-ите (напр. createdAt) като клас-инстанции, не обикновени
   // обекти — това чупи границата. JSON round-trip ги превръща в чисти, плоски обекти
   // (Timestamp класът има вграден toJSON(), който JSON.stringify автоматично използва).
+  // Към клиентския компонент подаваме САМО нужното. При корекция предварително попълваме името по паспорт и
+  // валидността (не са чувствителни); ЕГН и номер на паспорт не се връщат към браузъра — клиентът ги въвежда пак.
+  let formInquiry: any = null;
   if (inquiry) {
-    inquiry = JSON.parse(JSON.stringify(inquiry));
+    const plain = JSON.parse(JSON.stringify(inquiry));
+    const isCorrection = !!plain.checkoutCompletedAt;
+    formInquiry = {
+      tourTitle: plain.tourTitle || '',
+      tourDate: plain.tourDate || '',
+      clientName: plain.clientName || '',
+      isCorrection,
+      prefill: isCorrection && Array.isArray(plain.travelers)
+        ? plain.travelers.map((t: any) => ({ latinName: t.latinName || '', passportValidity: t.passportValidity || '' }))
+        : [],
+    };
   }
 
-  if (!inquiry) {
+  if (!formInquiry) {
     return <ErrorScreen title={errorTitle} message={errorMessage} />;
   }
 
@@ -82,5 +95,5 @@ export default async function CheckoutPage({ params }: { params: Promise<{ token
     console.error('[checkout page — payment info]', error);
   }
 
-  return <CheckoutForm inquiry={inquiry} token={token} paymentInfo={paymentInfo} />;
+  return <CheckoutForm inquiry={formInquiry} token={token} paymentInfo={paymentInfo} />;
 }

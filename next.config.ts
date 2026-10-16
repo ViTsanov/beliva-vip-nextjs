@@ -26,7 +26,8 @@ const nextConfig: NextConfig = {
     // All quality values used across the app
     qualities: [40, 75, 80, 85, 90],
     // Allow larger images for hero/gallery quality
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    // 2560 — за големи/ретина екрани: оригиналите в библиотеката са до 2000px, а без тази стъпка те получаваха 1920
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2560],
     imageSizes: [16, 32, 64, 96, 128, 256, 300, 384],
   },
 };

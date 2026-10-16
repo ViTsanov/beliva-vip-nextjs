@@ -10,17 +10,42 @@ import remarkGfm from 'remark-gfm';
 import { sendMessageToAI } from '@/lib/aiService';
 import { useBackToClose } from '@/lib/hooks/useBackToClose';
 
+// „Рисуване“ на отговора: показваме текста постепенно, но никога не режем по средата на Markdown линк,
+// удебелен текст или код — иначе за миг се виждат суровите [..](https://..) и **. Ако краят попадне вътре
+// в такъв откъс, показваме откъса целия.
+const MARKDOWN_SPANS = /\[[^\]]*\]\([^)]*\)|\*\*[^*]+\*\*|`[^`]+`/g;
+function safeRevealEnd(text: string, n: number): number {
+  if (n >= text.length) return text.length;
+  for (const m of text.matchAll(MARKDOWN_SPANS)) {
+    const start = m.index ?? 0;
+    const end = start + m[0].length;
+    if (n > start && n < end) return end;
+    if (start >= n) break;
+  }
+  return n;
+}
+// Отговорът се „изписва“ за около 2–3 секунди независимо от дължината (поне 2 знака на кадър).
+const REVEAL_FRAMES = 150;
+
 export default function AIChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentTour, setCurrentTour] = useState<any>(null);
+  // Държавите на тура като текст — полето може да е масив („Япония, Южна Корея“), иначе се слепват.
+  const tourCountryLabel = currentTour
+    ? (Array.isArray(currentTour.country) ? currentTour.country.join(', ') : String(currentTour.country || ''))
+    : '';
   
   const pathname = usePathname();
   const isTourPage = pathname.startsWith('/tour/');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  // Кой отговор се „изписва“ в момента и колко знака от него се виждат.
+  const [typing, setTyping] = useState<{ index: number; shown: number } | null>(null);
+  // След като пристигне отговор — скролваме до въпроса (той и началото на отговора са най-горе), не до края.
+  const scrollToQuestionRef = useRef(false);
 
   // Снифване на URL за контекст на екскурзия
   useEffect(() => {
@@ -58,17 +83,43 @@ export default function AIChatWidget() {
     updateContext();
   }, [pathname]); 
 
+  // Скрол на съобщенията:
+  // - при отваряне и при изпратен въпрос (с точките „пише…“) — най-долу, за да се види въпросът;
+  // - при пристигнал отговор — въпросът застава най-горе, а отговорът започва точно под него. Така дългият
+  //   отговор се чете отгоре надолу, вместо да прескочим директно на края му.
   useEffect(() => {
     if (!isOpen) return;
-    // Скролваме контейнера директно (по-надеждно от scrollIntoView при отваряне/streaming)
     const frame = requestAnimationFrame(() => {
       const container = messagesContainerRef.current;
-      if (container) {
-        container.scrollTop = container.scrollHeight;
+      if (!container) return;
+      if (scrollToQuestionRef.current) {
+        scrollToQuestionRef.current = false;
+        const questions = container.querySelectorAll<HTMLElement>('[data-role="user"]');
+        const lastQuestion = questions[questions.length - 1];
+        if (lastQuestion) {
+          container.scrollTo({ top: Math.max(0, lastQuestion.offsetTop - 16), behavior: 'smooth' });
+          return;
+        }
       }
+      container.scrollTop = container.scrollHeight;
     });
     return () => cancelAnimationFrame(frame);
   }, [messages, isLoading, isOpen]);
+
+  // „Изписване“ на отговора кадър по кадър. Всички setState са в requestAnimationFrame, не директно в ефекта.
+  useEffect(() => {
+    if (!typing) return;
+    const full = messages[typing.index]?.content ?? '';
+    const step = Math.max(2, Math.ceil(full.length / REVEAL_FRAMES));
+    const frame = requestAnimationFrame(() => {
+      setTyping(t => {
+        if (!t) return t;
+        const next = safeRevealEnd(full, t.shown + step);
+        return next >= full.length ? null : { ...t, shown: next };
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [typing, messages]);
 
   // Забрана на скрола на тялото при отворен чат на мобилни
   useEffect(() => {
@@ -88,6 +139,7 @@ export default function AIChatWidget() {
     if (!input.trim() || isLoading) return;
 
     const userText = input;
+    setTyping(null); // ако предишният отговор още се „изписва“ — показваме го целия
     setMessages(prev => [...prev, { role: 'user', content: userText }]);
     setInput('');
     setIsLoading(true);
@@ -95,14 +147,17 @@ export default function AIChatWidget() {
     const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
     const aiResponse = await sendMessageToAI(userText, history, currentTour);
     
+    // Отговорът ще е след сегашните съобщения и току-що добавения въпрос.
+    scrollToQuestionRef.current = true;
+    setTyping({ index: messages.length + 1, shown: 0 });
     setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
     setIsLoading(false);
   };
 
   return (
     <>
-      {/* БУТОН ЗА ОТВАРЯНЕ */}
-      <div className={`fixed z-[100] font-sans transition-transform duration-300 right-6
+      {/* БУТОН ЗА ОТВАРЯНЕ. data-floating-button: скрива се, докато е отворен диалог (globals.css) */}
+      <div data-floating-button className={`fixed z-[100] font-sans transition-transform duration-300 right-6
         ${isTourPage ? 'bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(1.5rem+env(safe-area-inset-bottom))]'}
         ${isOpen ? 'scale-0 md:scale-100' : 'scale-100'}`}>
         <button
@@ -138,7 +193,7 @@ export default function AIChatWidget() {
                 <span className="font-serif italic text-lg block leading-none">Beliva AI</span>
                 {currentTour ? (
                   <span className="text-[9px] uppercase tracking-widest text-emerald-400 flex items-center gap-1">
-                    <Sparkles size={10} /> Специалист: {currentTour.country}
+                    <Sparkles size={10} /> Специалист: {tourCountryLabel}
                   </span>
                 ) : (
                   <span className="text-[9px] uppercase tracking-widest text-brand-gold">VIP Асистент</span>
@@ -156,24 +211,34 @@ export default function AIChatWidget() {
           </div>
 
           {/* MESSAGES AREA */}
-          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#fcfaf7] space-y-4">
+          <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto p-4 md:p-6 bg-[#fcfaf7] space-y-4">
             {messages.length === 0 && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
                  <div className="max-w-[90%] bg-white p-5 rounded-2xl rounded-tl-none border border-brand-gold/20 shadow-md text-brand-dark">
                     <p className="text-sm font-medium leading-relaxed">
                       {currentTour 
-                        ? `Здравейте! Виждам, че разглеждате "${currentTour.title}". Мога да Ви разкажа за програмата, нужните документи или интересни факти за ${currentTour.country}.`
+                        ? `Здравейте! Виждам, че разглеждате "${currentTour.title}". Мога да Ви разкажа за програмата, нужните документи или интересни факти за ${tourCountryLabel}.`
                         : "Здравейте! Аз съм Вашият VIP пътеводител. Мога да Ви предложа ексклузивни дестинации или да Ви дам контактите на агенцията."}
                     </p>
                  </div>
               </div>
             )}
 
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] p-4 rounded-2xl text-sm break-words shadow-sm ${
+            {messages.map((msg, i) => {
+              // Отговорът, който се „изписва“ в момента: показваме част от текста + курсор; натискане показва всичко.
+              // Екранните четци получават целия текст веднага (sr-only), а анимираната част е скрита за тях.
+              const isTyping = typing?.index === i;
+              const visibleText = isTyping ? `${msg.content.slice(0, typing.shown)} ▍` : msg.content;
+              return (
+              <div key={i} data-role={msg.role} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  onClick={isTyping ? () => setTyping(null) : undefined}
+                  title={isTyping ? 'Покажи целия отговор' : undefined}
+                  className={`max-w-[90%] p-4 rounded-2xl text-sm break-words shadow-sm ${
                   msg.role === 'user' ? 'bg-brand-dark text-white rounded-tr-none' : 'bg-white text-gray-700 border border-brand-gold/10 rounded-tl-none'
-                }`}>
+                } ${isTyping ? 'cursor-pointer' : ''}`}>
+                  {isTyping && <span className="sr-only">{msg.content}</span>}
+                  <div aria-hidden={isTyping || undefined}>
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -187,11 +252,13 @@ export default function AIChatWidget() {
                       )
                     }}
                   >
-                    {msg.content}
+                    {visibleText}
                   </ReactMarkdown>
+                  </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
             {isLoading && (
               <div className="flex justify-start items-center gap-2 ml-2">
                 <div className="w-1.5 h-1.5 bg-brand-gold rounded-full animate-bounce"></div>

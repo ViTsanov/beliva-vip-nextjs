@@ -149,7 +149,7 @@ export default function Testimonials() {
   return (
     // Светлосив сив фон (не бял, не cream като MeetGuides) — белите карти с техен бордер се губеше на чисто бял фон —
     // сега имат реален контраст и секцията остава визуално отделена от MeetGuides над нея.
-    <section className="w-full py-20 overflow-hidden bg-gray-50 border-t border-brand-gold/10">
+    <section className="w-full py-20 overflow-hidden bg-white">
       
       {/* 👇 ПРОМЯНА 2: Добавяме вътрешен контейнер за центриране */}
       <div className="container mx-auto px-6">

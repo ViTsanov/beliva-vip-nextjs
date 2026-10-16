@@ -1,6 +1,6 @@
 'use server';
 
-import { getAdminDb } from '@/lib/firebaseAdmin';
+import { getAdminDb, getAdminStorage } from '@/lib/firebaseAdmin';
 import { encryptField } from '@/lib/encryption';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -17,6 +17,8 @@ interface TravelerInput {
   egn: string;
   passportNumber: string;
   passportValidity: string;
+  // Път до КРИПТИРАНАТА снимка в Storage (качена преди това през /api/checkout/upload-passport). По избор.
+  passportPhoto?: string;
 }
 
 export async function submitCheckoutData(token: string, travelers: TravelerInput[]) {
@@ -47,8 +49,18 @@ export async function submitCheckoutData(token: string, travelers: TravelerInput
       return { success: false, error: 'Този линк е изтекъл. Свържете се с агенцията за нов линк.' };
     }
 
-    if (data.checkoutCompletedAt) {
+    // Формата е отворена за попълване, ако още не е изпратена ИЛИ админът е поискал корекция (checkoutReopened).
+    const isCorrection = !!data.checkoutCompletedAt;
+    if (isCorrection && !data.checkoutReopened) {
       return { success: false, error: 'Данните за тази резервация вече са изпратени.' };
+    }
+
+    // Снимката трябва да е качена за ТОВА запитване — иначе клиент би могъл да подмени път към чужд файл.
+    const photoPrefix = `passport-scans/${inquiryDoc.id}/`;
+    for (const t of travelers) {
+      if (t.passportPhoto && !(t.passportPhoto.startsWith(photoPrefix) && /^[A-Za-z0-9/_.-]+$/.test(t.passportPhoto) && !t.passportPhoto.includes('..'))) {
+        return { success: false, error: 'Невалидна снимка. Качете я отново.' };
+      }
     }
 
     // Криптираме ЕГН и номер на паспорт на ВСЕКИ пътник поотделно, преди записа — latinName и
@@ -59,14 +71,28 @@ export async function submitCheckoutData(token: string, travelers: TravelerInput
       egn: encryptField(t.egn.trim()),
       passportNumber: encryptField(t.passportNumber.trim()),
       passportValidity: t.passportValidity,
+      passportPhoto: t.passportPhoto || '',
     }));
 
     await inquiryDoc.ref.update({
       travelers: encryptedTravelers,
       checkoutCompletedAt: FieldValue.serverTimestamp(),
+      // Корекцията е приключила — линкът пак се затваря. Запитването си остава в „Резервации“.
+      checkoutReopened: false,
+      ...(isCorrection ? { checkoutRevisions: FieldValue.increment(1), lastCorrectionAt: FieldValue.serverTimestamp() } : {}),
     });
 
-    return { success: true };
+    // Старите снимки, които вече не се ползват (заменени или премахнати пътници), се изтриват — да не стоят
+    // паспортни данни повече от нужното. Неуспешно изтриване не е причина да откажем коректно изпратените данни.
+    if (isCorrection && Array.isArray(data.travelers)) {
+      const kept = new Set(travelers.map(t => t.passportPhoto).filter(Boolean));
+      const orphans: string[] = data.travelers.map((t: any) => t?.passportPhoto).filter((p: any) => typeof p === 'string' && p && !kept.has(p));
+      await Promise.all(orphans.map(path =>
+        getAdminStorage().bucket().file(path).delete({ ignoreNotFound: true }).catch((e: unknown) => console.error('[checkout] delete old passport photo', e))
+      ));
+    }
+
+    return { success: true, corrected: isCorrection };
   } catch (error: unknown) {
     console.error('[submitCheckoutData]', error);
     const message = error instanceof Error ? error.message : 'Грешка при запис на данните.';

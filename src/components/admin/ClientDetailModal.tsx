@@ -31,24 +31,39 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
   // изисква отделен клик + декриптиране, същият pattern като пътниците на checkout флоуа.
   // null = в процес на декриптиране, обект = готово за преглед/редакция, false = затворен.
   const [sensitiveModalOpen, setSensitiveModalOpen] = useState(false);
-  const [sensitiveData, setSensitiveData] = useState<{ latinName: string; egn: string; passportNumber: string; passportValidity: string } | null>(null);
+  const [sensitiveData, setSensitiveData] = useState<{ latinName: string; egn: string; passportNumber: string; passportValidity: string; passportPhoto?: string } | null>(null);
+  // Откъде са показаните данни: от профила на клиента или (ако там няма) от последната му резервация.
+  const [sensitiveSource, setSensitiveSource] = useState<{ tripTitle: string; travelersCount: number } | null>(null);
   const [isSavingSensitive, setIsSavingSensitive] = useState(false);
 
   const handleOpenSensitiveData = async () => {
     setSensitiveModalOpen(true);
     setSensitiveData(null);
+    setSensitiveSource(null);
+
+    // Клиентите, създадени от „Платено“, нямат собствени паспортни полета — данните им са в пътуването
+    // (попълнени през checkout линка). Ако профилът е празен, показваме първия пътник от последната резервация.
+    let source: any = {
+      latinName: client.latinName || '',
+      egn: client.egn || '',
+      passportNumber: client.passportNumber || '',
+      passportValidity: client.passportValidity || '',
+      passportPhoto: (client as any).passportPhoto || '',
+    };
+    if (!client.egn && !client.passportNumber) {
+      const tripsWithData = ((client as any).tripHistory || []).filter((t: any) => Array.isArray(t.travelers) && t.travelers.length > 0);
+      const latest = tripsWithData[tripsWithData.length - 1];
+      if (latest) {
+        source = { ...latest.travelers[0] };
+        setSensitiveSource({ tripTitle: latest.tourTitle || 'пътуване', travelersCount: latest.travelers.length });
+      }
+    }
+
     try {
       const res = await fetch('/api/admin/decrypt-travelers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          travelers: [{
-            latinName: client.latinName || '',
-            egn: client.egn || '',
-            passportNumber: client.passportNumber || '',
-            passportValidity: client.passportValidity || '',
-          }]
-        })
+        body: JSON.stringify({ travelers: [source] })
       });
       const data = await res.json();
       if (data.success) {
@@ -121,14 +136,18 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
   // Извличане на ревютата, които този клиент е написал (по имейл)
   useEffect(() => {
     const fetchClientReviews = async () => {
-      if (!client.email) return;
+      if (!client.email && !client.id) return;
       setIsLoadingReviews(true);
       try {
-        // Търсим ревюта, където имейлът съвпада с този на клиента
-        const q = query(collection(db, 'reviews'), where('email', '==', client.email));
-        const snap = await getDocs(q);
-        const fetchedReviews = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setReviews(fetchedReviews);
+        // Ревютата от личния линк за отзив са вързани по customerId (без имейл — колекцията reviews е
+        // публично четима); старите — по имейл. Взимаме и двете и махаме повторенията.
+        const queries = [];
+        if (client.email) queries.push(getDocs(query(collection(db, 'reviews'), where('email', '==', client.email))));
+        if (client.id) queries.push(getDocs(query(collection(db, 'reviews'), where('customerId', '==', client.id))));
+        const snaps = await Promise.all(queries);
+        const byId = new Map<string, any>();
+        snaps.forEach(snap => snap.docs.forEach(d => byId.set(d.id, { id: d.id, ...d.data() })));
+        setReviews(Array.from(byId.values()));
       } catch (error) {
         console.error("Грешка при извличане на ревюта:", error);
       } finally {
@@ -137,7 +156,7 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
     };
 
     fetchClientReviews();
-  }, [client.email]);
+  }, [client.email, client.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -457,6 +476,15 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
                         <span className="text-gray-400 block">Валидност на паспорта</span>
                         <span className="font-bold text-brand-dark">{t.passportValidity}</span>
                       </div>
+                      {t.passportPhoto && (
+                        <div className="col-span-2">
+                          <span className="text-gray-400 block mb-1">Снимка на паспорта</span>
+                          <a href={`/api/admin/passport-photo?path=${encodeURIComponent(t.passportPhoto)}`} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={`/api/admin/passport-photo?path=${encodeURIComponent(t.passportPhoto)}`} alt={`Паспорт на пътник ${idx + 1}`} className="h-32 w-auto rounded-xl border border-gray-200 object-cover" />
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
@@ -483,6 +511,23 @@ export default function ClientDetailModal({ client, onClose, onUpdate, onOpenGro
                 <p className="text-center text-gray-400 py-8">Декриптиране...</p>
               ) : (
                 <>
+                  {sensitiveSource && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-2xl p-4">
+                      Данните са от резервацията за „{sensitiveSource.tripTitle}“{sensitiveSource.travelersCount > 1 ? ` (пътник 1 от ${sensitiveSource.travelersCount} — останалите виж в История на пътуванията → пътници)` : ''}. Натисни „Запази“, за да ги запишеш и в профила.
+                    </div>
+                  )}
+                  {!sensitiveSource && !sensitiveData.latinName && !sensitiveData.egn && !sensitiveData.passportNumber && (
+                    <p className="text-xs text-gray-400">Няма въведени данни — нито в профила, нито от резервация.</p>
+                  )}
+                  {sensitiveData.passportPhoto && (
+                    <div>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Снимка на паспорта</p>
+                      <a href={`/api/admin/passport-photo?path=${encodeURIComponent(sensitiveData.passportPhoto)}`} target="_blank" rel="noopener noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={`/api/admin/passport-photo?path=${encodeURIComponent(sensitiveData.passportPhoto)}`} alt="Снимка на паспорта" className="h-40 w-auto rounded-xl border border-gray-200 object-cover" />
+                      </a>
+                    </div>
+                  )}
                   <div>
                     <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Имена на Латиница</p>
                     <input type="text" value={sensitiveData.latinName} onChange={e => setSensitiveData(prev => prev ? { ...prev, latinName: e.target.value } : prev)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-brand-gold" placeholder="IVAN IVANOV" />

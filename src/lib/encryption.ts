@@ -63,3 +63,30 @@ export function decryptField(encoded: string): string {
     return encoded;
   }
 }
+
+// Криптиране на двоични данни (снимки на паспорти). Формат: [12 байта IV][16 байта authTag][шифрован текст].
+// Файловете се пазят в Storage САМО в този вид — самата Storage е с публично четене, затова без ключа
+// (DATA_ENCRYPTION_KEY) съдържанието е безполезно. Разчита се през /api/admin/passport-photo (само за админ).
+export function encryptBuffer(plain: Buffer): Buffer {
+  const key = getKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), encrypted]);
+}
+
+// Връща null при повредени/подменени данни (authTag не съвпада) — викащият решава какво да покаже.
+export function decryptBuffer(payload: Buffer): Buffer | null {
+  if (payload.length < 12 + 16 + 1) return null;
+  try {
+    const key = getKey();
+    const iv = payload.subarray(0, 12);
+    const authTag = payload.subarray(12, 28);
+    const encrypted = payload.subarray(28);
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    decipher.setAuthTag(authTag);
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]);
+  } catch {
+    return null;
+  }
+}

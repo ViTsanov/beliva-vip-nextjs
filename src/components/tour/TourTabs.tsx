@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { ITour } from "@/types";
-import { Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '@/lib/formatPrice';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
@@ -24,7 +25,7 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
 
   // Reference точки за плавно връщане към началото на секцията, когато височината й се променя
   // (смяна ден / затваряне на разгънат текст) — иначе четецът остава виснал по средата
-  const dayPillsRef = useRef<HTMLDivElement>(null);
+  const programRef = useRef<HTMLDivElement>(null);
   const introRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
   // Хоризонталната лента с дните и самите бутони — за да центрираме активния ден и да местим лентата със стрелки
@@ -97,9 +98,10 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
   const goToDay = (index: number) => {
     setDirection(index > activeDay ? 1 : -1);
     setActiveDay(index);
-    // При всяка смяна на ден скролваме плавно до началото на панела за деня — новият текст може да е
+    // При всяка смяна на ден скролваме плавно до началото на секцията „Програма“ — новият текст може да е
     // по-къс или по-дълъг, а четецът трябва винаги да започва от началото, а не от където е скролнал за предишния.
-    scrollToTopOf(dayPillsRef);
+    // Целим горния ръб на цялата карта (не лентата с дните), за да се вижда и заглавието „Ден по ден · Програма“.
+    scrollToTopOf(programRef, 100);
   };
 
   // Обновява дали има скрити дни вляво/вдясно — от това зависи дали се показват стрелките.
@@ -265,12 +267,40 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
           <button onClick={toggleDesc} className="mt-6 flex items-center gap-2 text-brand-dark hover:text-brand-gold font-bold text-xs uppercase tracking-widest transition-colors relative z-20">
             {isDescExpanded ? <>Скрий <ChevronUp size={14}/></> : <>Прочети цялото описание <ChevronDown size={14}/></>}
           </button>
+
+          {/* Поли — малък портрет и връзка към „За нас“, за посетителите, които още не я познават */}
+          <div className="relative z-20 mt-8 flex items-center gap-4 border-t border-brand-gold/15 pt-6">
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-brand-gold/40 ring-offset-2 ring-offset-[#fffdf5]">
+              <Image
+                src="/guides/poly-1.jpg"
+                alt="Паулина Алексиева (Поли), основател на Beliva VIP Tour"
+                fill
+                // Снимката е в цял ръст — увеличаваме я около лицето; по-голям sizes, за да не е размазана
+                sizes="400px"
+                className="object-cover"
+                style={{ objectPosition: '42% 42%', transform: 'scale(4.2)', transformOrigin: '42% 40%' }}
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[15px] leading-snug text-brand-dark">
+                Подбрано лично от <span className="font-semibold">Поли</span>
+                <span className="text-slate-500"> · основател на Beliva VIP Tour</span>
+              </p>
+              <Link
+                href="/about-us"
+                className="group mt-1 inline-flex min-h-8 items-center gap-1.5 text-[13px] font-semibold text-brand-dark underline decoration-brand-gold decoration-2 underline-offset-4 transition-[text-decoration-color] hover:decoration-brand-dark"
+              >
+                Запознайте се с нея
+                <ArrowRight size={13} aria-hidden="true" className="transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 
       {/* ─── ПРОГРАМА — НОВ ДИЗАЙН ─── */}
       {programData.length > 0 && (
-        <div className="rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-xl bg-white">
+        <div ref={programRef} className="rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-xl bg-white">
 
           {/* Section header */}
           <div className="px-4 sm:px-8 md:px-12 pt-9 pb-7 border-b border-gray-100 bg-gradient-to-r from-white to-[#fffdf8]">
@@ -282,7 +312,7 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
           </div>
 
           {/* Day pills selector */}
-          <div className="relative border-b border-gray-100 bg-gray-50/60" ref={dayPillsRef}>
+          <div className="relative border-b border-gray-100 bg-gray-50/60">
             {canScrollLeft && (
               <button
                 type="button"

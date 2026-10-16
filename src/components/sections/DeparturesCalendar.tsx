@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { CalendarRange, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
+import { CalendarRange, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 interface MonthData {
   value: string;        // "YYYY-MM", напр. "2026-08"
@@ -18,6 +18,8 @@ interface DeparturesCalendarProps {
   onSelectMonth: (value: string) => void;
 }
 
+// Месеците като ред от карти: налични — бели с рамка; без дати — сиви и неактивни; избраният — тъмносин с ✓.
+// Едно състояние = един вид, без допълнителни цветове (зелено/червено) и мащабиране.
 export default function DeparturesCalendar({ months, activeMonth, onSelectMonth }: DeparturesCalendarProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -38,37 +40,29 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
   const hasAny = months.some(m => m.count > 0);
   if (!hasAny) return null;
 
+  const arrowClass =
+    'flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-brand-dark transition-colors hover:border-brand-dark hover:bg-brand-dark hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark';
+
   return (
-    <div className="mb-8 md:mb-10 relative z-20">
-      <div className="flex items-center justify-between gap-2 mb-4 px-1">
-        <div className="flex items-center gap-2">
-          <CalendarRange size={16} className="text-brand-gold" />
-          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-500">Разгледай по месеци</span>
-        </div>
+    <section className="relative z-20" aria-labelledby="filters-months-heading">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 id="filters-months-heading" className="flex items-center gap-2 text-[15px] font-semibold text-brand-dark">
+          <CalendarRange size={17} className="text-brand-goldDeep" aria-hidden="true" />
+          Кога искате да пътувате
+        </h3>
         {/* Стрелки за скрол — само desktop/mouse, на мобилно жестът за swipe е естествен */}
-        <div className="hidden md:flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => scrollByAmount(-1)}
-            aria-label="Предишни месеци"
-            className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 flex items-center justify-center hover:border-brand-gold hover:text-brand-gold active:scale-90 transition-all"
-          >
-            <ChevronLeft size={16} />
+        <div className="hidden items-center gap-2 md:flex">
+          <button type="button" onClick={() => scrollByAmount(-1)} aria-label="Предишни месеци" className={arrowClass}>
+            <ChevronLeft size={16} aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            onClick={() => scrollByAmount(1)}
-            aria-label="Следващи месеци"
-            className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 flex items-center justify-center hover:border-brand-gold hover:text-brand-gold active:scale-90 transition-all"
-          >
-            <ChevronRight size={16} />
+          <button type="button" onClick={() => scrollByAmount(1)} aria-label="Следващи месеци" className={arrowClass}>
+            <ChevronRight size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
 
-      {/* px-3 (вместо px-1) дава реален хоризонтален буфер — без него scale трансформацията на първата/последната карта
-          (които нямат съсед от тази страна) може да се реже от overflow-x-auto. */}
-      <div ref={scrollerRef} className="snap-carousel flex items-stretch gap-3 overflow-x-auto pt-1 pb-3 -mx-1 px-3 scrollbar-hide">
+      {/* pt/px дават място за рамката на фокуса, за да не се реже от overflow-x-auto */}
+      <div ref={scrollerRef} className="snap-carousel -mx-1 flex items-stretch gap-2.5 overflow-x-auto px-1 pb-2 pt-1 scrollbar-hide">
         {months.map((m, idx) => {
           const isSelected = activeMonth === m.value;
           const isEmpty = m.count === 0;
@@ -77,71 +71,54 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
             <React.Fragment key={m.value}>
               {/* Годишен разделител — показва се пред първия месец от всяка нова година */}
               {m.isFirstOfYear && (
-                <div className="shrink-0 flex flex-col items-center gap-1.5 py-1">
-                  <span className="text-[10px] font-black text-gray-500 tracking-wide whitespace-nowrap">{m.year}</span>
-                  <div className="w-px flex-1 bg-gray-200 rounded-full min-h-[50px]" />
+                <div className="flex shrink-0 flex-col items-center gap-1.5 py-1" aria-hidden="true">
+                  <span className="whitespace-nowrap text-[11px] font-bold text-slate-500">{m.year}</span>
+                  <div className="min-h-[50px] w-px flex-1 rounded-full bg-slate-200" />
                 </div>
               )}
 
               <button
                 ref={(el) => { cardRefs.current[m.value] = el; }}
+                type="button"
                 onClick={() => !isEmpty && onSelectMonth(isSelected ? '' : m.value)}
                 disabled={isEmpty}
-                className={`relative overflow-hidden shrink-0 w-[150px] text-left p-5 rounded-[1.75rem] border transition-all duration-300 active:scale-95 ${
+                aria-pressed={isSelected}
+                aria-label={`${m.label} ${m.year}: ${isEmpty ? 'няма дати' : `${m.count} ${m.count === 1 ? 'екскурзия' : 'екскурзии'}`}`}
+                className={`relative w-[136px] shrink-0 rounded-2xl border p-4 text-left transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark ${
                   isSelected
-                    ? 'bg-gradient-to-br from-brand-dark to-[#1a2540] border-brand-gold text-white shadow-xl scale-[1.04] ring-2 ring-brand-gold/40 ring-offset-2'
+                    ? 'border-brand-dark bg-brand-dark text-white'
                     : isEmpty
-                    ? 'bg-gray-100/80 border-dashed border-gray-300 text-gray-400 cursor-not-allowed'
-                    : 'bg-white border-emerald-200 shadow-sm shadow-emerald-900/5 hover:border-emerald-400 hover:shadow-lg hover:-translate-y-0.5'
+                    ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400'
+                    : 'border-slate-200 bg-white text-brand-dark hover:border-brand-dark'
                 }`}
               >
-                {/* Златна лента отгоре — само когато месецът е избран, добавя малко визуално "тегло" без да е само рамка */}
                 {isSelected && (
-                  <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-gold via-amber-300 to-brand-gold" />
-                )}
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className={`font-serif italic text-xl ${isSelected ? 'text-brand-gold' : isEmpty ? 'text-gray-400' : 'text-brand-dark'}`}>
-                    {m.label}
+                  <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand-gold text-brand-dark" aria-hidden="true">
+                    <Check size={12} strokeWidth={3} />
                   </span>
-                  {idx === 0 && !isEmpty && (
-                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${
-                      isSelected ? 'bg-brand-gold text-brand-dark' : 'bg-brand-gold/10 text-brand-gold'
-                    }`}>
-                      Скоро
-                    </span>
-                  )}
-                </div>
-
-                {/* Малка златна разделителна линия между заглавието и броя — добавя визуална структура вместо просто стек текст */}
-                <div className={`h-px w-8 mb-2.5 ${isSelected ? 'bg-brand-gold/40' : isEmpty ? 'bg-gray-300' : 'bg-emerald-200'}`} />
-
-                <p className={`flex items-center gap-1.5 text-xs font-bold mb-1.5 ${
-                  isSelected ? 'text-white/90' : isEmpty ? 'text-gray-500' : 'text-gray-600'
-                }`}>
-                  {/* Статус: зелено тикче = има дати, червено хикче = няма дати (не разчитаме само на цвят — текстът също се различава) */}
-                  {isEmpty ? (
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600" aria-hidden="true">
-                      <X size={10} strokeWidth={3.5} />
-                    </span>
-                  ) : (
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden="true">
-                      <Check size={10} strokeWidth={3.5} />
-                    </span>
-                  )}
+                )}
+                {idx === 0 && !isEmpty && (
+                  <span className={`mb-1.5 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isSelected ? 'bg-white/15 text-white' : 'bg-brand-mist text-brand-dark'}`}>
+                    Скоро
+                  </span>
+                )}
+                <span className={`block pr-5 font-serif text-xl italic leading-tight ${isSelected ? 'text-brand-gold' : ''}`}>
+                  {m.label}
+                </span>
+                <span className={`mt-2 block text-[13px] font-semibold ${isSelected ? 'text-white' : isEmpty ? '' : 'text-brand-dark'}`}>
                   {isEmpty ? 'Няма дати' : `${m.count} ${m.count === 1 ? 'екскурзия' : 'екскурзии'}`}
-                </p>
-
+                </span>
                 {!isEmpty && m.countries.length > 0 && (
-                  <p className={`text-[10px] leading-snug ${isSelected ? 'text-white/70' : 'text-gray-500'}`}>
+                  <span className={`mt-1 block text-[11px] leading-snug ${isSelected ? 'text-white/70' : 'text-slate-500'}`}>
                     {m.countries.slice(0, 2).join(', ')}
                     {m.countries.length > 2 ? ` +${m.countries.length - 2}` : ''}
-                  </p>
+                  </span>
                 )}
               </button>
             </React.Fragment>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }

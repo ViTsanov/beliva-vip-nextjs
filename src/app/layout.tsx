@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter, Playfair_Display, Unbounded } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import ConditionalAnalytics from '@/components/ConditionalAnalytics';
@@ -16,6 +16,13 @@ const playfair = Playfair_Display({
   subsets: ["latin", "cyrillic"],
   variable: "--font-serif",
   weight: ["400", "700"], // Добавих още дебелини за всеки случай
+  display: "swap",
+});
+
+// Широк геометричен шрифт за дисплей текст в hero-то (името на дестинацията). Variable — една заявка за всички дебелини.
+const unbounded = Unbounded({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -127,7 +134,7 @@ export default function RootLayout({
   return (
     // 👇 ПРЕМАХНАХ КОМЕНТАРА ОТ ТУК, ЗА ДА НЕ ЧУПИ ХИДРАТАЦИЯТА
     <html lang="bg" className="scroll-smooth"> 
-      <body className={`${inter.variable} ${playfair.variable} font-sans antialiased min-h-screen flex flex-col`}>
+      <body className={`${inter.variable} ${playfair.variable} ${unbounded.variable} font-sans antialiased min-h-screen flex flex-col`}>
         
         {/* JSON-LD Script */}
         <script

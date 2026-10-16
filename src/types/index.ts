@@ -25,6 +25,8 @@ export interface ITour {
   historicalDates?: string[];
   // 👆 --------- 👆
   img: string;
+  // Точката от главната снимка, която да остава видима при изрязване (CSS object-position, напр. "30% 60%") — задава се в TourForm
+  imgPosition?: string;
   images?: string[] | string;
   gallery?: string[];
   // New typed gallery with captions (replaces plain images string)

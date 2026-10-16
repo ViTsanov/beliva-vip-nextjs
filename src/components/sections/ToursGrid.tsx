@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Filter, Globe2, Check, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { Filter, Globe2, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -93,6 +93,14 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
 
   // Докато панелът е отворен, страницата зад него не се скролва — скролва се само панелът.
   useScrollLock(filtersOpen);
+  // Докато панелът с филтри е отворен, плаващите бутони (чат, „нагоре“, бисквитки) се скриват — иначе застъпват
+  // долната лента на панела. Правилото е в globals.css ([data-dialog-open] [data-floating-button]).
+  useEffect(() => {
+    const html = document.documentElement;
+    if (filtersOpen) html.dataset.dialogOpen = 'filters';
+    else delete html.dataset.dialogOpen;
+    return () => { delete html.dataset.dialogOpen; };
+  }, [filtersOpen]);
 
   // Височина на фиксираното меню — лентата с бутона „Филтри“ се залепя точно под него, без процеп.
   // Мери се с ResizeObserver, защото менюто променя височината си (padding при скрол, мобилно/десктоп).
@@ -504,6 +512,8 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
   }, [filterContinent, toursForCountryFacet]);
 
   let lastYear = "";
+  // Позиция на картата в реда (за поетапното ѝ появяване); нулира се след всяко заглавие с година.
+  let column = 0;
 
   const displayCountryName = filterCountry 
     ? (WORLD_COUNTRIES.find(c => slugify(c) === filterCountry) || filterCountry)
@@ -544,7 +554,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
   return (
 
     <div
-      className="w-full py-16 relative overflow-clip bg-[#f7f0e4]"
+      className="w-full py-16 relative overflow-clip bg-white"
     >
 
     <section
@@ -631,7 +641,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
       {!hideFilters && (
         <div
           style={{ top: navHeight - 1 }}
-          className="sticky z-30 -mx-6 mb-3 flex items-center justify-between gap-3 bg-[#f7f0e4] px-6 pb-2 pt-0.5 md:pb-3 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-3 before:bg-[#f7f0e4] after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-[#f7f0e4] after:to-transparent"
+          className="sticky z-30 -mx-6 mb-3 flex items-center justify-between gap-3 bg-white px-6 pb-2 pt-0.5 md:pb-3 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-3 before:bg-white after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-white after:to-transparent"
         >
           <button
             ref={filtersButtonRef}
@@ -639,16 +649,18 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
             onClick={() => (filtersOpen ? closeFilters() : openFilters())}
             aria-expanded={filtersOpen}
             aria-controls="tours-filters-panel"
-            className={`group flex items-center gap-2.5 rounded-full border px-5 py-3 text-xs font-black uppercase tracking-widest shadow-sm transition-all active:scale-95 ${
+            // Плътен тъмносин бутон (най-контрастното нещо в лентата), със сянка — за да се вижда върху бялото.
+            // Докато панелът е отворен, става златен, за да е ясно, че е натиснат. Размерът е непроменен.
+            className={`group flex items-center gap-2.5 rounded-full border px-5 py-3 text-xs font-black uppercase tracking-widest transition-[background-color,border-color,box-shadow,transform] duration-200 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark ${
               filtersOpen
-                ? 'border-brand-dark bg-brand-dark text-white'
-                : 'border-brand-gold/40 bg-white text-brand-dark hover:border-brand-gold hover:shadow-md'
+                ? 'border-brand-gold bg-brand-gold text-brand-dark shadow-[0_6px_16px_-6px_rgba(127,98,14,0.55)]'
+                : 'border-brand-dark bg-brand-dark text-white shadow-[0_6px_16px_-6px_rgba(15,23,42,0.55)] hover:border-slate-700 hover:bg-slate-700'
             }`}
           >
-            <SlidersHorizontal size={16} className={filtersOpen ? 'text-brand-gold' : 'text-brand-goldDeep'} aria-hidden="true" />
+            <SlidersHorizontal size={16} className={filtersOpen ? 'text-brand-dark' : 'text-brand-gold'} aria-hidden="true" />
             Филтри
             {panelFilterCount > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold px-1 text-[11px] font-black text-brand-dark">
+              <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-black ${filtersOpen ? 'bg-brand-dark text-white' : 'bg-brand-gold text-brand-dark'}`}>
                 {panelFilterCount}
               </span>
             )}
@@ -675,25 +687,33 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
               top: `calc(${navHeight}px + (100svh - ${navHeight}px) / 2)`,
               maxHeight: `calc(100svh - ${navHeight}px - 2rem)`,
             }}
-            className={`fixed left-1/2 z-[50] w-[calc(100%-1.5rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-[2rem] border border-brand-gold/20 bg-[#fcf9f2] px-6 shadow-2xl transition-[opacity,transform,visibility] duration-300 ease-out ${
+            // Бял панел върху затъмнената страница — същото бяло като страницата, без беж.
+            className={`fixed left-1/2 z-[50] w-[calc(100%-1.5rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-white px-5 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.45)] transition-[opacity,transform,visibility] duration-300 ease-out sm:px-7 ${
               filtersOpen ? 'visible scale-100 opacity-100' : 'pointer-events-none invisible scale-95 opacity-0'
             }`}
           >
             {/* Заглавие + затваряне — лепкаво най-горе в панела. Панелът няма padding-top: sticky се измерва от съдържанието
                 (вътре в padding-а), което иначе би избутало заглавието 24px надолу и би го наложило върху календара. */}
-            <div className="sticky top-0 z-10 -mx-6 mb-5 flex items-center justify-between border-b border-brand-gold/15 bg-[#fcf9f2] px-6 py-4">
-              <span className="font-serif text-2xl italic text-brand-dark">Филтри</span>
+            <div className="sticky top-0 z-30 -mx-5 mb-6 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4 sm:-mx-7 sm:px-7">
+              <div>
+                <h2 className="font-serif text-2xl italic leading-tight text-brand-dark">Филтри</h2>
+                <p className="mt-0.5 text-[13px] text-slate-500">
+                  {filteredTours.length} {filteredTours.length === 1 ? 'екскурзия отговаря' : 'екскурзии отговарят'} на избора
+                </p>
+              </div>
+              {/* Неутрален бутон — червеното подсказва грешка или изтриване, а тук само затваряме */}
               <button
                 type="button"
                 onClick={() => closeFilters()}
                 aria-label="Затвори филтрите"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600 shadow-sm transition-colors hover:bg-brand-gold hover:text-white"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-brand-dark transition-colors hover:bg-brand-dark hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark"
               >
                 <X size={20} aria-hidden="true" />
               </button>
             </div>
             {mounted && filtersEverOpened && (
               <>
+                <div className="space-y-8 pb-2">
                 <DeparturesCalendar months={calendarMonths} activeMonth={filterMonth} onSelectMonth={handleSelectMonth} />
                 <QuickFilters
                   categories={availableCategories}
@@ -708,14 +728,27 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
                   onSelectCountry={handleSelectCountry}
                   scopedMonthLabel={selectedMonthLabel}
                 />
-                {/* Лепкав бутон най-долу в панела — винаги достъпен, дори панелът да е по-висок от екрана.
-                    Затваря панела и скролва до резултатите. */}
-                <div className="sticky bottom-0 -mx-6 flex justify-center bg-gradient-to-t from-[#fcf9f2] via-[#fcf9f2] to-transparent px-6 pb-5 pt-6">
+                </div>
+                {/* Лепкава лента най-долу в панела — винаги достъпна, дори панелът да е по-висок от екрана.
+                    „Изчисти всички“ се показва само при избран филтър; главният бутон затваря и скролва до резултатите. */}
+                <div className="sticky bottom-0 z-30 -mx-5 mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-100 bg-white px-5 py-4 sm:-mx-7 sm:px-7">
+                  {panelFilterCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="min-h-11 whitespace-nowrap px-1 text-[14px] font-semibold text-brand-dark underline decoration-slate-300 decoration-2 underline-offset-[6px] transition-[text-decoration-color] hover:decoration-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark"
+                    >
+                      Изчисти всички
+                    </button>
+                  ) : <span />}
                   <button
+                    type="button"
                     onClick={() => closeFilters({ forceScroll: true })}
-                    className="flex items-center justify-center gap-2 px-10 py-4 rounded-full font-black uppercase text-xs tracking-widest bg-brand-dark text-white border border-brand-dark hover:bg-brand-gold hover:text-brand-dark hover:border-brand-gold transition-all shadow-lg hover:shadow-xl"
+                    className="ml-auto inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-brand-dark px-6 text-[15px] font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-slate-700 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark sm:px-8"
                   >
-                    <Check size={16} /> Виж намерените {filteredTours.length} екскурзии
+                    {filteredTours.length === 0
+                      ? 'Няма екскурзии с този избор'
+                      : `Покажи ${filteredTours.length} ${filteredTours.length === 1 ? 'екскурзия' : 'екскурзии'}`}
                   </button>
                 </div>
               </>
@@ -739,7 +772,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
                 let tourYear = earliestDate !== "9999-99-99" ? earliestDate.split('-')[0] : "";
                 
                 const showYearHeader = tourYear !== lastYear && tourYear !== ""; 
-                if (showYearHeader) lastYear = tourYear;
+                if (showYearHeader) { lastYear = tourYear; column = 0; }
                 
                 const isFav = favorites.some((f: any) => f.id === (tour.tourId || tour.id));
 
@@ -757,6 +790,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
                         toggleFavorite={toggleFavorite} 
                         isLedByPoli={!!tour.categories?.includes('Водена от ПОЛИ')}
                         priority={index < 3}
+                        column={column++}
                     />
                 </React.Fragment>
                 );
