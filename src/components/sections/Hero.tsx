@@ -588,7 +588,7 @@ export default function Hero() {
           onAnimationEnd={e => { if (e.target === e.currentTarget) setPeek(null); }}
         >
           <div className="absolute inset-x-0 bottom-[var(--band)] top-0 overflow-hidden">
-            <Image src={nextSlide.img} alt="" fill sizes="96px" quality={60} className="object-cover" />
+            <Image src={nextSlide.img} alt="" fill sizes="96px" quality={75} className="object-cover" />
           </div>
           <div className="absolute inset-x-0 bottom-0 h-[var(--band)] bg-black">
             <div className="absolute inset-0" style={{ backgroundColor: nextSlide.color, opacity: BAND_OPACITY }} />
