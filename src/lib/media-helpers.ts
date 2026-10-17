@@ -1,30 +1,42 @@
 // src/lib/media-helpers.ts
 import { db } from './firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import { getAdminDb } from './firebaseAdmin';
+import { canonicalCountry } from './constants';
 
 // Взима ВСИЧКИ снимки от Media Library наведнъж — извикващият код после търси в тях за няколко държави,
 // вместо да прави отделна заявка за всяка (напр. DestinationsSection.tsx показва 8 държави наведнъж).
-export async function fetchAllMedia(): Promise<any[]> {
+// Подредени като в самата библиотека (най-новите първи), за да е „първата“ снимка същата, която виждаш там.
+//
+// САМО за сървърни компоненти: колекцията media НЕ е публично четима в живата база, затова четем през
+// Admin SDK (връщаме само име и URL). Ако Admin SDK не е конфигуриран (напр. локално без GA4 ключове),
+// пробваме клиентския SDK — при отказ просто няма снимки и страниците падат на снимка от тур.
+export async function fetchAllMedia(): Promise<{ name?: string; url?: string }[]> {
   try {
-    const mediaSnap = await getDocs(collection(db, "media"));
-    return mediaSnap.docs.map(d => d.data());
-  } catch (e) {
-    console.error("[fetchAllMedia]", e);
-    return [];
+    const snap = await getAdminDb().collection('media').orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ name: d.get('name'), url: d.get('url') }));
+  } catch (adminErr) {
+    try {
+      const mediaSnap = await getDocs(collection(db, "media"));
+      return mediaSnap.docs.map(d => ({ name: d.get('name'), url: d.get('url') }));
+    } catch (e) {
+      console.error("[fetchAllMedia]", adminErr, e);
+      return [];
+    }
   }
 }
 
-// Намира представителна снимка за държава — първата в Media Library, чието име съдържа И държавата,
-// И думата "hero". Същия pattern, който автоматизацията (runTourAutomation в AdminDashboardClient.tsx)
-// вече ползва за hero снимките на самите турове — тук се преизползва за representативна снимка на
-// цялата държава (destinations страници, "За всеки вкус" секцията), вместо да зависи от случайна
-// снимка на конкретен тур.
-export function findCountryHeroImage(allMedia: any[], country: string): string | null {
+// Намира представителна снимка за държава — първата в Media Library с име „<Държава> hero“. Същият
+// pattern, който автоматизацията ползва за hero снимките на туровете — тук е за снимката на цялата
+// държава (destinations страници, „Дестинации за всеки вкус“), вместо снимка на случаен тур.
+// Името може да е и с друго изписване на държавата („Доминикана hero“ → Доминиканска република).
+export function findCountryHeroImage(allMedia: { name?: string; url?: string }[], country: string): string | null {
   const countryLower = country.toLowerCase();
-  const match = allMedia.find(m =>
-    m.name &&
-    m.name.toLowerCase().includes(countryLower) &&
-    m.name.toLowerCase().includes('hero')
-  );
+  const target = canonicalCountry(country);
+  const match = allMedia.find(m => {
+    const n = (m.name || '').toLowerCase();
+    if (!m.url || !n.includes('hero')) return false;
+    return n.includes(countryLower) || canonicalCountry(n.replace(/hero/g, '').trim()) === target;
+  });
   return match?.url || null;
 }

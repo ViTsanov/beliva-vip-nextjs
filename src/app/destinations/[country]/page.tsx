@@ -1,7 +1,9 @@
 import { getActiveTours } from "@/services/tourService";
 import ToursGrid from "@/components/sections/ToursGrid";
 import { slugify } from "@/lib/admin-helpers";
-import { WORLD_COUNTRIES } from "@/lib/constants";
+import { WORLD_COUNTRIES, COUNTRY_TO_CONTINENT } from "@/lib/constants";
+import { fetchAllMedia, findCountryHeroImage } from "@/lib/media-helpers";
+import type { ITour } from "@/types";
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -17,19 +19,34 @@ type Props = { params: Promise<{ country: string }> };
 
 const SITE_URL = 'https://belivavip.bg';
 
+const tourCountryList = (tour: ITour): string[] =>
+  typeof tour.country === 'string'
+    ? tour.country.split(',').map(c => c.trim())
+    : (Array.isArray(tour.country) ? tour.country : []);
+
+// Името на държавата от адреса. Преди се търсеше само в WORLD_COUNTRIES — за държави извън списъка
+// (напр. Френска Полинезия) заглавието в Google излизаше със самия адрес: „Екскурзии до frenska-polineziya“.
+// Затова търсим и в държавите на самите турове и в COUNTRY_TO_CONTINENT.
+function resolveCountryName(countrySlug: string, tours: ITour[]): string {
+  return WORLD_COUNTRIES.find(c => slugify(c) === countrySlug)
+    || tours.flatMap(tourCountryList).find(c => slugify(c) === countrySlug)
+    || Object.keys(COUNTRY_TO_CONTINENT).find(c => slugify(c) === countrySlug)
+    || countrySlug;
+}
+
+// Главна снимка: „<Държава> hero“ от Media Library; ако няма — снимката на първия тур
+async function resolveHeroImage(countryName: string, tours: ITour[]): Promise<string | null> {
+  return findCountryHeroImage(await fetchAllMedia(), countryName) || tours[0]?.img || null;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const countrySlug = resolvedParams.country;
-  const countryName = WORLD_COUNTRIES.find(c => slugify(c) === countrySlug) || countrySlug;
   const canonicalUrl = `${SITE_URL}/destinations/${countrySlug}`;
   const allTours = await getActiveTours();
-  const destinationTours = allTours.filter(tour => {
-    const tourCountries = typeof tour.country === 'string'
-      ? tour.country.split(',').map(c => c.trim())
-      : (Array.isArray(tour.country) ? tour.country : []);
-    return tourCountries.some(c => slugify(c) === countrySlug);
-  });
-  const rawHero = destinationTours[0]?.img || '/hero/australia.webp';
+  const destinationTours = allTours.filter(tour => tourCountryList(tour).some(c => slugify(c) === countrySlug));
+  const countryName = resolveCountryName(countrySlug, destinationTours);
+  const rawHero = (await resolveHeroImage(countryName, destinationTours)) || '/hero/australia.webp';
   const ogImage = rawHero.startsWith('http') ? rawHero : `${SITE_URL}${rawHero}`;
   const count = destinationTours.length;
   const year = new Date().getFullYear();
@@ -48,17 +65,12 @@ export default async function DestinationPage({ params }: Props) {
   const countrySlug = resolvedParams.country;
   const allTours = await getActiveTours();
 
-  const destinationTours = allTours.filter(tour => {
-    const tourCountries = typeof tour.country === 'string'
-      ? tour.country.split(',').map(c => c.trim())
-      : (Array.isArray(tour.country) ? tour.country : []);
-    return tourCountries.some(c => slugify(c) === countrySlug);
-  });
+  const destinationTours = allTours.filter(tour => tourCountryList(tour).some(c => slugify(c) === countrySlug));
 
   if (destinationTours.length === 0) notFound();
 
-  const countryName = WORLD_COUNTRIES.find(c => slugify(c) === countrySlug) || countrySlug;
-  const heroImg = destinationTours[0]?.img || '/hero/hero-bg.webp';
+  const countryName = resolveCountryName(countrySlug, destinationTours);
+  const heroImg = (await resolveHeroImage(countryName, destinationTours)) || '/hero/hero-bg.webp';
   const hasPoliTours = destinationTours.some(t => t.categories?.includes('Водена от ПОЛИ'));
 
   // Min price

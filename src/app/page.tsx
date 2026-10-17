@@ -24,10 +24,12 @@ export default async function HomePage() {
   const tours = await getActiveTours();
 
   let destinationsSectionCountries: string[] = [];
+  let destinationsSectionImages: Record<string, string> = {};
   try {
     const settingsSnap = await getDoc(doc(db, "settings", "homepage"));
     if (settingsSnap.exists()) {
       destinationsSectionCountries = settingsSnap.data().destinationsSectionCountries || [];
+      destinationsSectionImages = settingsSnap.data().destinationsSectionImages || {};
     }
   } catch (e) {
     console.error("Грешка при изтегляне на homepage настройки:", e);
@@ -52,7 +54,7 @@ export default async function HomePage() {
       <FeaturedTours tours={tours} todayStr={todayStr} />
 
       {/* 3. Дестинации */}
-      <DestinationsSection tours={tours} adminCountries={destinationsSectionCountries} />
+      <DestinationsSection tours={tours} adminCountries={destinationsSectionCountries} adminImages={destinationsSectionImages} />
 
       {/* 4. Всички предложения */}
       <Suspense

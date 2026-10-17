@@ -5,7 +5,8 @@ import { collection, addDoc, updateDoc, doc, serverTimestamp, getDoc } from 'fir
 import { PlusCircle, Minus, X, Info, Globe, Tag, Bed, MapPin, FileText, ListChecks } from 'lucide-react';
 import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
-import { WORLD_COUNTRIES } from '@/lib/constants';
+import { WORLD_COUNTRIES, canonicalCountries } from '@/lib/constants';
+import { normalizeTourDates, displayTourDate } from '@/lib/tourDates';
 import CountryMultiSelect from '@/components/admin/CountryMultiSelect';
 import HeroFocalPicker from '@/components/admin/HeroFocalPicker';
 
@@ -67,7 +68,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
 
   const [form, setForm] = useState({
     tourId: '', externalSourceLink: '', title: '', price: '', country: '', continent: 'Европа', cities: '', landmarks: '', 
-    date: '', dates: [] as string[], img: '', duration: '', nights: '', route: '', 
+    date: '', img: '', duration: '', nights: '', route: '', 
     groupStatus: 'active', status: 'public', 
     
     included: '', notIncluded: '', documents: '', pdfUrl: '', generalInfo: '', intro: '', images: '', categories: [] as string[],
@@ -89,7 +90,9 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     promoTextColor: '#ffffff', 
     
     ...initialData,
-    ...(initialData?.date ? { date: initialData.date.split('-').reverse().join('-') } : {})
+    // Датите винаги в ISO и без повторения — стари турове имат една и съща дата в два формата
+    // („2026-11-27“ и „27.11.2026“), които иначе излизат като два отделни чипа
+    dates: normalizeTourDates([...(initialData?.dates || []), initialData?.date]),
   });
   
   const [itinerary, setItinerary] = useState<{day: number, title: string, content: string}[]>(
@@ -167,22 +170,17 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     e.preventDefault();
     setIsSubmitting(true);
     try {
-        const sortedDates = [...form.dates].sort();
-        // Вземаме първата дата. Ако е във формат DD.MM.YYYY, я обръщаме в YYYY-MM-DD
-        let mainDateFormatted = '';
-        if (sortedDates.length > 0) {
-            const firstDate = sortedDates[0];
-            mainDateFormatted = firstDate.includes('.') 
-                ? firstDate.split('.').reverse().join('-') 
-                : firstDate.split('-').reverse().join('-'); 
-        }
-        
-        // ГАРАНТИРАМЕ, ЧЕ ДЪРЖАВИТЕ СЕ ЗАПИСВАТ КАТО МАСИВ
+        // Всички дати в ISO, хронологично, без повторения; главната дата е първата от тях
+        const sortedDates = normalizeTourDates(form.dates);
+        const mainDateFormatted = sortedDates[0] || '';
+
+        // ГАРАНТИРАМЕ, ЧЕ ДЪРЖАВИТЕ СЕ ЗАПИСВАТ КАТО МАСИВ — и с имената от WORLD_COUNTRIES
+        // („Съединени щати“ → „САЩ“), за да ги намират търсачката и /destinations
         let finalCountries: string[] = [];
         if (Array.isArray(form.country)) {
-            finalCountries = form.country;
+            finalCountries = canonicalCountries(form.country);
         } else if (typeof form.country === 'string' && form.country) {
-            finalCountries = form.country.split(',').map((c: string) => c.trim()).filter(Boolean);
+            finalCountries = canonicalCountries(form.country.split(','));
         }
 
         // --- НОВО: ГЕНЕРИРАНЕ НА SEO SLUGS (Вариант 1) ---
@@ -319,8 +317,8 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
 
                                                 // 3. Дати
                                                 if (data.dates && data.dates.length > 0) {
-                                                    const currentDates = updatedForm.dates || [];
-                                                    updatedForm.dates = [...new Set([...currentDates, ...data.dates])];
+                                                    // Ботът връща „27.11.2026“ — сливаме в ISO, иначе вече добавената дата излиза втори път
+                                                    updatedForm.dates = normalizeTourDates([...(updatedForm.dates || []), ...data.dates]);
                                                 }
 
                                                 // 4. Допълнителни полета
@@ -342,8 +340,13 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                                                 
                                                 if (data.isSoldOut) updatedForm.groupStatus = 'sold-out';
 
-                                                setForm(updatedForm); 
+                                                // Оригиналното заглавие на туроператора — по него проверката на туровете разбира дали е сменено
+                                                if (data.title) updatedForm.sourceTitle = data.title;
+
+                                                setForm(updatedForm);
                                                 alert(`✅ Успех!\nДати: ${data.dates?.length || 0}\nДържави: ${data.detectedCountries?.join(', ')}\nСекции: Всички полета са попълнени!`);
+                                            } else {
+                                                alert(`Ботът не успя да изтегли данните: ${data.error || 'неизвестна грешка'}`);
                                             }
                                         } catch(e) {
                                             alert("Сървърна грешка при свързване с Бота!");
@@ -611,13 +614,9 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                 <input type="date" className={inputStyle} value={tempDate} onChange={e => setTempDate(e.target.value)} />
                 <button type="button" onClick={() => {
                     if (tempDate) {
-                        // 1. Обръщаме датата веднага в красив формат
-                        const formattedDate = tempDate.split('-').reverse().join('.');
-                        // 2. Проверяваме дали вече не е добавена
-                        if (!form.dates.includes(formattedDate) && !form.dates.includes(tempDate)) {
-                            setForm({...form, dates: [...form.dates, formattedDate]});
-                            setTempDate(''); // 3. Изчистваме полето за следващата дата
-                        }
+                        // Пазим в ISO (както идва от полето) — показва се като DD.MM.YYYY по-долу
+                        setForm({...form, dates: normalizeTourDates([...form.dates, tempDate])});
+                        setTempDate(''); // Изчистваме полето за следващата дата
                     }
                 }} className="bg-brand-dark text-white px-8 rounded-2xl font-bold uppercase text-xs hover:bg-brand-gold transition-all">Добави дата</button>
             </div>
@@ -625,8 +624,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                 {form.dates.length === 0 && <p className="text-gray-400 text-sm font-medium">Няма добавени дати.</p>}
                 {form.dates.map((d: string) => (
                     <span key={d} className="bg-white border px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-3 shadow-sm group">
-                        {/* Показваме я директно, или я обръщаме, ако случайно е останала стара дата с тирета */}
-                        {d.includes('-') ? d.split('-').reverse().join('.') : d}
+                        {displayTourDate(d)}
                         <button type="button" onClick={() => setForm({...form, dates: form.dates.filter((x:string) => x !== d)})} className="text-red-400 hover:text-red-600 transition-colors"><X size={16}/></button>
                     </span>
                 ))}

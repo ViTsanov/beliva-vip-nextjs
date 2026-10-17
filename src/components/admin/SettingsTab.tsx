@@ -17,6 +17,9 @@ export default function SettingsTab() {
   const [topDestinations, setTopDestinations] = useState<any[]>([]);
   const [footerLinks, setFooterLinks] = useState<any[]>([]);
   const [destinationsSectionCountries, setDestinationsSectionCountries] = useState<string[]>([]);
+  // Ръчно избрани снимки за „Дестинации за всеки вкус“ (държава → URL). Отделно поле до списъка с държави,
+  // за да не се чупят старите записи (destinationsSectionCountries си остава масив от имена).
+  const [destinationsSectionImages, setDestinationsSectionImages] = useState<Record<string, string>>({});
   // Списъкът с турооператори живее в сепаратен Firestore документ (settings/operators), не в settings/homepage —
   // това не е настройка за началната страница, а глобален списък, използван от TourForm.tsx.
   // Всеки оператор сега пази и email — нужен за изпращане на данните на пътниците/договорите.
@@ -33,7 +36,7 @@ export default function SettingsTab() {
   // Състояние за галерията — разширено да поддържа и топ-дестинации (по index), и континенти (по име),
   // в едно и също състояние, вместо две отделни модални имплементации.
   const [isMediaOpen, setIsMediaOpen] = useState(false);
-  const [editingTarget, setEditingTarget] = useState<{ type: 'topDestination'; index: number } | { type: 'continent'; name: string } | null>(null);
+  const [editingTarget, setEditingTarget] = useState<{ type: 'topDestination'; index: number } | { type: 'continent'; name: string } | { type: 'destinationsSection'; country: string } | null>(null);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -43,6 +46,7 @@ export default function SettingsTab() {
           setTopDestinations(docSnap.data().topDestinations || []);
           setFooterLinks(docSnap.data().footerLinks || []);
           setDestinationsSectionCountries(docSnap.data().destinationsSectionCountries || []);
+          setDestinationsSectionImages(docSnap.data().destinationsSectionImages || {});
         }
         const opsSnap = await getDoc(doc(db, "settings", "operators"));
         if (opsSnap.exists() && Array.isArray(opsSnap.data().list)) {
@@ -70,10 +74,15 @@ export default function SettingsTab() {
 
   const handleSave = async () => {
     try {
+      // Пазим снимки само за държавите, които още са в списъка (махната държава не оставя „сирак“ снимка)
+      const sectionImages = Object.fromEntries(
+        Object.entries(destinationsSectionImages).filter(([c, url]) => c && url && destinationsSectionCountries.includes(c))
+      );
       await setDoc(doc(db, "settings", "homepage"), {
         topDestinations,
         footerLinks,
-        destinationsSectionCountries
+        destinationsSectionCountries,
+        destinationsSectionImages: sectionImages
       });
       await setDoc(doc(db, "settings", "operators"), { list: operators.filter(o => o.name.trim()) });
       await setDoc(doc(db, "settings", "payment"), paymentInfo);
@@ -89,6 +98,8 @@ export default function SettingsTab() {
       setTopDestinations(newDest);
     } else if (editingTarget?.type === 'continent') {
       setContinentImages(prev => ({ ...prev, [editingTarget.name]: url }));
+    } else if (editingTarget?.type === 'destinationsSection') {
+      setDestinationsSectionImages(prev => ({ ...prev, [editingTarget.country]: url }));
     }
     setIsMediaOpen(false);
     setEditingTarget(null);
@@ -194,33 +205,77 @@ export default function SettingsTab() {
             <Compass className="text-brand-gold" /> "Дестинации за всеки вкус" (начална страница)
         </h3>
         <p className="text-xs text-gray-400 mb-6">
-          Ако не избереш нищо тук, секцията автоматично показва топ 8 държави по брой активни турове. Снимките се взимат
-          автоматично от първия намерен тур за всяка държава — не се качват ръчно тук.
+          Ако не избереш нищо тук, секцията автоматично показва топ 8 държави по брой активни турове. Снимка: кликни
+          квадратчето до държавата и избери от библиотеката. Без избрана снимка се ползва „&lt;Държава&gt; hero“ от
+          библиотеката, а ако няма и такава — снимка от тур.
         </p>
         <div className="space-y-3">
-          {destinationsSectionCountries.map((country, idx) => (
+          {destinationsSectionCountries.map((country, idx) => {
+            const image = destinationsSectionImages[country];
+            return (
             <div key={idx} className="flex items-center gap-3">
               <span className="text-xs font-black text-gray-300 w-6 shrink-0">{idx + 1}.</span>
+              <button
+                type="button"
+                disabled={!country}
+                onClick={() => { setEditingTarget({ type: 'destinationsSection', country }); setIsMediaOpen(true); }}
+                aria-label={country ? `Избери снимка за ${country}` : 'Първо избери държава'}
+                title={country ? 'Избери снимка' : 'Първо избери държава'}
+                className="relative w-20 h-14 shrink-0 bg-gray-100 rounded-xl overflow-hidden group/img shadow-inner disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {image ? (
+                  <img src={image} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  <span className="flex flex-col items-center justify-center h-full text-gray-400">
+                    <ImageIcon size={18} strokeWidth={1.5} />
+                    <span className="text-[8px] font-black mt-0.5">СНИМКА</span>
+                  </span>
+                )}
+                {country && (
+                  <span className="absolute inset-0 bg-brand-dark/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-[8px] font-black">
+                    СМЕНИ
+                  </span>
+                )}
+              </button>
               <select
                 value={country}
                 onChange={e => {
                   const next = [...destinationsSectionCountries];
                   next[idx] = e.target.value;
                   setDestinationsSectionCountries(next);
+                  // Снимката върви с реда — при смяна на държавата я пренасяме към новото име
+                  if (image) {
+                    setDestinationsSectionImages(prev => {
+                      const { [country]: moved, ...rest } = prev;
+                      return { ...rest, [e.target.value]: moved };
+                    });
+                  }
                 }}
-                className="flex-1 p-3.5 rounded-2xl border-none text-sm font-bold bg-gray-50 shadow-sm outline-none focus:ring-2 focus:ring-brand-gold/20"
+                className="flex-1 min-w-0 p-3.5 rounded-2xl border-none text-sm font-bold bg-gray-50 shadow-sm outline-none focus:ring-2 focus:ring-brand-gold/20"
               >
                 <option value="">Избери държава...</option>
                 {WORLD_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+              {image && (
+                <button
+                  type="button"
+                  onClick={() => setDestinationsSectionImages(prev => { const { [country]: _removed, ...rest } = prev; return rest; })}
+                  className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                  title="Махни избраната снимка (ще се ползва автоматичната)"
+                >
+                  Автоматична
+                </button>
+              )}
               <button
                 onClick={() => setDestinationsSectionCountries(destinationsSectionCountries.filter((_, i) => i !== idx))}
+                aria-label={`Премахни ${country || 'реда'}`}
                 className="bg-gray-50 text-red-400 p-3.5 rounded-2xl hover:text-red-600 transition-colors shrink-0"
               >
                 <Trash2 size={18}/>
               </button>
             </div>
-          ))}
+            );
+          })}
           <button
             onClick={() => setDestinationsSectionCountries([...destinationsSectionCountries, ''])}
             className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:border-brand-gold hover:text-brand-gold transition-all font-bold text-xs uppercase tracking-widest"

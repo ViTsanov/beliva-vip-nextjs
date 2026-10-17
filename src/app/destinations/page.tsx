@@ -7,6 +7,7 @@ import { slugify } from '@/lib/admin-helpers';
 import { COUNTRY_TO_CONTINENT } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatPrice';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
+import { fetchAllMedia, findCountryHeroImage } from '@/lib/media-helpers';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import type { ITour } from '@/types';
 
@@ -63,10 +64,13 @@ export default async function DestinationsPage() {
     });
   });
 
+  // Снимка на държавата: „<Държава> hero“ от Media Library, иначе първата снимка от неин тур
+  const allMedia = await fetchAllMedia();
   byCountry.forEach((group) => {
     group.tours.sort((a, b) => String(a.date || '9999').localeCompare(String(b.date || '9999')));
     group.minPriceTour = [...group.tours].sort((a, b) => priceNumber(a) - priceNumber(b))[0];
-    group.image = group.tours.map((t) => t.img).find((img) => img && !isOperatorHotlink(img));
+    group.image = findCountryHeroImage(allMedia, group.name)
+      || group.tours.map((t) => t.img).find((img) => img && !isOperatorHotlink(img));
   });
 
   // Групираме държавите по континент

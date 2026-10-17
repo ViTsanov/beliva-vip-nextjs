@@ -36,9 +36,10 @@ interface Props {
   tours: ITour[];
   adminCountries?: string[]; // ако е зададено и непразно от админ панела — тези държави се показват, в това ред,
   // вместо автоматичното „топ 8 по брой турове“ поведение.
+  adminImages?: Record<string, string>; // снимки, избрани ръчно в Настройки (държава → URL) — имат предимство пред всичко
 }
 
-export default async function DestinationsSection({ tours, adminCountries = [] }: Props) {
+export default async function DestinationsSection({ tours, adminCountries = [], adminImages = {} }: Props) {
   // Опитваме първо специална "<държава> hero" снимка от Media Library (същия pattern като в
   // автоматизацията) — фиксирана, не зависи от кой тур случайно е първи в списъка. Ако няма такава,
   // fallback към първата валидна снимка от тур, както досега.
@@ -74,6 +75,12 @@ export default async function DestinationsSection({ tours, adminCountries = [] }
         .slice(0, 8);
 
   if (destinations.length === 0) return null;
+
+  // Снимка по приоритет: избраната в Настройки → „<Държава> hero“ от Media Library → снимка на тур
+  for (const entry of destinations) {
+    const chosen = adminImages[entry[0]] || findCountryHeroImage(allMedia, entry[0]);
+    if (chosen) entry[1] = { ...entry[1], img: chosen };
+  }
 
   return (
     <section aria-labelledby="dest-heading" className="bg-white py-20">

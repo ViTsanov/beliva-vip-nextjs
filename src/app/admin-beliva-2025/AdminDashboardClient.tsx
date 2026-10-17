@@ -21,12 +21,15 @@ import TourForm from '@/components/admin/TourForm';
 import BlogForm from '@/components/admin/BlogForm'; 
 import { performAutoMaintenance, slugify, normalizeUrl } from '@/lib/admin-helpers';
 import { formatPrice } from '@/lib/formatPrice';
+import { normalizeTourDates, datesMatchQuery, displayTourDate, tourMatchesSearch } from '@/lib/tourDates';
+import { canonicalCountries } from '@/lib/constants';
 import { IClient } from '@/types';
 
 import ClientsTab from '@/components/admin/ClientsTab';
 import ReservationsTab from '@/components/admin/ReservationsTab';
 import GroupsTab from '@/components/admin/GroupsTab';
 import ReviewRequestsPanel from '@/components/admin/ReviewRequestsPanel';
+import SourceCheckPanel from '@/components/admin/SourceCheckPanel';
 import ClientDetailModal from '@/components/admin/ClientDetailModal';
 import SettingsTab from '@/components/admin/SettingsTab';
 import MarketingAnalytics from '@/components/admin/MarketingAnalytics';
@@ -53,6 +56,21 @@ const tourOperatorKey = (t: any): InventoryOperator => {
   if (url.includes('dari-tour.com') || op.includes('дари') || op.includes('dari')) return 'dari';
   if (url.includes('2mko.com') || op.includes('2мко') || op.includes('2mko')) return '2mko';
   return 'other';
+};
+
+// Датите на отпътуване под тура в списъка — съвпадащите с търсенето са маркирани, за да се вижда защо турът излиза
+const TourDatesLine = ({ dates, query }: { dates: string[]; query: string }) => {
+  if (dates.length === 0) return null;
+  return (
+    <p className="text-xs text-gray-500 mt-1 flex flex-wrap gap-x-2 gap-y-1">
+      <Calendar size={12} className="text-brand-gold shrink-0 mt-0.5" aria-hidden="true" />
+      {dates.map(d => (
+        <span key={d} className={query.trim() && datesMatchQuery([d], query) ? 'font-bold text-brand-dark bg-brand-gold/15 px-1 rounded' : ''}>
+          {displayTourDate(d)}
+        </span>
+      ))}
+    </p>
+  );
 };
 
 // Редизайн на Търсачката
@@ -90,7 +108,7 @@ export default function AdminDashboardClient() {
   // отваря съответната група, след което го изчиства обратно на null, за да не се отваря пак при всяко re-render.
   const [pendingGroupOpenId, setPendingGroupOpenId] = useState<string | null>(null);
 
-  const [archivedSubTab, setArchivedSubTab] = useState('drafts'); // 'drafts' или 'archived'
+  const [archivedSubTab, setArchivedSubTab] = useState('pending'); // 'pending' или 'archived'
   const [reviewsSubTab, setReviewsSubTab] = useState('auto'); // 'auto' или 'manual'
   const [searchReview, setSearchReview] = useState('');
 
@@ -193,34 +211,29 @@ export default function AdminDashboardClient() {
                 const today = new Date().toISOString().split('T')[0];
 
                 fetchedTours.forEach(async (tour: any) => {
-                    let allDates = [...(tour.dates || [])];
-                    if (tour.date && !allDates.includes(tour.date)) allDates.push(tour.date);
+                    // Всичко в ISO и без повторения — преди тук „2026-11-27“ и „27.11.2026“ се броеха за две
+                    // различни дати и се записваха обратно в dates, затова в админа датата излизаше два пъти
+                    const allDates = normalizeTourDates([...(tour.dates || []), tour.date]);
 
                     // 1. ЗАПАЗВАМЕ ВСИЧКИ ДАТИ В ИСТОРИЯТА (за да можеш да ги избираш винаги)
-                    let historical = [...(tour.historicalDates || [])];
-                    allDates.forEach(d => { if (!historical.includes(d)) historical.push(d); });
-                
+                    const historical = normalizeTourDates([...(tour.historicalDates || []), ...allDates]);
+                    const historicalChanged = JSON.stringify(historical) !== JSON.stringify(tour.historicalDates || []);
+
                     if (tour.status === 'public') {
                         if (allDates.length > 0) {
-                            const futureDates = allDates.filter((dateStr: string) => {
-                                const parts = dateStr.split('-');
-                                const normDate = parts[0].length === 2 ? `${parts[2]}-${parts[1]}-${parts[0]}` : dateStr;
-                                return normDate >= today;
-                            });
-                        
-                            if (futureDates.length !== allDates.length) {
+                            const futureDates = allDates.filter(d => d >= today);
+                            // Записваме и когато датите са същите, но в стар формат / с повторения — така
+                            // съществуващите турове се оправят сами при следващо отваряне на админа
+                            const datesChanged = JSON.stringify(futureDates) !== JSON.stringify(tour.dates || []) || tour.date !== futureDates[0];
+
+                            if (datesChanged) {
                                 if (futureDates.length === 0) {
                                     // Архивираме публичните дати, НО пазим историческите
                                     await updateDoc(doc(db, "tours", tour.id), { status: 'archived', dates: [], date: '', historicalDates: historical });
                                 } else {
-                                    futureDates.sort((a, b) => {
-                                        const nA = a.split('-')[0].length === 2 ? a.split('-').reverse().join('-') : a;
-                                        const nB = b.split('-')[0].length === 2 ? b.split('-').reverse().join('-') : b;
-                                        return nA.localeCompare(nB);
-                                    });
                                     await updateDoc(doc(db, "tours", tour.id), { dates: futureDates, date: futureDates[0], historicalDates: historical });
                                 }
-                            } else if (historical.length !== (tour.historicalDates?.length || 0)) {
+                            } else if (historicalChanged) {
                                 // Ако има нови дати за историята, но няма за триене
                                 await updateDoc(doc(db, "tours", tour.id), { historicalDates: historical });
                             }
@@ -253,10 +266,10 @@ export default function AdminDashboardClient() {
         await addDoc(collection(db, "tours"), {
             ...tourData,
             title: `${tourData.title} (Копие)`,
-            status: 'draft',
+            status: 'pending', // отделният таб за чернови е премахнат — копието чака одобрение като внесените турове
             createdAt: serverTimestamp()
         });
-        alert("Екскурзията е копирана успешно в чернови!");
+        alert("Екскурзията е копирана — копието е в „Архив → Чакащи одобрение“.");
     } catch (e) {
         console.error("Грешка при копиране:", e);
     }
@@ -459,13 +472,15 @@ export default function AdminDashboardClient() {
   const filteredCustomers = customers.filter(c => c.name?.toLowerCase().includes(searchCustomer.toLowerCase()) || c.phone?.includes(searchCustomer));
   const filteredInquiries = inquiries.filter(i => i.clientName?.toLowerCase().includes(searchInquiry.toLowerCase()) || i.tourTitle?.toLowerCase().includes(searchInquiry.toLowerCase()));
   const filteredTours = allTours
-    .filter((t: any) => t.title?.toLowerCase().includes(searchTour.toLowerCase()))
+    // По думи от заглавието, държава и/или дата на отпътуване („27.11“, „ноември“, „Япония ноември“) —
+    // в архива и по миналите дати (там активните са изчистени)
+    .filter((t: any) => tourMatchesSearch(t, searchTour, activeTab === 'archived'))
     .filter((t: any) => {
         if (activeTab === 'tours') return t.status === 'public';
         if (activeTab === 'archived') {
-            if (archivedSubTab === 'drafts') return t.status === 'draft';
             if (archivedSubTab === 'archived') return t.status === 'archived';
-            if (archivedSubTab === 'pending') return t.status === 'pending';
+            // Скритите (draft) нямат отделен таб вече — показват се тук, с етикет „Скрита“, за да не се губят
+            if (archivedSubTab === 'pending') return t.status === 'pending' || t.status === 'draft';
         }
         return false;
     });
@@ -634,6 +649,10 @@ export default function AdminDashboardClient() {
     }
 
     let finalTour = aiData.tour;
+
+    // AI понякога пише държавата по свой начин („Съединени щати“ вместо „САЩ“) — свеждаме до имената от
+    // WORLD_COUNTRIES, иначе проверката по-долу не я разпознава като избраната и турът излиза с две държави
+    if (Array.isArray(finalTour.country)) finalTour.country = canonicalCountries(finalTour.country);
 
     // ФАЛБЕК: ако AI не върне country (празен масив ␸ли липсва), използваме държавата,
     // която САМИЯТ ти вече избра в панела (linkObj.countryMatched) — това е надежден източник.
@@ -809,6 +828,7 @@ export default function AdminDashboardClient() {
       dates: [],
       categories: [],
       originalUrl: linkObj.url, // ЗА ДЕДУПЛИКАЦИЯ — за да не го теглим пак утре
+      sourceTitle: scrapedData.title || '', // заглавието при туроператора — проверката на туровете следи дали се сменя
       externalSourceLink: linkObj.url, // СЪЩОТО, НО за "Провери с бот" полето в TourForm — за да е предпопълнено при редактиране
       status: 'pending', // СТАТУС ЧАКАЩА!
       createdAt: serverTimestamp()
@@ -1126,7 +1146,7 @@ export default function AdminDashboardClient() {
         )}
 
         {/* TABS CONTENT */}
-        {activeTab === 'dashboard' && <div className="space-y-8 animate-in fade-in duration-500"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><StatCard icon={Inbox} color="emerald" count={stats.newInquiries} label="Нови Запитвания" highlight /><StatCard icon={UserCheck} color="blue" count={stats.totalCustomers} label="Клиенти (CRM)" /><StatCard icon={Map} color="orange" count={stats.activeTours} label="Активни Оферти" /><StatCard icon={Users} color="purple" count={stats.totalSubscribers} label="Абонати" /></div><ReviewRequestsPanel groups={groups} allTours={allTours} customers={customers} /><DashboardCharts
+        {activeTab === 'dashboard' && <div className="space-y-8 animate-in fade-in duration-500"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><StatCard icon={Inbox} color="emerald" count={stats.newInquiries} label="Нови Запитвания" highlight /><StatCard icon={UserCheck} color="blue" count={stats.totalCustomers} label="Клиенти (CRM)" /><StatCard icon={Map} color="orange" count={stats.activeTours} label="Активни Оферти" /><StatCard icon={Users} color="purple" count={stats.totalSubscribers} label="Абонати" /></div><SourceCheckPanel tours={allTours} /><ReviewRequestsPanel groups={groups} allTours={allTours} customers={customers} /><DashboardCharts
                     inquiries={inquiries}
                     tours={allTours}
                     clients={customers}
@@ -1148,7 +1168,7 @@ export default function AdminDashboardClient() {
         {/* ТАБ: АКТИВНИ ОФЕРТИ */}
         {activeTab === 'tours' && (
             <div className="space-y-6 animate-in fade-in">
-                <SearchBar value={searchTour} onChange={setSearchTour} placeholder="Търси активна оферта..." />
+                <SearchBar value={searchTour} onChange={setSearchTour} placeholder="Търси по дума от заглавието, държава или дата (напр. Япония, 27.11, ноември)..." />
                 <div className="space-y-4">
                     {filteredTours.map((tour: any) => (
                         <div key={tour.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-brand-gold/5 flex flex-col md:flex-row items-center gap-6 hover:shadow-xl transition-all">
@@ -1162,6 +1182,7 @@ export default function AdminDashboardClient() {
                             <div className="flex-grow">
                                 <h3 className="font-bold text-brand-dark leading-tight">{tour.title}</h3>
                                 <p className="text-xs text-gray-400 mt-1">{Array.isArray(tour.country) ? tour.country.join(', ') : tour.country} • {formatPrice(tour.price)}</p>
+                                <TourDatesLine dates={normalizeTourDates([...(tour.dates || []), tour.date])} query={searchTour} />
                             </div>
                             <div className="flex gap-2">
                                 <ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(tour)} />
@@ -1238,9 +1259,8 @@ export default function AdminDashboardClient() {
 
                 <div className="flex flex-wrap gap-2 bg-white rounded-2xl p-2 shadow-sm border border-gray-100 w-fit mb-4">
                     <button onClick={() => setArchivedSubTab('pending')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${archivedSubTab === 'pending' ? 'bg-brand-gold text-brand-dark shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>
-                        Чакащи одобрение ({allTours.filter((t: any) => t.status === 'pending').length})
+                        Чакащи одобрение ({allTours.filter((t: any) => t.status === 'pending' || t.status === 'draft').length})
                     </button>
-                    <button onClick={() => setArchivedSubTab('drafts')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${archivedSubTab === 'drafts' ? 'bg-brand-dark text-white shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>Чакащи промени (Чернови/XML)</button>
                     <button onClick={() => setArchivedSubTab('archived')} className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${archivedSubTab === 'archived' ? 'bg-brand-dark text-white shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}>Архивирани (Стари)</button>
                 </div>
 
@@ -1422,10 +1442,10 @@ export default function AdminDashboardClient() {
                     </div>
 
                     {/* Лимит на туровете за пускане — безопасен начин за тестване */}
-                    <div className="flex items-center gap-3 pt-1">
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
                       <span className="text-white/40 text-[10px] font-black uppercase tracking-widest">Лимит на турове на пускане:</span>
-                      <div className="flex gap-2">
-                        {[3, 5, 10].map(n => (
+                      <div className="flex flex-wrap gap-2">
+                        {[1, 2, 3, 5, 10].map(n => (
                           <button
                             key={n}
                             onClick={() => setAutomationLimit(n)}
@@ -1455,7 +1475,7 @@ export default function AdminDashboardClient() {
                   </div>
                 )}
                 
-                <SearchBar value={searchTour} onChange={setSearchTour} placeholder="Търси екскурзия..." />
+                <SearchBar value={searchTour} onChange={setSearchTour} placeholder="Търси по дума от заглавието, държава или дата (напр. Япония, 27.11, ноември)..." />
                 
                 <div className="space-y-4">
                     {filteredTours.length === 0 && <p className="text-gray-400 p-8 bg-white rounded-[2rem] text-center font-medium">Няма намерени екскурзии в тази секция.</p>}
@@ -1466,8 +1486,10 @@ export default function AdminDashboardClient() {
                                 <h3 className="font-bold text-brand-dark leading-tight flex items-center gap-2">
                                     {tour.title}
                                     {tour.source === 'peakview' && <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-md text-[9px] uppercase">PeakView</span>}
+                                    {tour.status === 'draft' && <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md text-[9px] uppercase">Скрита</span>}
                                 </h3>
                                 <p className="text-xs text-gray-400 mt-1">{Array.isArray(tour.country) ? tour.country.join(', ') : tour.country} • {formatPrice(tour.price)}</p>
+                                <TourDatesLine dates={normalizeTourDates([...(tour.dates || []), tour.date, ...(tour.historicalDates || [])])} query={searchTour} />
                             </div>
                             <div className="flex gap-2">
                                 <ActionBtn icon={Edit2} color="text-blue-500 bg-blue-50" onClick={() => openModal(tour)} />

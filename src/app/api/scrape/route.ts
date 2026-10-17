@@ -42,6 +42,11 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, operator: 'dari', ...parseDariTour(html) });
         }
 
+        // Премахнат/сгрешен линк — казваме го ясно (проверката на туровете го показва като „линкът не работи“)
+        if (!response.ok) {
+            return NextResponse.json({ error: `Туроператорът върна грешка (HTTP ${response.status})` }, { status: 502 });
+        }
+
         const $ = cheerio.load(html);
 
         let title = '', price = '', durationDays = '', durationNights = '', route = '';
