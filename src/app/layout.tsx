@@ -133,7 +133,8 @@ export default function RootLayout({
 }>) {
   return (
     // 👇 ПРЕМАХНАХ КОМЕНТАРА ОТ ТУК, ЗА ДА НЕ ЧУПИ ХИДРАТАЦИЯТА
-    <html lang="bg" className="scroll-smooth"> 
+    // data-scroll-behavior: Next изключва плавното скролиране при смяна на страница — новата страница се отваря направо горе
+    <html lang="bg" className="scroll-smooth" data-scroll-behavior="smooth">
       <body className={`${inter.variable} ${playfair.variable} ${unbounded.variable} font-sans antialiased min-h-screen flex flex-col`}>
         
         {/* JSON-LD Script */}

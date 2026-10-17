@@ -126,10 +126,12 @@ function FeaturedCard({ tour, isTopPick, todayStr, priority }: { tour: ITour; is
     isPromoActive = todayStr >= tour.promoStart.slice(0, 10) && todayStr <= tour.promoEnd.slice(0, 10);
   }
 
+  // relative: картата е опорен блок за sr-only етикетите в цената. Без него те се позиционират спрямо страницата,
+  // излизат извън плъзгащия се ред и на телефон правят страницата по-широка от екрана (празно място вдясно).
   return (
     <Link
       href={`/tour/${slug}`}
-      className={`group flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.35)] transition-shadow duration-300 hover:shadow-[0_18px_36px_-14px_rgba(15,23,42,0.45)] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-brand-dark ${
+      className={`group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.35)] transition-shadow duration-300 hover:shadow-[0_18px_36px_-14px_rgba(15,23,42,0.45)] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-brand-dark ${
         isLedByPoli ? "border-2 border-brand-gold" : "border border-slate-200"
       }`}
     >
