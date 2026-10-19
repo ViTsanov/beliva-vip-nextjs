@@ -12,6 +12,8 @@ interface InquiryDialogProps {
   open: boolean;
   onClose: () => void;
   defaultTourSlug?: string;
+  // Предварително избрана дестинация (страницата на държава), когато запитването не е за конкретен тур.
+  defaultCountry?: string;
   // Откъде е запитването — за статистиката в CRM-а (менюто или бутона на страницата на тура).
   source?: InquiryInput['source'];
 }
@@ -19,7 +21,7 @@ interface InquiryDialogProps {
 // Прозорецът „Запитване“ от менюто. На телефон излиза отдолу (като лист), на по-широк екран — в центъра.
 // Затваря се с X, Escape, клик извън него и бутона Назад; страницата отдолу не скролва; фокусът остава вътре.
 // Плаващите бутони (чат, „нагоре“, бисквитки) се скриват, докато е отворен (data-dialog-open, globals.css).
-export default function InquiryDialog({ open, onClose, defaultTourSlug, source = 'navbar_modal' }: InquiryDialogProps) {
+export default function InquiryDialog({ open, onClose, defaultTourSlug, defaultCountry, source = 'navbar_modal' }: InquiryDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   useBackToClose(open, onClose);
@@ -91,7 +93,7 @@ export default function InquiryDialog({ open, onClose, defaultTourSlug, source =
           </button>
         </div>
         <div className="overflow-y-auto overscroll-contain px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5">
-          <InquiryForm source={source} defaultTourSlug={defaultTourSlug} autoFocus onDone={onClose} />
+          <InquiryForm source={source} defaultTourSlug={defaultTourSlug} defaultCountry={defaultCountry} autoFocus onDone={onClose} />
         </div>
       </div>
     </div>

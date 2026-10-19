@@ -68,12 +68,13 @@ export default function PoliIntro() {
                 style={{ objectPosition: '100% 50%', transform: 'scale(1.5)', transformOrigin: '10% 66%' }}
               />
             </div>
-            <h2
+            {/* Абзац, не заглавие: цял поздрав като H2 размиваше структурата на страницата за Google. Видът е същият. */}
+            <p
               id="poli-intro-title"
               className="text-[17px] font-semibold leading-[1.3] tracking-[-0.01em] text-brand-dark [text-wrap:pretty] sm:text-[22px]"
             >
               Здравейте! Аз съм Паулина Алексиева, основател на Beliva и водач на групи от над 15 години. Всяка екскурзия, която намерите тук е лично проверена и одобрена от мен.
-            </h2>
+            </p>
             <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:mt-2.5">
               <div className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-3">
                 <Link

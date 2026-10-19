@@ -10,6 +10,7 @@ import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 import { fetchAllMedia, findCountryHeroImage } from '@/lib/media-helpers';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import type { ITour } from '@/types';
+import JsonLd from '@/components/JsonLd';
 
 // Hub страница „Всички дестинации“. Освен за клиентите, тя е важна и за Google: от нея има обикновени
 // (server-rendered) линкове към всяка страница на дестинация и към всеки тур — така Googlebot намира новите
@@ -102,9 +103,10 @@ export default async function DestinationsPage() {
     })),
   };
 
+  // Обвивката е <div>, не <main>: LayoutWrapper вече слага <main> около всяка страница, а <main> в <main> е невалиден HTML.
   return (
-    <main className="min-h-screen bg-[#f7f4ee]">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+    <div className="min-h-screen bg-[#f7f4ee]">
+      <JsonLd data={jsonLd} />
 
       {/* Заглавие */}
       <section className="bg-[#0f1724] pb-14 pt-32 text-white md:pb-16 md:pt-40">
@@ -221,6 +223,6 @@ export default async function DestinationsPage() {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

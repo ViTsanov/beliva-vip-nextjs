@@ -4,6 +4,7 @@ import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import ConditionalAnalytics from '@/components/ConditionalAnalytics';
 import { LazyAIChatWidget } from '@/components/LazyClient';
+import { COMPANY_INFO } from '@/lib/companyInfo';
 
 // 1. ШРИФТОВЕ
 const inter = Inter({ 
@@ -38,9 +39,13 @@ const jsonLd = {
   "@type": "TravelAgency",
   "name": SITE_NAME,
   "image": `${SITE_URL}/hero/australia.webp`, // Използваме една от hero снимките като fallback лого/имидж
+  "logo": `${SITE_URL}/beliva_logo.png`,
   "@id": SITE_URL,
   "url": SITE_URL,
   "telephone": PHONE_NUMBER,
+  "email": COMPANY_INFO.email,
+  // Без физически офис — агенцията обслужва клиенти от цялата страна
+  "areaServed": { "@type": "Country", "name": "България" },
   "priceRange": "$$$",
   "openingHoursSpecification": [
     {
@@ -60,14 +65,15 @@ const jsonLd = {
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL), // Критично за социалните мрежи!
   title: {
-    default: "Beliva VIP Tour | Пътешествия и Екзотика",
+    // Заглавието на началната страница: основната ключова дума („екскурзии с водач“) отпред, до ~60 знака
+    default: "Екскурзии с водач и групови пътувания | Beliva VIP Tour",
     template: "%s | Beliva VIP Tour" // На вътрешни страници ще става: "Дубай | Beliva VIP Tour"
   },
   verification: {
     google: "viW16VYuK01QV2RWtvOofjfCDAZgkvBb1yCYklkXTqg"
   },
-  description: "Открийте света с нас. Организиране на екзотични почивки, екскурзии и индивидуални пътешествия до Дубай, Малдиви, Тайланд и още.",
-  keywords: ["туристическа агенция", "екскурзии", "почивки", "екзотика", "лукс", "Дубай", "Малдиви", "Тайланд", "Beliva", "tours", "туристическа", "Перу", "екскурзия", "почивка"],
+  // Само дестинации, които реално са в каталога (Дубай/Малдиви ги няма). meta keywords е махнат — Google не го ползва.
+  description: "Групови екскурзии с водач до Китай, Япония, Австралия, Нова Зеландия, Перу и още. Малки групи и маршрути, лично проверени от Поли.",
   authors: [{ name: "Beliva VIP Tour" }],
   creator: "Beliva VIP Tour",
   publisher: "Beliva VIP Tour",
@@ -88,7 +94,7 @@ export const metadata: Metadata = {
     locale: "bg_BG",
     url: SITE_URL,
     title: "Beliva VIP Tour | Изживейте Изключителното",
-    description: "Пътешествия и ексклузивни маршрути, създадени специално за Вас.",
+    description: "Групови екскурзии с водач до Китай, Япония, Австралия, Нова Зеландия, Перу и още.",
     siteName: SITE_NAME,
     images: [
       {
@@ -103,7 +109,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Beliva VIP Tour",
-    description: "Ексклузивни пътешествия и почивки.",
+    description: "Групови екскурзии с водач до Китай, Япония, Австралия, Нова Зеландия, Перу и още.",
     images: ["/hero/singapore.webp"], // Twitter също ползва тази снимка
   },
   icons: {

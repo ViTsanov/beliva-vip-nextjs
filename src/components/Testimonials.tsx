@@ -4,17 +4,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { Star, MessageSquarePlus, ChevronRight, ChevronLeft, MapPin, Quote, MessageSquareQuote, User, UserRound, UsersRound, Ban } from 'lucide-react';
+import { Star, MessageSquarePlus, ChevronRight, ChevronLeft, MapPin, Quote, MessageSquareQuote } from 'lucide-react';
 import ReviewModal from '@/components/ReviewModal';
 import ReviewDetailModal from '@/components/ReviewDetailModal';
-
-// ... (AVATARS и ReviewCard остават същите, няма нужда да ги променяме)
-const AVATARS = [
-  { id: 'none', label: 'Без', icon: Ban, color: 'bg-gray-50 text-gray-400 border-gray-200' },
-  { id: 'man', label: 'Мъж', icon: User, color: 'bg-blue-50 text-blue-600 border-blue-200' },
-  { id: 'woman', label: 'Жена', icon: UserRound, color: 'bg-rose-50 text-rose-600 border-rose-200' },
-  { id: 'family', label: 'Семейство', icon: UsersRound, color: 'bg-amber-50 text-amber-600 border-amber-200' },
-];
+import ReviewStamp from '@/components/reviews/ReviewStamp';
 
 interface IReview {
   id: string;
@@ -29,9 +22,6 @@ function ReviewCard({ review, onReadMore }: { review: IReview, onReadMore: () =>
   const textLimit = 150;
   const isLongText = review.text.length > textLimit;
   const displayText = review.text.substring(0, textLimit);
-
-  const avatarData = AVATARS.find(a => a.id === review.avatarId);
-  const Icon = (avatarData && review.avatarId !== 'none') ? avatarData.icon : null;
 
   return (
     <div className="bg-white p-8 rounded-[2.5rem] shadow-md border border-gray-200 hover:border-brand-gold/40 flex flex-col justify-between hover:shadow-lg transition-all duration-300 h-full group relative overflow-hidden">
@@ -68,15 +58,7 @@ function ReviewCard({ review, onReadMore }: { review: IReview, onReadMore: () =>
       </div>
       
       <div className="flex items-center gap-4 border-t border-gray-50 pt-6 mt-auto relative z-10">
-        <div className={`w-14 h-14 rounded-full flex items-center justify-center border shrink-0 
-            ${Icon ? (avatarData?.color || '') : 'bg-brand-gold/10 text-brand-gold border-brand-gold/20'}
-        `}>
-             {Icon ? (
-                <Icon size={24} strokeWidth={1.5} />
-             ) : (
-                <span className="text-xl font-bold uppercase">{review.name.charAt(0)}</span>
-             )}
-        </div>
+        <ReviewStamp avatarId={review.avatarId} name={review.name} size={52} />
 
         <div>
           <h4 className="font-bold text-brand-dark text-sm">{review.name}</h4>

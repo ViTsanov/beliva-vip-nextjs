@@ -1,4 +1,7 @@
 import { ITour } from "@/types";
+import JsonLd from "@/components/JsonLd";
+import { isOperatorHotlink } from "@/lib/operatorImageDomains";
+import { normalizeTourDates, toISODate } from "@/lib/tourDates";
 
 interface TourReview {
   rating: number;
@@ -6,26 +9,47 @@ interface TourReview {
   customerName: string;
 }
 
+const SITE_URL = "https://belivavip.bg";
+
+// Наличност според статуса на групата (Google показва „Изчерпано“ / „Ограничена наличност“ в резултатите)
+const AVAILABILITY: Record<string, string> = {
+  "sold-out": "https://schema.org/SoldOut",
+  "last-places": "https://schema.org/LimitedAvailability",
+};
+
 export default function TourSchema({ tour, reviews = [] }: { tour: ITour; reviews?: TourReview[] }) {
-  // Извличаме само числата от цената (напр. от "от 2500 лв." става "2500")
-  const numericPrice = tour.price ? tour.price.replace(/[^0-9]/g, '') : "0";
+  const country = Array.isArray(tour.country) ? tour.country.join(", ") : tour.country;
+  // Промо цената е тази, която клиентът реално плаща. Само цифрите: „5 661 €“ → „5661“.
+  const numericPrice = String(tour.discountPrice || tour.price || "").replace(/[^0-9]/g, "") || "0";
+
+  // Цената важи до последната предстояща дата (или до края на промоцията, ако е по-рано)
+  const today = new Date().toISOString().split("T")[0];
+  const lastDate = normalizeTourDates([...(tour.dates || []), tour.date]).filter(d => d >= today).pop();
+  const promoEnd = tour.discountPrice ? toISODate(tour.promoEnd) : null;
+  const priceValidUntil = [lastDate, promoEnd].filter((d): d is string => !!d).sort()[0];
+
+  // Снимка само от нашия сайт/хранилище — чужди сайтове на туроператори не се ползват за Google
+  const image = tour.img && !isOperatorHotlink(tour.img)
+    ? (tour.img.startsWith("http") ? tour.img : `${SITE_URL}${tour.img}`)
+    : undefined;
 
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product", // Използваме Product, защото Google най-добре визуализира цени за него
-    "name": `${tour.title} | Екскурзия до ${tour.country}`,
-    "image": tour.img,
-    "description": tour.intro ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 160) : `Резервирайте незабравимо пътуване до ${tour.country}.`,
+    "name": tour.title,
+    ...(image && { "image": image }),
+    "description": tour.intro ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 160) : `Резервирайте незабравимо пътуване до ${country}.`,
     "brand": {
       "@type": "Brand",
       "name": "Beliva VIP Tour"
     },
     "offers": {
       "@type": "Offer",
-      "url": `https://belivavip.bg/tour/${tour.slug || tour.tourId || tour.id}`,
-      "priceCurrency": "EUR", // Смени на EUR, ако цените ви са в евро
+      "url": `${SITE_URL}/tour/${tour.slug || tour.tourId || tour.id}`,
+      "priceCurrency": "EUR",
       "price": numericPrice,
-      "availability": "https://schema.org/InStock",
+      ...(priceValidUntil && { "priceValidUntil": priceValidUntil }),
+      "availability": AVAILABILITY[tour.groupStatus] || "https://schema.org/InStock",
       "seller": {
         "@type": "Organization",
         "name": "Beliva VIP Tour"
@@ -61,10 +85,5 @@ export default function TourSchema({ tour, reviews = [] }: { tour: ITour; review
     }));
   }
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
+  return <JsonLd data={schema} />;
 }

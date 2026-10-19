@@ -6,6 +6,9 @@ import { getActiveTours } from '@/services/tourService';
 
 const BASE_URL = 'https://belivavip.bg';
 
+// Sitemap-ът се прегенерира веднъж на час — иначе новите турове и държави влизат в него чак при следващия deploy
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 1. Статични страници
   const staticRoutes: MetadataRoute.Sitemap = [

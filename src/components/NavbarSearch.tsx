@@ -1,24 +1,33 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, X, MapPin, FileText, Globe, ArrowRight, ChevronRight, Layout, Filter } from 'lucide-react'; 
+import { Search, X, MapPin, FileText, Globe, ArrowRight, ChevronRight, Layout, Filter, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation'; // Трябва ни за навигацията към филтъра
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs } from 'firebase/firestore';
 import { AnimatePresence, motion } from 'framer-motion';
 import { slugify } from '@/lib/admin-helpers'; // Провери дали точно така се казва експорта
+import { getActiveTours } from '@/services/tourService';
+import { displayTourDate } from '@/lib/tourDates';
+import { formatPrice } from '@/lib/formatPrice';
+import { matchTour, matchPages, parseMonthQuery, splitWords, wordInText, upcomingDates, tourCountries, type StaticPage } from '@/lib/siteSearch';
+import { useBackToClose, markModalNavigation } from '@/lib/hooks/useBackToClose';
+import { useScrollLock } from '@/lib/hooks/useScrollLock';
+import type { ITour } from '@/types';
 
-// --- КОНФИГУРАЦИЯ НА СТАТИЧНИТЕ СТРАНИЦИ ---
-const STATIC_PAGES = [
-  { title: 'Отзиви от клиенти', path: '/reviews', keywords: ['отзиви', 'мнения', 'коментари', 'рейтинг', 'клиенти', 'ревюта'] },
-  { title: 'Контакти', path: '/contacts', keywords: ['контакти', 'адрес', 'телефон', 'email', 'връзка', 'офис', 'локация'] },
-  { title: 'За Нас', path: '/about-us', keywords: ['за нас', 'екип', 'агенция', 'мисия', 'история', 'кой сме ние'] },
-  { title: 'Блог / Пътеводител', path: '/blog', keywords: ['блог', 'статии', 'новини', 'съвети', 'информация', 'четене'] },
-  { title: 'Любими', path: '/favorites', keywords: ['любими', 'запазени', 'сърце', 'харесани'] },
-  { title: 'Карта на сайта (Всички страници)', path: '/sitemaps', keywords: ['карта', 'меню', 'всички', 'страници', 'списък'] },
-];
+// Колко дати да се виждат на ред в резултата; останалите са „+N“
+const MAX_DATES_SHOWN = 3;
+
+type FoundTour = ITour & { shownDates: string[]; datesFiltered: boolean };
+
+// Цената е или число с валута („от 4325 €“), или текст („По запитване“) — тогава без „от“
+const priceLabel = (price?: string) => {
+  const formatted = formatPrice(price);
+  if (!formatted) return '';
+  return /\d/.test(formatted) ? `от ${formatted}` : formatted;
+};
 
 interface NavbarSearchProps {
     isScrolled?: boolean;
@@ -36,15 +45,11 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
   const pathname = usePathname();
 
   // ДАННИ
-  const [allTours, setAllTours] = useState<any[]>([]);
+  const [allTours, setAllTours] = useState<ITour[]>([]);
   const [allPosts, setAllPosts] = useState<any[]>([]);
   const [uniqueCountries, setUniqueCountries] = useState<string[]>([]); // Списък с уникални държави
-
-  // РЕЗУЛТАТИ
-  const [foundTours, setFoundTours] = useState<any[]>([]);
-  const [foundPosts, setFoundPosts] = useState<any[]>([]);
-  const [foundPages, setFoundPages] = useState<any[]>([]);
-  const [foundCountries, setFoundCountries] = useState<string[]>([]); // Намерени държави
+  const [todayISO, setTodayISO] = useState('');
+  const [suggestedTours, setSuggestedTours] = useState<ITour[]>([]); // 3 случайни тура, докато полето е празно
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -56,18 +61,19 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
     setDataRequested(true);
     const fetchData = async () => {
       try {
-        const toursQuery = query(collection(db, "tours"), where("status", "==", "public"));
         const postsQuery = query(collection(db, "posts"));
+        const [activeTours, postsSnap] = await Promise.all([getActiveTours(), getDocs(postsQuery)]);
 
-        const [toursSnap, postsSnap] = await Promise.all([getDocs(toursQuery), getDocs(postsQuery)]);
-
-        const tours = toursSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Както в списъка на началната страница — само турове с поне една предстояща дата
+        const today = new Date().toISOString().split('T')[0];
+        const tours = activeTours.filter(t => upcomingDates(t, today).length > 0);
+        setTodayISO(today);
         setAllTours(tours);
+        setSuggestedTours([...tours].sort(() => 0.5 - Math.random()).slice(0, 3));
         setAllPosts(postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
         // Извличаме уникалните държави от всички турове
-        const countries = Array.from(new Set(tours.flatMap((t: any) => Array.isArray(t.country) ? t.country : [t.country]).filter(Boolean))) as string[];
-        setUniqueCountries(countries);
+        setUniqueCountries(Array.from(new Set(tours.flatMap(tourCountries))));
 
       } catch (error) {
         console.error("Error loading search data", error);
@@ -77,53 +83,45 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
   }, [isOpen, dataRequested]);
 
   // 2. Логика за Търсене
-  useEffect(() => {
+  const { foundTours, foundPosts, foundPages, foundCountries, foundMonth } = useMemo(() => {
     if (!queryText.trim()) {
-      setFoundTours([]);
-      setFoundPosts([]);
-      setFoundPages([]);
-      setFoundCountries([]);
-      
-      if (allTours.length > 0) {
-         const shuffled = [...allTours].sort(() => 0.5 - Math.random());
-         setFoundTours(shuffled.slice(0, 3));
-      }
-      return;
+      return {
+        foundTours: suggestedTours.map((t): FoundTour => ({ ...t, shownDates: upcomingDates(t, todayISO), datesFiltered: false })),
+        foundPosts: [],
+        foundPages: [] as StaticPage[],
+        foundCountries: [] as string[],
+        foundMonth: null,
+      };
     }
 
-    const lowerQuery = queryText.toLowerCase();
+    const lowerQuery = queryText.trim().toLowerCase();
+    const words = splitWords(lowerQuery);
 
-    // Търсене в държави (за бърз филтър)
-    const matchedCountries = uniqueCountries.filter(c => c.toLowerCase().includes(lowerQuery));
+    // Търсене в държави (за бърз филтър) — „Япония“, „японията“, „Япония ноември“
+    const matchedCountries = uniqueCountries.filter(c => words.some(word => wordInText(word, c.toLowerCase())));
 
-
-    const tours = allTours.filter((t: any) => {
-      const titleMatch = t.title?.toLowerCase().includes(lowerQuery);
-      const countryMatch = Array.isArray(t.country) 
-        ? t.country.some((c: string) => c.toLowerCase().includes(lowerQuery))
-        : t.country?.toLowerCase().includes(lowerQuery);
-      
-      return titleMatch || countryMatch;
+    // Турове: думи от заглавието в произволен ред + месец/дата; подредени по първата (съвпадаща) дата
+    const tours: FoundTour[] = [];
+    allTours.forEach(t => {
+      const match = matchTour(t, lowerQuery, todayISO);
+      if (match && match.dates.length > 0) tours.push({ ...t, shownDates: match.dates, datesFiltered: match.datesFiltered });
     });
+    tours.sort((a, b) => a.shownDates[0].localeCompare(b.shownDates[0]));
 
-    // Търсене в постове
-    const posts = allPosts.filter((p: any) => 
-      p.title?.toLowerCase().includes(lowerQuery) || 
-      (p.relatedCountry && p.relatedCountry.toLowerCase().includes(lowerQuery))
-    ).slice(0, 3); 
+    // Търсене в постове — всички думи да са в заглавието или държавата
+    const posts = allPosts.filter((p: any) => {
+      const text = `${p.title || ''} ${p.relatedCountry || ''}`.toLowerCase();
+      return words.every(word => wordInText(word, text));
+    }).slice(0, 3);
 
-    // Търсене в страници
-    const pages = STATIC_PAGES.filter(p => 
-      p.title.toLowerCase().includes(lowerQuery) || 
-      p.keywords.some(k => k.includes(lowerQuery))
-    );
-
-    setFoundCountries(matchedCountries);
-    setFoundTours(tours);
-    setFoundPosts(posts);
-    setFoundPages(pages);
-
-  }, [queryText, allTours, allPosts, uniqueCountries]);
+    return {
+      foundTours: tours,
+      foundPosts: posts,
+      foundPages: matchPages(lowerQuery),
+      foundCountries: matchedCountries,
+      foundMonth: parseMonthQuery(lowerQuery), // Търсене само по месец → бърз филтър
+    };
+  }, [queryText, allTours, allPosts, uniqueCountries, todayISO, suggestedTours]);
 
   // 3. Управление на прозореца
   const handleClose = () => {
@@ -132,23 +130,28 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
     if (onCloseParent) onCloseParent();
   };
 
+  // Бутонът Назад (на телефона) затваря търсачката, вместо да сменя страницата
+  useBackToClose(isOpen, handleClose);
+  useScrollLock(isOpen);
+
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
       const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
       window.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
       return () => {
         window.removeEventListener('keydown', handleEsc);
-        document.body.style.overflow = 'unset';
       };
     }
   }, [isOpen]);
 
-  // Функция за прилагане на филтър по държава
-  const applyCountryFilter = (country: string) => {
-      const countrySlug = slugify(country);
-      const url = `/?country=${encodeURIComponent(countrySlug)}`;
+  // Бърз филтър на началната страница — по държава или по месец
+  const applyCountryFilter = (country: string) => applyHomeFilter(`/?country=${encodeURIComponent(slugify(country))}`);
+  const applyMonthFilter = (month: string) => applyHomeFilter(`/?month=${encodeURIComponent(month)}`);
+
+  const applyHomeFilter = (url: string) => {
+      // Навигация от отворен модал — затварянето му не бива да връща историята назад
+      markModalNavigation();
       handleClose();
 
       if (pathname === '/') {
@@ -169,7 +172,7 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
       }
   };
 
-  const hasResults = foundTours.length > 0 || foundPosts.length > 0 || foundPages.length > 0 || foundCountries.length > 0;
+  const hasResults = foundTours.length > 0 || foundPosts.length > 0 || foundPages.length > 0 || foundCountries.length > 0 || !!foundMonth;
 
   // Бутон за отваряне
   const TriggerButton = iconOnly ? (
@@ -219,7 +222,7 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                   <input 
                     ref={inputRef}
                     type="text" 
-                    placeholder="Държава, Екскурзия, Блог или 'Отзиви'..." 
+                    placeholder="Държава, месец, екскурзия или 'Отзиви'..."
                     className="flex-grow text-xl text-brand-dark placeholder-gray-300 outline-none font-serif italic bg-transparent"
                     value={queryText}
                     onChange={(e) => setQueryText(e.target.value)}
@@ -239,17 +242,28 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                   {!queryText && !hasResults && (
                       <div className="text-center py-10 text-gray-300 flex flex-col items-center gap-2">
                           <Globe size={40} className="opacity-20"/>
-                          <p className="text-sm">Въведете дестинация (напр. "Австралия") или тема (напр. "Отзиви")</p>
+                          <p className="text-sm">Въведете дестинация (напр. "Австралия"), месец (напр. "Ноември") или тема (напр. "Отзиви")</p>
                       </div>
                   )}
 
-                  {/* 0. БЪРЗ ФИЛТЪР ПО ДЪРЖАВА (НОВО!) */}
-                  {foundCountries.length > 0 && (
+                  {/* 0. БЪРЗ ФИЛТЪР ПО ДЪРЖАВА ИЛИ МЕСЕЦ */}
+                  {(foundCountries.length > 0 || foundMonth) && (
                       <div className="mb-6">
                           <h3 className="text-[10px] font-black uppercase text-brand-gold ml-2 tracking-widest mb-3 flex items-center gap-2">
                               <Filter size={12}/> Бърз достъп
                           </h3>
                           <div className="space-y-2">
+                              {foundMonth && (
+                                  <button
+                                      onClick={() => applyMonthFilter(foundMonth.value)}
+                                      className="w-full flex items-center justify-between bg-brand-gold/5 p-3 rounded-2xl border border-brand-gold/20 hover:bg-brand-gold hover:text-white transition-all group text-left"
+                                  >
+                                      <span className="font-bold text-brand-dark group-hover:text-white text-sm">
+                                          Виж всички екскурзии през <span className="uppercase">{foundMonth.label}</span>
+                                      </span>
+                                      <ArrowRight size={16} className="text-brand-gold group-hover:text-white"/>
+                                  </button>
+                              )}
                               {foundCountries.map(country => (
                                   <button 
                                       key={country}
@@ -273,7 +287,7 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                             <MapPin size={12}/> Екскурзии ({foundTours.length})
                         </h3>
                         <div className="space-y-3">
-                            {foundTours.map((item: any) => (
+                            {foundTours.map(item => (
                                 <Link 
                                     key={item.id} 
                                     href={`/tour/${item.tourId || item.id}`}
@@ -287,9 +301,32 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                                         <h4 className="font-bold text-brand-dark text-lg leading-tight group-hover:text-brand-gold transition-colors">
                                             {item.title}
                                         </h4>
-                                        <span className="text-xs font-medium text-gray-500 mt-1 bg-gray-100 self-start px-2 py-0.5 rounded-md">
-                                            от {item.price}
-                                        </span>
+                                        {/* Предстоящите дати — при търсене по месец/дата само съвпадащите, в златно */}
+                                        {item.shownDates.length > 0 && (
+                                            <div className="flex flex-wrap items-center gap-1 mt-1" aria-label="Дати на тръгване">
+                                                <CalendarDays size={13} className="text-brand-gold shrink-0 mr-0.5" aria-hidden="true" />
+                                                {item.shownDates.slice(0, MAX_DATES_SHOWN).map(d => (
+                                                    <span
+                                                        key={d}
+                                                        className={`text-[11px] font-semibold tabular-nums px-1.5 py-0.5 rounded-md ${
+                                                            item.datesFiltered ? 'bg-brand-gold/15 text-brand-dark' : 'bg-gray-100 text-gray-600'
+                                                        }`}
+                                                    >
+                                                        {displayTourDate(d)}
+                                                    </span>
+                                                ))}
+                                                {item.shownDates.length > MAX_DATES_SHOWN && (
+                                                    <span className="text-[11px] font-semibold text-gray-400 px-1">
+                                                        +{item.shownDates.length - MAX_DATES_SHOWN}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                        {priceLabel(item.price) && (
+                                            <span className="text-xs font-medium text-gray-500 mt-1">
+                                                {priceLabel(item.price)}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="relative w-20 h-14 rounded-xl overflow-hidden shrink-0 ml-4">
                                         <img src={item.img} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -341,7 +378,7 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                             <Layout size={12}/> Открити Страници
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {foundPages.map((page: any) => (
+                            {foundPages.map(page => (
                                 <Link 
                                     key={page.path} 
                                     href={page.path}
@@ -365,7 +402,7 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                 {/* FOOTER */}
                 <div className="bg-gray-50 p-3 text-center text-[10px] text-gray-400 border-t border-gray-100 flex justify-between px-6 shrink-0">
                     <span>Натиснете <b>ESC</b> за затваряне</span>
-                    {queryText && <span>Общо {foundTours.length + foundPosts.length + foundPages.length + foundCountries.length} резултата</span>}
+                    {queryText && <span>Общо {foundTours.length + foundPosts.length + foundPages.length + foundCountries.length + (foundMonth ? 1 : 0)} резултата</span>}
                 </div>
 
               </motion.div>

@@ -212,7 +212,18 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
         } else {
             await addDoc(collection(db, "tours"), { ...data, createdAt: serverTimestamp() });
         }
-        
+
+        // Нова държава в каталога → ИИ пише текста „За <държава>“ за страницата ѝ (само ако още го няма).
+        // Не чакаме: записът на тура е готов, а текстът идва след 5–15 s във фонов режим.
+        if (finalCountries.length > 0) {
+            fetch('/api/country-guide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ countries: finalCountries }),
+                keepalive: true,
+            }).catch(err => console.error('[country-guide]', err));
+        }
+
         onClose();
     } catch (error) { 
         console.error(error);

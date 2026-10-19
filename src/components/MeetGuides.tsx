@@ -25,7 +25,7 @@ const SIDE_PHOTOS = [
 
 export default function MeetGuides() {
   return (
-    <section className="bg-[#f7f0e4] overflow-hidden">
+    <section id="poli" className="bg-[#f7f0e4] overflow-hidden scroll-mt-16 md:scroll-mt-20">
 
       {/* Горна секция с лого и описание — запазена в container */}
       <div className="container mx-auto px-6 pt-12 md:pt-16 pb-10">

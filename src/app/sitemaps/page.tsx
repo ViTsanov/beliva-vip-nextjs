@@ -84,7 +84,8 @@ export default async function SitemapPage() {
 
   const schemaData = {
     "@context": "https://schema.org",
-    "@type": "TableOfContents",
+    // „TableOfContents“ не е тип в schema.org — Google го отчиташе като невалиден
+    "@type": "WebPage",
     "name": "Карта на сайта Beliva VIP Tour",
     "description": "Списък с всички екскурзии, блог статии и информационни страници.",
     "url": "https://belivavip.bg/sitemaps"

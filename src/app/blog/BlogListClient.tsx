@@ -1,418 +1,386 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useMemo, useRef, type CSSProperties } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Calendar, Clock, MapPin, Globe, LayoutGrid, ChevronRight } from 'lucide-react';
-import type { BlogPost } from './page';
+import { ArrowRight, BookOpen, Clock, MapPin } from 'lucide-react';
+import Reveal from '@/components/ui/Reveal';
+import { slugify } from '@/lib/admin-helpers';
+import { COUNTRY_TO_CONTINENT, canonicalCountry } from '@/lib/constants';
+import type { BlogPost, BlogDestination } from './page';
 
-// ─── Continent map ──────────────────────────────────────────────
-const CONTINENTS: Record<string, { label: string; emoji: string; countries: string[] }> = {
-  asia: {
-    label: 'Азия', emoji: '🌏',
-    countries: ['Япония','Тайланд','Китай','Сингапур','Индия','Виетнам','Малайзия','ОАЕ','Индонезия','Камбоджа','Непал','Шри Ланка','Мианмар','Лаос','Бахрейн','Катар','Саудитска Арабия','Йордания','Израел','Монголия','Казахстан','Узбекистан','Таджикистан','Киргизстан','Туркменистан','Азербайджан','Армения','Грузия','Иран','Ирак','Сирия','Ливан','Кипър','Бруней','Тайван','Южна Корея','Северна Корея','Бутан','Бангладеш','Пакистан','Афганистан','Малдиви','Филипини'],
-  },
-  europe: {
-    label: 'Европа', emoji: '🏰',
-    countries: ['Гърция','Италия','Испания','Франция','Германия','Хърватия','Австрия','Швейцария','Швеция','Норвегия','Финландия','Дания','Нидерландия','Белгия','Португалия','Полша','Чехия','Унгария','Румъния','България','Словакия','Словения','Босна и Херцеговина','Сърбия','Черна гора','Косово','Северна Македония','Албания','Молдова','Украйна','Беларус','Русия','Исландия','Ирландия','Великобритания','Малта','Люксембург','Монако','Лихтенщайн','Андора','Ватикан','Сан Марино','Естония','Латвия','Литва','Турция'],
-  },
-  america: {
-    label: 'Америка', emoji: '🌎',
-    countries: ['САЩ','Мексико','Перу','Бразилия','Аржентина','Куба','Колумбия','Чили','Еквадор','Боливия','Парагвай','Уругвай','Венецуела','Гватемала','Коста Рика','Панама','Никарагуа','Хондурас','Ел Салвадор','Хаити','Доминиканска република','Ямайка','Тринидад и Тобаго','Барбадос','Канада','Гвиана','Суринам'],
-  },
-  africa: {
-    label: 'Африка', emoji: '🦁',
-    countries: ['Южна Африка','ЮАР','Мароко','Египет','Кения','Танзания','Уганда','Руанда','Намибия','Ботсвана','Зимбабве','Замбия','Мадагаскар','Мозамбик','Гана','Нигерия','Сенегал','Тунис','Алжир','Либия','Судан','Еритрея','Сомалия','Джибути','Етиопия','Мали','Буркина Фасо','Нигер','Чад','Камерун','Ангола','Конго','Сейшели','Мавриций','Кабо Верде','Мавритания','Гамбия','Либерия','Бенин','Того','Лесото','Есватини','Малави','Южен Судан'],
-  },
-  oceania: {
-    label: 'Океания', emoji: '🌊',
-    countries: ['Австралия','Нова Зеландия','Фиджи','Папуа Нова Гвинея','Самоа','Тонга','Вануату','Кирибати','Науру','Тувалу','Маршалови острови','Микронезия','Палау','Соломонови острови'],
-  },
-};
+// Пътеводителят (/blog): заглавие, водеща статия, филтър по континент и държава, мрежа от статии и „По дестинация“.
+// Филтърът живее в адреса (?continent=…&country=…) — линк от страница на държава (/blog?country=peru) отваря
+// направо нейните статии, а смяната му заменя адреса, без да трупа история (Назад излиза от блога).
 
-function getContinent(country: string): string | null {
-  for (const [key, val] of Object.entries(CONTINENTS)) {
-    if (val.countries.includes(country)) return key;
-  }
-  return null;
+const CONTINENT_ORDER = ['Азия', 'Европа', 'Африка', 'Северна Америка', 'Южна Америка', 'Австралия'];
+// Старите адреси бяха с английски ключове (?continent=asia)
+const LEGACY_CONTINENTS: Record<string, string> = { asia: 'Азия', europe: 'Европа', africa: 'Африка', oceania: 'Австралия' };
+
+const focusRing = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-brand-gold';
+const rise = (d: number) => ({ '--d': `${d}s` }) as CSSProperties;
+
+function continentOf(post: BlogPost): string | null {
+  const country = post.relatedCountry ? canonicalCountry(post.relatedCountry) : '';
+  return (country && COUNTRY_TO_CONTINENT[country]) || post.relatedContinent || null;
 }
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '';
-  try {
-    return new Date(iso).toLocaleDateString('bg-BG', { day: 'numeric', month: 'long', year: 'numeric' });
-  } catch { return ''; }
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('bg-BG', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Sofia' });
 }
 
-// ─── Post card ──────────────────────────────────────────────────
-function PostCard({ post, featured = false }: { post: BlogPost; featured?: boolean }) {
-  const href = `/blog/${post.slug || post.id}`;
+const postHref = (post: BlogPost) => `/blog/${post.slug || post.id}`;
+const articlesLabel = (n: number) => `${n} ${n === 1 ? 'статия' : 'статии'}`;
+
+function Meta({ post, light = false }: { post: BlogPost; light?: boolean }) {
   const date = formatDate(post.createdAt);
-
-  if (featured) {
-    return (
-      <Link href={href} className="group block rounded-[2.5rem] overflow-hidden shadow-xl border border-brand-gold/10 hover:shadow-2xl transition-all duration-500">
-        <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[360px]">
-          <div className="relative h-[260px] lg:h-full overflow-hidden bg-brand-dark">
-            {post.coverImg && (
-              <Image src={post.coverImg} alt={post.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 50vw" priority />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-            <div className="absolute top-5 left-5 flex items-center gap-2">
-              <span className="bg-brand-gold text-brand-dark px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow">Последна публикация</span>
-              {post.relatedCountry && (
-                <span className="bg-white/90 backdrop-blur-sm text-brand-dark px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow">{post.relatedCountry}</span>
-              )}
-            </div>
-          </div>
-          <div className="bg-brand-dark text-white p-6 sm:p-10 lg:p-14 flex flex-col justify-center gap-4">
-            <div className="flex items-center gap-3 text-brand-gold/70 text-[10px] font-bold uppercase tracking-widest">
-              <Calendar size={12} /><span>{date}</span>
-              {post.readTime && <><span className="text-white/20">·</span><Clock size={12} /><span>{post.readTime} мин.</span></>}
-            </div>
-            <h2 className="text-3xl lg:text-4xl font-serif italic text-white leading-tight group-hover:text-brand-gold transition-colors duration-300">{post.title}</h2>
-            {post.excerpt && <p className="text-white/50 text-base leading-relaxed line-clamp-3">{post.excerpt}</p>}
-            <div className="flex items-center gap-3 text-sm font-black uppercase tracking-widest text-brand-gold group-hover:gap-5 transition-all pt-2 border-t border-white/10">
-              Прочети историята <ArrowRight size={16} />
-            </div>
-          </div>
-        </div>
-      </Link>
-    );
-  }
-
   return (
-    <Link href={href} className="group block bg-white rounded-[1.8rem] overflow-hidden shadow-sm hover:shadow-xl border border-brand-gold/8 hover:border-brand-gold/25 transition-all duration-300 hover:-translate-y-0.5">
-      <div className="relative h-52 overflow-hidden bg-brand-dark/10">
+    <p className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] ${light ? 'text-white/75' : 'text-slate-600'}`}>
+      {date && <time dateTime={post.createdAt || undefined}>{date}</time>}
+      {post.readTime ? (
+        <>
+          {date && <span aria-hidden="true">·</span>}
+          <span className="inline-flex items-center gap-1"><Clock size={13} aria-hidden="true" />{post.readTime} мин. четене</span>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+function CountryPill({ name }: { name: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-brand-dark shadow-sm">
+      <MapPin size={12} aria-hidden="true" className="text-brand-goldDeep" />
+      {name}
+    </span>
+  );
+}
+
+// Водещата (най-новата) статия — голяма снимка и текст до нея
+function FeaturedPost({ post }: { post: BlogPost }) {
+  return (
+    <article className="group relative grid grid-cols-1 overflow-hidden rounded-[28px] border border-brand-dark/10 bg-[#fffdf8] shadow-[0_1px_0_rgba(15,23,42,0.04),0_24px_50px_-32px_rgba(15,23,42,0.4)] lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+      <div className="relative aspect-[16/10] overflow-hidden bg-slate-800 lg:aspect-auto lg:min-h-[440px]">
         {post.coverImg && (
-          <Image src={post.coverImg} alt={post.title} fill className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
+          <Image
+            src={post.coverImg}
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 1024px) 100vw, 60vw"
+            className="object-cover transition-transform duration-700 ease-[cubic-bezier(.2,.7,.2,1)] group-hover:scale-105"
+          />
         )}
-        {post.relatedCountry && (
-          <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm text-brand-dark px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
-            <MapPin size={8} className="text-brand-gold" />{post.relatedCountry}
-          </div>
-        )}
-      </div>
-      <div className="p-6">
-        <div className="flex items-center gap-2 text-[9px] font-bold uppercase text-gray-400 tracking-wider mb-3">
-          <Clock size={10} className="text-brand-gold/70" /><span>{date}</span>
-          {post.readTime && <><span className="text-gray-300">·</span><span>{post.readTime} мин.</span></>}
+        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+          <span className="rounded-full bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand-dark">Най-нова</span>
+          {post.relatedCountry && <CountryPill name={post.relatedCountry} />}
         </div>
-        <h3 className="font-serif italic text-xl text-brand-dark mb-3 leading-snug group-hover:text-brand-gold transition-colors line-clamp-2">{post.title}</h3>
-        {post.excerpt && <p className="text-gray-500 text-sm leading-relaxed line-clamp-2 mb-4">{post.excerpt}</p>}
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-brand-dark border-b border-brand-gold/30 pb-0.5 group-hover:border-brand-gold group-hover:text-brand-gold transition-all">
-          Виж повече <ChevronRight size={11} />
+      </div>
+      <div className="flex flex-col justify-center gap-5 p-7 sm:p-10 lg:p-12">
+        <Meta post={post} />
+        <h2 className="font-serif text-[clamp(28px,3.2vw,44px)] font-medium leading-[1.12] tracking-[-0.015em] text-brand-dark [text-wrap:pretty]">
+          {/* Целият картон е линк чрез ::after — така има един фокус и един линк към статията */}
+          <Link href={postHref(post)} className={`rounded-sm after:absolute after:inset-0 after:content-[''] hover:text-brand-goldDeep ${focusRing}`}>
+            {post.title}
+          </Link>
+        </h2>
+        {post.excerpt && <p className="line-clamp-4 text-[17px] leading-[1.7] text-slate-600">{post.excerpt}</p>}
+        <span aria-hidden="true" className="inline-flex w-fit items-center gap-2.5 rounded-full bg-brand-dark px-6 py-3.5 text-[15px] font-semibold text-white transition-colors group-hover:bg-slate-800">
+          Прочети историята
+          <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
         </span>
       </div>
-    </Link>
+    </article>
   );
 }
 
-// ─── Destination tile ───────────────────────────────────────────
-function DestinationTile({ country, posts, img, onClick }: { country: string; posts: BlogPost[]; img?: string; onClick: () => void }) {
+function PostCard({ post }: { post: BlogPost }) {
   return (
-    <button onClick={onClick} className="group relative rounded-2xl overflow-hidden bg-brand-dark shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 aspect-[4/3] w-full text-left">
-      {img && <Image src={img} alt={country} fill className="object-cover opacity-60 group-hover:opacity-80 group-hover:scale-105 transition-all duration-500" sizes="200px" />}
-      {!img && <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand-dark/60" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-4">
-        <p className="text-white font-serif italic text-lg leading-tight font-bold">{country}</p>
-        <p className="text-brand-gold/80 text-[9px] font-black uppercase tracking-widest mt-0.5">
-          {posts.length} {posts.length === 1 ? 'статия' : 'статии'}
-        </p>
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-brand-dark/10 bg-[#fffdf8] shadow-[0_1px_0_rgba(15,23,42,0.04),0_18px_40px_-30px_rgba(15,23,42,0.35)] transition-shadow duration-300 hover:shadow-[0_1px_0_rgba(15,23,42,0.04),0_24px_48px_-26px_rgba(15,23,42,0.45)]">
+      <div className="relative aspect-[16/10] overflow-hidden bg-slate-800">
+        {post.coverImg && (
+          <Image
+            src={post.coverImg}
+            alt=""
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover transition-transform duration-700 ease-[cubic-bezier(.2,.7,.2,1)] group-hover:scale-105"
+          />
+        )}
+        {post.relatedCountry && <span className="absolute bottom-3 left-3"><CountryPill name={post.relatedCountry} /></span>}
       </div>
-    </button>
+      <div className="flex flex-1 flex-col gap-3 p-6">
+        <Meta post={post} />
+        <h3 className="font-serif text-[22px] font-medium leading-[1.25] text-brand-dark [text-wrap:pretty]">
+          <Link href={postHref(post)} className={`rounded-sm after:absolute after:inset-0 after:content-[''] group-hover:text-brand-goldDeep ${focusRing}`}>
+            {post.title}
+          </Link>
+        </h3>
+        {post.excerpt && <p className="line-clamp-2 text-[15px] leading-relaxed text-slate-600">{post.excerpt}</p>}
+        <span aria-hidden="true" className="mt-auto inline-flex items-center gap-1.5 pt-2 text-sm font-semibold text-brand-goldDeep">
+          Прочети <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" />
+        </span>
+      </div>
+    </article>
   );
 }
 
-// ─── Hero collage images ────────────────────────────────────────
-const COLLAGE_IMGS = [
-  '/hero/thailand.webp',
-  '/hero/australia.webp',
-  '/hero/china.webp',
-  '/hero/peru.webp',
-  '/hero/singapore.webp',
-];
+// Карта на държава (снимка, име, брой) — за „По дестинация“ и за празния пътеводител
+function DestinationTile({ name, img, caption, href, onSelect }: { name: string; img?: string; caption: string; href?: string; onSelect?: () => void }) {
+  const inner = (
+    <>
+      {img && <Image src={img} alt="" fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.06]" />}
+      <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,17,32,0)_35%,rgba(11,17,32,.85)_100%)]" />
+      <span className="absolute inset-x-4 bottom-4 flex flex-col gap-0.5 text-left text-white">
+        <span className="font-serif text-xl font-medium leading-tight">{name}</span>
+        <span className="text-[13px] text-white/85">{caption}</span>
+      </span>
+    </>
+  );
+  const cls = `group relative block aspect-[4/5] w-full overflow-hidden rounded-3xl bg-slate-800 ${focusRing}`;
+  return href
+    ? <Link href={href} className={cls}>{inner}</Link>
+    : <button type="button" onClick={onSelect} className={cls} aria-label={`${name} — ${caption}`}>{inner}</button>;
+}
 
-// ─── Main component ─────────────────────────────────────────────
-export default function BlogListClient({ posts }: { posts: BlogPost[] }) {
+export default function BlogListClient({ posts, destinations }: { posts: BlogPost[]; destinations: BlogDestination[] }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const filterRef = useRef<HTMLDivElement>(null);
 
-  const [mode, setMode] = useState<'all' | 'destination'>('all');
-  const [selectedContinent, setSelectedContinent] = useState<string | null>(null);
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
-
-  // Read URL params on mount — supports ?country=X from external links / destination tiles.
-  // Легитимна синхронизация на състояние от URL параметри, не derived-state анти-патерн.
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    const country = searchParams.get('country');
-    const continent = searchParams.get('continent');
-    if (country) {
-      setMode('all');
-      setSelectedCountry(country);
-      const cont = getContinent(country);
-      if (cont) setSelectedContinent(cont);
-    } else if (continent) {
-      setMode('all');
-      setSelectedContinent(continent);
-    }
-  }, [searchParams]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  // Countries that appear in posts
-  const postCountries = useMemo(() => {
-    const map: Record<string, BlogPost[]> = {};
-    posts.forEach(p => {
-      if (p.relatedCountry) {
-        if (!map[p.relatedCountry]) map[p.relatedCountry] = [];
-        map[p.relatedCountry].push(p);
-      }
+  // Държави и континенти, за които има статии
+  const countries = useMemo(() => {
+    const map = new Map<string, { name: string; slug: string; posts: BlogPost[] }>();
+    posts.forEach((p) => {
+      if (!p.relatedCountry) return;
+      const name = p.relatedCountry;
+      const entry = map.get(name) || { name, slug: slugify(name), posts: [] };
+      entry.posts.push(p);
+      map.set(name, entry);
     });
-    return map;
+    return [...map.values()].sort((a, b) => b.posts.length - a.posts.length || a.name.localeCompare(b.name, 'bg'));
   }, [posts]);
 
-  // Countries available under the selected continent
-  const countriesForContinent = useMemo(() => {
-    if (!selectedContinent) return Object.keys(postCountries);
-    return CONTINENTS[selectedContinent]?.countries.filter(c => postCountries[c]) || [];
-  }, [selectedContinent, postCountries]);
-
-  // Filtered posts for "all" mode
-  const filteredPosts = useMemo(() => {
-    return posts.filter(p => {
-      if (selectedCountry) return p.relatedCountry === selectedCountry;
-      if (selectedContinent) return CONTINENTS[selectedContinent]?.countries.includes(p.relatedCountry || '');
-      return true;
+  const continents = useMemo(() => {
+    const counts = new Map<string, number>();
+    posts.forEach((p) => {
+      const c = continentOf(p);
+      if (c) counts.set(c, (counts.get(c) || 0) + 1);
     });
-  }, [posts, selectedContinent, selectedCountry]);
+    return CONTINENT_ORDER.filter((c) => counts.has(c)).map((c) => ({ name: c, slug: slugify(c), count: counts.get(c)! }));
+  }, [posts]);
 
-  // Grouped posts for "destination" mode
-  const grouped = useMemo(() => {
-    const result: Record<string, { continent: typeof CONTINENTS[string]; countries: Record<string, BlogPost[]> }> = {};
-    Object.entries(CONTINENTS).forEach(([key, cont]) => {
-      const countries: Record<string, BlogPost[]> = {};
-      cont.countries.forEach(c => { if (postCountries[c]) countries[c] = postCountries[c]; });
-      if (Object.keys(countries).length > 0) result[key] = { continent: cont, countries };
-    });
-    return result;
-  }, [postCountries]);
+  // Филтърът от адреса: континент по slug (или стар английски ключ), държава по slug или по име
+  const continentParam = searchParams.get('continent') || '';
+  const countryParam = searchParams.get('country') || '';
+  const selectedContinent = continents.find((c) => c.slug === continentParam || c.name === LEGACY_CONTINENTS[continentParam])?.name || null;
+  const selectedCountry = countries.find((c) => c.slug === countryParam || c.name === countryParam) || null;
+  const activeContinent = selectedCountry ? continentOf(selectedCountry.posts[0]) : selectedContinent;
 
-  const handleContinent = (key: string) => {
-    setSelectedContinent(prev => prev === key ? null : key);
-    setSelectedCountry(null);
+  const setFilter = (next: { continent?: string | null; country?: string | null }, scroll = false) => {
+    const params = new URLSearchParams();
+    if (next.continent) params.set('continent', slugify(next.continent));
+    if (next.country) params.set('country', slugify(next.country));
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    if (scroll) filterRef.current?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   };
 
-  const handleCountry = (c: string) => {
-    setSelectedCountry(prev => prev === c ? null : c);
-  };
+  const filtered = posts.filter((p) => {
+    if (selectedCountry) return p.relatedCountry === selectedCountry.name;
+    if (selectedContinent) return continentOf(p) === selectedContinent;
+    return true;
+  });
+  const hasFilter = !!(selectedCountry || selectedContinent);
+  const [featured, ...rest] = filtered;
+  const countriesInContinent = activeContinent ? countries.filter((c) => continentOf(c.posts[0]) === activeContinent) : [];
 
-  const resetFilters = () => { setSelectedContinent(null); setSelectedCountry(null); };
-  const hasFilters = !!(selectedContinent || selectedCountry);
+  const chip = (on: boolean) =>
+    `inline-flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-[18px] text-sm font-semibold transition-colors ${focusRing} ${
+      on ? 'border-brand-dark bg-brand-dark text-white' : 'border-brand-dark/20 bg-[#fffdf8] text-brand-dark hover:border-brand-dark'
+    }`;
 
   return (
-    <div className="min-h-screen bg-[#f9f6f0]">
+    <div className="bg-[#f7f4ee] text-brand-dark">
+      {/* ═══ ЗАГЛАВИЕ ═══ */}
+      <header className="mx-auto max-w-[1240px] px-6 pb-12 pt-28 md:pb-16 md:pt-36">
+        <nav aria-label="Навигационна пътека" className="dest-rise mb-8" style={rise(0.05)}>
+          <ol className="flex flex-wrap items-center gap-2.5 text-sm text-slate-600">
+            <li><Link href="/" className={`rounded-sm hover:text-brand-dark ${focusRing}`}>Начало</Link></li>
+            <li aria-hidden="true" className="text-slate-400">/</li>
+            <li aria-current="page" className="font-semibold text-brand-dark">Пътеводител</li>
+          </ol>
+        </nav>
+        <div className="grid grid-cols-1 items-end gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-12">
+          <div>
+            <p className="dest-rise mb-[18px] flex items-center gap-3 text-[13px] font-semibold uppercase tracking-[0.22em] text-brand-goldDeep" style={rise(0.1)}>
+              <span aria-hidden="true" className="h-px w-9 bg-brand-goldDeep" />
+              Блогът на Beliva
+            </p>
+            <h1 className="dest-rise font-serif text-[clamp(48px,8vw,104px)] font-normal italic leading-[0.95] tracking-[-0.02em]" style={rise(0.2)}>
+              Пътеводителят
+            </h1>
+            <p className="dest-rise mt-6 max-w-[560px] text-lg leading-relaxed text-slate-600 [text-wrap:pretty]" style={rise(0.35)}>
+              Статии, съвети и истории от пътуванията ни — написани от хора, които са били там.
+            </p>
+          </div>
+          {posts.length > 0 && (
+            <dl className="dest-rise grid grid-cols-2 overflow-hidden rounded-3xl border border-brand-dark/10 bg-[#fffdf8]" style={rise(0.45)}>
+              <div className="border-r border-brand-dark/10 px-6 py-5">
+                <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">Статии</dt>
+                <dd className="mt-2 font-display text-3xl font-bold">{posts.length}</dd>
+              </div>
+              <div className="px-6 py-5">
+                <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">Дестинации</dt>
+                <dd className="mt-2 font-display text-3xl font-bold text-brand-goldDeep">{countries.length}</dd>
+              </div>
+            </dl>
+          )}
+        </div>
+      </header>
 
-      {/* ── Hero with photo collage ── */}
-      <div className="bg-brand-dark pt-32 pb-14 px-6 relative overflow-hidden">
-        {/* Vertical image strips */}
-        <div className="absolute inset-0 flex">
-          {COLLAGE_IMGS.map((src, i) => (
-            <div key={i} className="relative flex-1 overflow-hidden">
-              <Image src={src} alt="" fill className="object-cover" sizes="20vw" quality={40} aria-hidden />
+      {posts.length === 0 ? (
+        /* ═══ ПРАЗЕН ПЪТЕВОДИТЕЛ: вместо празна страница — дестинациите от каталога ═══ */
+        <section aria-labelledby="empty-title" className="mx-auto max-w-[1240px] px-6 pb-24">
+          <Reveal>
+            <div className="flex flex-col gap-5 rounded-[28px] border border-brand-dark/10 bg-[#fffdf8] p-8 sm:flex-row sm:items-center sm:p-10">
+              <span aria-hidden="true" className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-dark text-brand-gold">
+                <BookOpen size={24} />
+              </span>
+              <div>
+                <h2 id="empty-title" className="font-serif text-[clamp(26px,3vw,36px)] font-medium italic leading-tight">Първите истории се пишат</h2>
+                <p className="mt-2 max-w-[640px] text-[16px] leading-relaxed text-slate-600">
+                  Скоро тук ще има пътеводители и разкази от пътуванията. Дотогава — опознайте дестинациите: всяка има кратък разказ за историята, природата и любопитните ѝ факти.
+                </p>
+              </div>
             </div>
-          ))}
-        </div>
-        {/* Dark overlays for text */}
-        <div className="absolute inset-0 bg-black/55 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-b from-brand-dark/30 via-transparent to-brand-dark pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-dark/60 via-transparent to-brand-dark/60 pointer-events-none" />
-
-        <div className="container mx-auto relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-px w-8 bg-brand-gold/50" />
-            <span className="text-brand-gold/70 text-[9px] font-black uppercase tracking-[0.4em]">Beliva VIP Tour</span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-serif italic text-white leading-none mb-4">
-            Пътеводителят
-          </h1>
-          <p className="text-white/50 text-base font-light max-w-md">
-            Статии, съвети и истории от над 60 дестинации — написани от хора, които са ги изживели.
-          </p>
-        </div>
-      </div>
-
-      {/* ── Mode toggle + filter bar ── */}
-      <div className="bg-white border-b border-brand-gold/15 sticky top-16 z-30 shadow-sm">
-        <div className="container mx-auto px-6 flex items-center gap-3 pt-3 pb-2">
-          <button
-            onClick={() => { setMode('all'); resetFilters(); }}
-            className={`flex items-center gap-2 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'all' ? 'bg-brand-dark text-brand-gold shadow-md' : 'text-gray-400 hover:text-brand-dark'}`}
-          >
-            <LayoutGrid size={12} /> Всички
-          </button>
-          <button
-            onClick={() => { setMode('destination'); resetFilters(); }}
-            className={`flex items-center gap-2 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'destination' ? 'bg-brand-dark text-brand-gold shadow-md' : 'text-gray-400 hover:text-brand-dark'}`}
-          >
-            <Globe size={12} /> По дестинация
-          </button>
-          <div className="ml-auto text-[10px] text-gray-400 font-medium hidden sm:block">
-            {filteredPosts.length} {filteredPosts.length === 1 ? 'статия' : 'статии'}
-          </div>
-        </div>
-
-        {/* Filter pills */}
-        {mode === 'all' && (
-          <div className="container mx-auto px-6 pb-3 overflow-x-auto">
-            <div className="flex items-center gap-2 min-w-max">
-              <button
-                onClick={resetFilters}
-                className={`text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-full border transition-all whitespace-nowrap ${!hasFilters ? 'bg-brand-dark text-brand-gold border-brand-dark' : 'border-brand-gold/30 text-brand-dark/60 hover:border-brand-gold hover:text-brand-dark'}`}
-              >
-                ✦ Всички
-              </button>
-
-              {Object.entries(CONTINENTS)
-                .filter(([key]) => grouped[key])
-                .map(([key, cont]) => (
-                  <button
-                    key={key}
-                    onClick={() => handleContinent(key)}
-                    className={`text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-full border transition-all whitespace-nowrap ${selectedContinent === key ? 'bg-brand-dark text-brand-gold border-brand-dark' : 'border-gray-200 text-gray-500 bg-gray-50 hover:border-brand-gold/40 hover:text-brand-dark'}`}
-                  >
-                    {cont.emoji} {cont.label}
-                  </button>
-                ))}
-
-              {/* Country pills — only when continent is active */}
-              {selectedContinent && countriesForContinent.length > 0 && (
-                <>
-                  <div className="h-5 w-px bg-gray-200 mx-1" />
-                  {countriesForContinent.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => handleCountry(c)}
-                      className={`text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-full border transition-all whitespace-nowrap ${selectedCountry === c ? 'bg-brand-gold text-brand-dark border-brand-gold' : 'border-brand-gold/20 text-brand-dark/70 bg-brand-gold/5 hover:bg-brand-gold/15'}`}
-                    >
-                      {c}
-                      <span className="ml-1.5 text-[8px] opacity-60">{postCountries[c]?.length}</span>
+          </Reveal>
+          {destinations.length > 0 && (
+            <ul className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {destinations.map((d, i) => (
+                <li key={d.slug}>
+                  <Reveal delay={(i % 4) * 0.06} y={16}>
+                    <DestinationTile name={d.name} img={d.img} caption={`${d.tours} ${d.tours === 1 ? 'екскурзия' : 'екскурзии'}`} href={`/destinations/${d.slug}`} />
+                  </Reveal>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : (
+        <>
+          {/* ═══ ФИЛТЪР — лепне под менюто ═══ */}
+          {continents.length > 0 && (
+            <div ref={filterRef} className="sticky top-16 z-30 scroll-mt-16 border-y border-brand-dark/10 bg-[#f7f4ee] md:top-[72px] md:scroll-mt-[72px]">
+              <div className="mx-auto flex max-w-[1240px] flex-col gap-2 px-6 py-3">
+                <div className="flex items-center gap-3">
+                  <div role="group" aria-label="Филтър по континент" className="snap-strip -mx-6 flex min-w-0 flex-1 gap-2 overflow-x-auto px-6">
+                    <button type="button" aria-pressed={!hasFilter} onClick={() => setFilter({})} className={chip(!hasFilter)}>
+                      Всички <span className={`font-display text-xs ${!hasFilter ? 'text-brand-gold' : 'text-brand-goldDeep'}`}>{posts.length}</span>
                     </button>
-                  ))}
-                </>
-              )}
+                    {continents.map((c) => {
+                      const on = activeContinent === c.name;
+                      return (
+                        <button key={c.slug} type="button" aria-pressed={on} onClick={() => setFilter(on && !selectedCountry ? {} : { continent: c.name })} className={chip(on)}>
+                          {c.name} <span className={`font-display text-xs ${on ? 'text-brand-gold' : 'text-brand-goldDeep'}`}>{c.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="hidden shrink-0 text-sm text-slate-600 md:block" aria-live="polite">{articlesLabel(filtered.length)}</p>
+                </div>
+                {countriesInContinent.length > 1 && (
+                  <div role="group" aria-label={`Държави в ${activeContinent}`} className="snap-strip -mx-6 flex gap-2 overflow-x-auto px-6">
+                    {countriesInContinent.map((c) => {
+                      const on = selectedCountry?.name === c.name;
+                      return (
+                        <button
+                          key={c.slug}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => setFilter(on ? { continent: activeContinent } : { country: c.name })}
+                          className={`inline-flex min-h-[40px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[13px] font-semibold transition-colors ${focusRing} ${
+                            on ? 'bg-brand-gold text-brand-dark' : 'bg-brand-gold/10 text-brand-goldDeep hover:bg-brand-gold/20'
+                          }`}
+                        >
+                          {c.name} <span className="opacity-70">{c.posts.length}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
 
-      {/* ── Content ── */}
-      <main className="container mx-auto px-6 py-12">
-
-        {/* MODE: ALL */}
-        {mode === 'all' && (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${selectedContinent ?? ''}-${selectedCountry ?? ''}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {filteredPosts.length === 0 && (
-                <div className="text-center py-24">
-                  <p className="text-gray-400 text-lg font-serif italic mb-3">
-                    Все още няма статии за тази дестинация.
-                  </p>
-                  <button onClick={resetFilters} className="text-brand-gold text-sm font-bold uppercase tracking-widest hover:underline">
+          {/* ═══ СТАТИИТЕ ═══ — key: при смяна на филтъра новият списък се появява плавно */}
+          <section aria-label="Статии" className="mx-auto max-w-[1240px] px-6 py-12 md:py-16">
+            <div key={`${activeContinent}-${selectedCountry?.slug}`} className="dest-list-in">
+              {selectedCountry && (
+                <p className="mb-6 text-[15px] text-slate-600">
+                  Статии за <strong className="text-brand-dark">{selectedCountry.name}</strong>
+                  {' · '}
+                  <Link href={`/destinations/${selectedCountry.slug}`} className={`inline-flex items-center gap-1 rounded-sm font-semibold text-brand-goldDeep underline decoration-brand-gold decoration-2 underline-offset-4 hover:text-brand-dark ${focusRing}`}>
+                    Екскурзии до {selectedCountry.name} <ArrowRight size={14} aria-hidden="true" />
+                  </Link>
+                </p>
+              )}
+              {featured ? (
+                <>
+                  <FeaturedPost post={featured} />
+                  {rest.length > 0 && (
+                    <ul className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
+                      {rest.map((post, i) => (
+                        <li key={post.id}>
+                          <Reveal delay={(i % 3) * 0.07} y={20} className="h-full">
+                            <PostCard post={post} />
+                          </Reveal>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <div className="rounded-[28px] border border-brand-dark/10 bg-[#fffdf8] px-6 py-16 text-center">
+                  <p className="font-serif text-2xl italic text-slate-600">Все още няма статии за тази дестинация.</p>
+                  <button type="button" onClick={() => setFilter({})} className={`mt-5 inline-flex min-h-[44px] items-center rounded-full bg-brand-dark px-6 text-sm font-semibold text-white hover:bg-slate-800 ${focusRing}`}>
                     Виж всички статии
                   </button>
                 </div>
               )}
+            </div>
+          </section>
 
-              {filteredPosts.length > 0 && (
-                <>
-                  {/* Featured — always first post */}
-                  <div className="mb-12">
-                    <PostCard post={filteredPosts[0]} featured />
-                  </div>
-
-                  {/* Grid — remaining posts */}
-                  {filteredPosts.length > 1 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
-                      {filteredPosts.slice(1).map((post, i) => (
-                        <motion.div
-                          key={post.id}
-                          initial={{ opacity: 0, y: 16 }}
-                          whileInView={{ opacity: 1, y: 0 }}
-                          viewport={{ once: true, margin: '-40px' }}
-                          transition={{ duration: 0.4, delay: i * 0.06 }}
-                        >
-                          <PostCard post={post} />
-                        </motion.div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        )}
-
-        {/* MODE: DESTINATION */}
-        {mode === 'destination' && (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key="destination"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35 }}
-              className="space-y-16"
-            >
-              {Object.entries(grouped).map(([key, { continent, countries }]) => (
-                <div key={key}>
-                  <div className="flex items-center gap-4 mb-7">
-                    <span className="text-3xl select-none">{continent.emoji}</span>
-                    <div>
-                      <p className="text-brand-gold text-[9px] font-black uppercase tracking-[0.3em] mb-0.5">Дестинации</p>
-                      <h2 className="text-2xl md:text-3xl font-serif italic text-brand-dark leading-none">{continent.label}</h2>
-                    </div>
-                    <div className="flex-1 h-px bg-brand-gold/15 hidden md:block" />
-                    <span className="hidden md:block text-[10px] text-gray-400 font-medium shrink-0">
-                      {Object.keys(countries).length} {Object.keys(countries).length === 1 ? 'държава' : 'държави'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {Object.entries(countries).map(([country, cPosts]) => (
+          {/* ═══ ПО ДЕСТИНАЦИЯ ═══ */}
+          {!hasFilter && countries.length > 1 && (
+            <section aria-labelledby="by-destination" className="mx-auto max-w-[1240px] px-6 pb-24">
+              <p className="mb-3.5 flex items-center gap-3 text-[13px] font-semibold uppercase tracking-[0.22em] text-brand-goldDeep">
+                <span aria-hidden="true" className="h-px w-9 bg-brand-goldDeep" />
+                Разгледай
+              </p>
+              <h2 id="by-destination" className="mb-8 font-serif text-[clamp(32px,4vw,48px)] font-normal italic leading-tight">По дестинация</h2>
+              <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                {countries.map((c, i) => (
+                  <li key={c.slug}>
+                    <Reveal delay={(i % 6) * 0.05} y={16}>
                       <DestinationTile
-                        key={country}
-                        country={country}
-                        posts={cPosts}
-                        img={cPosts[0]?.coverImg}
-                        onClick={() => {
-                          setMode('all');
-                          setSelectedContinent(key);
-                          setSelectedCountry(country);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
+                        name={c.name}
+                        img={c.posts.find((p) => p.coverImg)?.coverImg}
+                        caption={articlesLabel(c.posts.length)}
+                        onSelect={() => setFilter({ country: c.name }, true)}
                       />
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {Object.keys(grouped).length === 0 && (
-                <div className="text-center py-24 text-gray-400 font-serif italic text-lg">
-                  Все още няма статии с посочена дестинация.
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        )}
-      </main>
+                    </Reveal>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }

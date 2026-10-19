@@ -71,13 +71,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!post) {
     return {
-      title: 'Статията не е намерена | Beliva VIP Blog',
+      title: 'Статията не е намерена',
     };
   }
 
-  const title = `${post.title} | Beliva VIP Blog`;
+  // Без собствен суфикс — шаблонът в layout.tsx добавя „| Beliva VIP Tour“ (иначе излизаха два суфикса)
+  const title = post.title;
   const description = (post.excerpt || post.content || "").substring(0, 160).replace(/<[^>]*>/g, '') + "...";
-  const url = `${SITE_URL}/blog/${resolvedParams.id}`;
+  // Каноничният адрес е по slug, дори статията да е отворена по ID на документа
+  const url = `${SITE_URL}/blog/${post.slug || resolvedParams.id}`;
 
   // --- ЛОГИКА ЗА СНИМКАТА (FIX) ---
   // 1. Взимаме снимката (coverImg или img) или слагаме дефолтна
@@ -92,7 +94,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: description,
     
     alternates: {
-      canonical: `/blog/${resolvedParams.id}`,
+      canonical: url,
     },
 
     // Социални мрежи (Facebook, Viber, LinkedIn)

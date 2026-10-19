@@ -11,8 +11,13 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
   // 1. ЛОГИКА ЗА СКРОЛВАНЕ ПРИ ВСЯКА СМЯНА НА ПЪТЯ
   useEffect(() => {
-    // Това ще се изпълнява всеки път, когато 'pathname' се промени
-    window.scrollTo(0, 0);
+    // Това ще се изпълнява всеки път, когато 'pathname' се промени.
+    // Ако адресът сочи секция (напр. /#poli от търсачката) — отиваме при нея, а не най-горе.
+    // #tours-grid си има собствено плавно скролване в ToursGrid.
+    const hash = decodeURIComponent(window.location.hash.slice(1));
+    const target = hash && hash !== 'tours-grid' ? document.getElementById(hash) : null;
+    if (target) target.scrollIntoView();
+    else window.scrollTo(0, 0);
   }, [pathname]); // 👈 Добавихме 'pathname' като зависимост
 
   // Списък с пътища, където НЕ искаме навигация и футър. "/checkout" е добавен — тази страница е изцяло

@@ -1,75 +1,87 @@
 "use client";
 
-import { motion } from 'framer-motion';
-import { X, MapPin, Quote, Star, User, UserRound, UsersRound, Ban } from 'lucide-react';
+import { useEffect, useId, useRef } from 'react';
+import { X, MapPin, Star } from 'lucide-react';
 import { useBackToClose } from '@/lib/hooks/useBackToClose';
+import { useScrollLock } from '@/lib/hooks/useScrollLock';
+import ReviewStamp from '@/components/reviews/ReviewStamp';
 
-const AVATARS = [
-  { id: 'none', label: 'Без', icon: Ban, color: 'bg-gray-50 text-gray-400 border-gray-200' },
-  { id: 'man', label: 'Мъж', icon: User, color: 'bg-blue-50 text-blue-600 border-blue-200' },
-  { id: 'woman', label: 'Жена', icon: UserRound, color: 'bg-rose-50 text-rose-600 border-rose-200' },
-  { id: 'family', label: 'Семейство', icon: UsersRound, color: 'bg-amber-50 text-amber-600 border-amber-200' },
-];
-
+// Целият текст на един отзив. Същата обвивка като формата за отзив: на телефон излиза отдолу, на по-широк
+// екран — в центъра. Затваря се с X, Escape, Назад и клик извън него.
 export default function ReviewDetailModal({ review, onClose }: { review: any, onClose: () => void }) {
-  // Hook-ът трябва да е ПРЕДИ ранното връщане. Активен е само когато има избрано ревю.
+  // Hook-овете трябва да са ПРЕДИ ранното връщане. Активни са само когато има избрано ревю.
   useBackToClose(!!review, onClose);
+  useScrollLock(!!review);
+
+  const uid = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!review) return;
+    const html = document.documentElement;
+    html.dataset.dialogOpen = 'review';
+    panelRef.current?.focus();
+    return () => { delete html.dataset.dialogOpen; };
+  }, [review]);
 
   if (!review) return null;
 
-  const avatarData = AVATARS.find(a => a.id === review.avatarId);
-  const Icon = (avatarData && review.avatarId !== 'none') ? avatarData.icon : null;
+  const rating = review.rating || 5;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brand-dark/80 backdrop-blur-sm"
+    <div
+      className="dialog-backdrop-in fixed inset-0 z-[300] flex items-end justify-center bg-brand-dark/60 sm:items-center sm:p-4"
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        className="bg-white w-full max-w-lg rounded-[2.5rem] p-8 md:p-10 relative shadow-2xl border border-brand-gold/10"
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${uid}-name`}
+        tabIndex={-1}
+        onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }}
+        className="dialog-in flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_24px_60px_-12px_rgba(15,23,42,0.5)] focus:outline-none sm:max-w-lg sm:rounded-3xl"
       >
-        
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-gray-50 rounded-full hover:bg-brand-gold hover:text-white active:scale-90 transition-colors">
-          <X size={20} />
-        </button>
-
-        <div className="flex flex-col gap-4 mb-8">
-            <div className="flex text-brand-gold">
-                {[...Array(review.rating || 5)].map((_, i) => (
-                    <Star key={i} size={20} className="fill-brand-gold" />
+        <div className="flex items-center gap-4 border-b border-slate-100 px-6 py-5">
+          <ReviewStamp avatarId={review.avatarId} name={review.name} size={48} />
+          <div className="min-w-0 flex-1">
+            <h2 id={`${uid}-name`} className="truncate font-serif text-2xl italic leading-tight text-brand-dark">{review.name}</h2>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-slate-600">
+              <span className="flex" role="img" aria-label={`Оценка ${rating} от 5`}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <Star
+                    key={star}
+                    size={15}
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                    className={star <= rating ? 'fill-brand-gold text-brand-gold' : 'fill-transparent text-slate-300'}
+                  />
                 ))}
-            </div>
-            {review.destination && (
-                <span className="self-start bg-brand-gold/10 text-brand-dark text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-                    <MapPin size={12} className="text-brand-gold"/> {review.destination}
+              </span>
+              {review.destination && (
+                <span className="flex items-center gap-1">
+                  <MapPin size={14} className="text-brand-goldDeep" aria-hidden="true" />
+                  {review.destination}
                 </span>
-            )}
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Затвори"
+            className="flex h-11 w-11 shrink-0 items-center justify-center self-start rounded-full bg-slate-100 text-brand-dark transition-colors hover:bg-brand-dark hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark"
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar mb-8">
-             <Quote className="text-brand-gold/20 mb-2 rotate-180" size={40} />
-             <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">
-                 {review.text}
-             </p>
+        <div className="overflow-y-auto overscroll-contain px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6">
+          <p className="whitespace-pre-wrap font-serif text-[18px] leading-[1.7] text-slate-700">
+            {review.text}
+          </p>
         </div>
-
-        <div className="flex items-center gap-4 border-t border-gray-100 pt-6">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center border-2 shrink-0 ${Icon ? (avatarData?.color || '') : 'bg-brand-dark text-brand-gold border-transparent'}`}>
-                {Icon ? <Icon size={32} strokeWidth={1.5} /> : <span className="text-2xl font-bold uppercase">{review.name.charAt(0)}</span>}
-            </div>
-            <div>
-                <h4 className="font-bold text-brand-dark text-lg">{review.name}</h4>
-                <p className="text-xs text-gray-400 uppercase tracking-widest">Клиент на Beliva</p>
-            </div>
-        </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

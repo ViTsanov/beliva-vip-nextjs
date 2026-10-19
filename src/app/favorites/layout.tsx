@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
-// Любимите оферти са лични за всеки посетител (пазят се в браузъра) — няма смисъл да са в Google.
+// Любимите оферти и дестинации са лични за всеки посетител (пазят се в браузъра) — няма смисъл да са в Google.
 export const metadata: Metadata = {
-  title: 'Любими оферти',
+  title: 'Любими',
   robots: { index: false, follow: true },
 };
 

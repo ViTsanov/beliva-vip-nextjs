@@ -137,8 +137,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 155) + '...'
     : `Открийте ${Array.isArray(tour.country) ? tour.country.join(', ') : tour.country} с Beliva VIP Tour. ${tour.price ? 'Цена от ' + tour.price + '.' : ''}`;
 
+  // Заглавие за Google: до ~60 знака се показва цялото. Държавата се добавя само ако я няма в името на тура
+  // и се побира, а „| Beliva VIP Tour“ — също само ако се побира (иначе Google реже точно името на тура).
+  const countries = Array.isArray(tour.country) ? tour.country : String(tour.country || '').split(',').map(c => c.trim()).filter(Boolean);
+  const withCountry = countries[0]
+    && !tour.title.toLowerCase().includes(countries[0].toLowerCase())
+    && tour.title.length + countries[0].length + 3 <= 60
+    ? `${tour.title} – ${countries[0]}`
+    : tour.title;
+  const seoTitle = withCountry.length <= 42 ? `${withCountry} | Beliva VIP Tour` : withCountry;
+
   return {
-    title: `${tour.title} | Екскурзия до ${Array.isArray(tour.country) ? tour.country.join(', ') : tour.country}`,
+    title: { absolute: seoTitle },
     description,
     alternates: { canonical: canonicalUrl },
     // Архивирани / чакащи / чернови турове остават достъпни по линк (напр. за клиенти), но не трябва да се показват

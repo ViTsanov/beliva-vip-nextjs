@@ -21,6 +21,8 @@ interface InquiryFormProps {
   source: InquiryInput['source'];
   // Slug/ID на тура от адреса (/tour/…) или от страницата на тура — щом турът се зареди, се избира автоматично.
   defaultTourSlug?: string;
+  // Държава, предварително избрана като дестинация (страницата /destinations/<държава>) — ако няма избран тур.
+  defaultCountry?: string;
   // Фокус в първото поле при показване (в прозореца „Запитване“).
   autoFocus?: boolean;
   // Бутон след успешно изпращане — „Затвори“ в прозореца; на страницата е „Изпрати още едно“.
@@ -46,7 +48,7 @@ const fieldError = 'border-red-500 bg-red-50/40';
 
 // Формата е на две стъпки: 1) кой сте (име, телефон, имейл) и 2) за какво пътуване (дестинация/тур, дата, съобщение).
 // Всяко поле се проверява, щом го напуснете, и отново при „Напред“/„Изпрати“ — с конкретно съобщение на български.
-export default function InquiryForm({ source, defaultTourSlug, autoFocus, onDone }: InquiryFormProps) {
+export default function InquiryForm({ source, defaultTourSlug, defaultCountry, autoFocus, onDone }: InquiryFormProps) {
   const uid = useId();
   const id = (name: string) => `${uid}-${name}`;
   const nameRef = useRef<HTMLInputElement>(null);
@@ -55,7 +57,7 @@ export default function InquiryForm({ source, defaultTourSlug, autoFocus, onDone
   const [step, setStep] = useState<1 | 2>(1);
   const [tours, setTours] = useState<TourOption[]>([]);
   // Изборът в TourPicker: общо запитване, само дестинация или конкретна екскурзия (по желание с дата).
-  const [choice, setChoice] = useState<TourChoice>({ kind: 'general' });
+  const [choice, setChoice] = useState<TourChoice>(defaultCountry ? { kind: 'destination', country: defaultCountry } : { kind: 'general' });
   const [date, setDate] = useState('');
   const [form, setForm] = useState({ name: '', phone: '', email: '', message: '' });
   const [errors, setErrors] = useState<Errors>({});
@@ -91,7 +93,7 @@ export default function InquiryForm({ source, defaultTourSlug, autoFocus, onDone
         setTours(list);
         if (defaultTourSlug) {
           const match = list.find(t => t.slug === defaultTourSlug || t.tourId === defaultTourSlug || t.id === defaultTourSlug);
-          if (match) setChoice(prev => (prev.kind === 'general' ? { kind: 'tour', tourId: match.id } : prev));
+          if (match) setChoice(prev => (prev.kind !== 'tour' ? { kind: 'tour', tourId: match.id } : prev));
         }
       })
       .catch(err => console.error('Грешка при зареждане на екскурзиите:', err));

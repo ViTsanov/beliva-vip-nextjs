@@ -19,7 +19,7 @@ export interface InquiryInput {
   tour: { id: string; title: string; price?: string } | null; // null = без конкретна екскурзия
   destination?: string; // държава, ако клиентът е избрал само дестинация (без конкретна екскурзия)
   date: string; // ISO дата, „Без точна дата“ или празно
-  source: 'contact_page' | 'navbar_modal' | 'tour_page';
+  source: 'contact_page' | 'navbar_modal' | 'tour_page' | 'destination_page';
 }
 
 export async function sendInquiry({ name, phone, email, message, tour, destination, date, source }: InquiryInput) {

@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    // Firebase App Hosting изключва вградената оптимизация на снимки, ако това не е зададено изрично. Без него <Image>
+    // сервираше оригиналния файл (напр. 600 KB снимка за кръгче от 56px). https://firebase.google.com/docs/app-hosting/optimize-image-loading
+    unoptimized: false,
     remotePatterns: [
       { protocol: 'https', hostname: 'drive.google.com' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },

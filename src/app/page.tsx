@@ -1,4 +1,5 @@
 import Hero from "@/components/sections/Hero";
+import HeroClassic from "@/components/sections/HeroClassic";
 import PoliIntro from "@/components/sections/PoliIntro";
 import ToursGrid from "@/components/sections/ToursGrid";
 import FeaturedTours from "@/components/FeaturedTours";
@@ -45,7 +46,14 @@ export default async function HomePage() {
     <>
 
       {/* 1. Херо */}
-      <Hero />
+      {/* Телефон, таблет и нисък екран — дизайнът отпреди глобуса; широк и висок екран — героса с глобуса.
+          И двата са в HTML-а (сървърът не знае размера на екрана), CSS показва единия, а скритият спи. */}
+      <div className="lg:[@media(min-height:640px)]:hidden">
+        <HeroClassic />
+      </div>
+      <div className="hidden lg:[@media(min-height:640px)]:block">
+        <Hero />
+      </div>
 
       {/* 1.5 Цитатът за залеза + кратко представяне на Поли; подробната секция за нея е по-долу (MeetGuides) */}
       <PoliIntro />

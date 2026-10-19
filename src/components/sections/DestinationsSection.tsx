@@ -114,7 +114,9 @@ export default async function DestinationsSection({ tours, adminCountries = [], 
             return (
               <Link
                 key={name}
-                href={`/?country=${slugify(name)}#tours-grid`}
+                // Към страницата на държавата (истински линк за Google, а там има и бутон към филтрирания каталог).
+                // Държава без активни турове няма страница (404) — тогава остава филтърът в каталога.
+                href={count > 0 ? `/destinations/${slugify(name)}` : `/?country=${slugify(name)}#tours-grid`}
                 className="group relative flex h-48 flex-col justify-end overflow-hidden rounded-[1.25rem] transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold"
                 style={!img ? { background: `linear-gradient(135deg, ${from}, ${to})` } : undefined}
               >

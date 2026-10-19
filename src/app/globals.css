@@ -342,8 +342,15 @@ html[data-dialog-open] [data-floating-button] { visibility: hidden; }
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
 }
+/* Отзиви: клеймото „се удря“ върху избраната марка (ReviewStamp) */
+.postmark { animation: postmark-in 0.3s cubic-bezier(0.3, 1.5, 0.5, 1) both; transform-origin: center; }
+@keyframes postmark-in {
+  from { opacity: 0; transform: scale(1.5) rotate(-24deg); }
+  to { opacity: 1; transform: rotate(-12deg); }
+}
 /* Намалено движение: без изместване и мащабиране — остава само затъмняването и разкриването на снимката */
 @media (prefers-reduced-motion: reduce) {
+  .postmark { animation-name: reveal-fade; transform: rotate(-12deg); }
   .revealed .reveal,
   .reveal.revealed { animation-name: reveal-fade; }
   .reveal-zoom,
@@ -401,4 +408,34 @@ html[data-dialog-open] [data-floating-button] { visibility: hidden; }
 
   /* Tailwind utility animations */
   .animate-bounce, .animate-pulse, .animate-spin { animation: none !important; }
+}
+
+/* ── Страница на държава (/destinations/<държава>) ─────────────────────────────────────────────────────
+   Входът на героя е чист CSS — тръгва още с първия кадър, без да чака JavaScript. */
+/* Снимката бавно се отдалечава (Ken Burns) */
+.dest-kb { animation: dest-kb 24s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes dest-kb {
+  from { transform: scale(1.14); }
+  to { transform: scale(1); }
+}
+/* Текстът и бутоните изплуват един след друг (--d е закъснението) */
+.dest-rise { animation: dest-rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0s) both; }
+@keyframes dest-rise {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+/* Името на държавата (Unbounded): голямо, но винаги се побира — --name-len е броят букви на най-дългата дума */
+.dest-name { font-size: min(clamp(76px, 14vw, 200px), calc((100vw - 48px) / (var(--name-len, 4) * 1))); }
+@media (min-width: 901px) {
+  .dest-name { font-size: min(clamp(76px, 14vw, 200px), calc((min(100vw, 1240px) - 96px) * 0.58 / (var(--name-len, 4) * 1))); }
+}
+/* Смяна на филтъра на офертите: новият списък се показва плавно */
+.dest-list-in { animation: dest-rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+/* Хоризонтална лента без видим скролбар (превърта се с пръст, колелце или Tab) */
+.snap-strip { scrollbar-width: none; }
+.snap-strip::-webkit-scrollbar { display: none; }
+/* Намалено движение: снимката и текстът само се появяват (без мащабиране и изместване) */
+@media (prefers-reduced-motion: reduce) {
+  .dest-kb { animation: reveal-fade 0.9s ease-out both; }
+  .dest-rise, .dest-list-in { animation-name: reveal-fade; }
 }

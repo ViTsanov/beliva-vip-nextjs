@@ -3,6 +3,11 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import BlogListClient from './BlogListClient';
 import { Suspense } from 'react';
+import JsonLd from '@/components/JsonLd';
+import { getActiveTours } from '@/services/tourService';
+import { fetchAllMedia, findCountryHeroImage } from '@/lib/media-helpers';
+import { isOperatorHotlink } from '@/lib/operatorImageDomains';
+import { slugify } from '@/lib/admin-helpers';
 
 export const revalidate = 1800; // refresh every 30 min
 
@@ -46,6 +51,31 @@ export type BlogPost = {
   createdAt?: string | null;
 };
 
+// Дестинация от каталога — показват се, докато пътеводителят още няма статии
+export type BlogDestination = { slug: string; name: string; img?: string; tours: number };
+
+async function getDestinations(): Promise<BlogDestination[]> {
+  try {
+    const [tours, media] = await Promise.all([getActiveTours(), fetchAllMedia()]);
+    const map = new Map<string, { name: string; tours: number; img?: string }>();
+    tours.forEach(tour => {
+      const list = Array.isArray(tour.country) ? tour.country : String(tour.country || '').split(',');
+      list.map(c => c.trim()).filter(Boolean).forEach(name => {
+        const entry = map.get(name) || { name, tours: 0 };
+        entry.tours += 1;
+        if (!entry.img && tour.img && !isOperatorHotlink(tour.img)) entry.img = tour.img;
+        map.set(name, entry);
+      });
+    });
+    return [...map.values()]
+      .sort((a, b) => b.tours - a.tours || a.name.localeCompare(b.name, 'bg'))
+      .slice(0, 8)
+      .map(d => ({ slug: slugify(d.name), name: d.name, tours: d.tours, img: findCountryHeroImage(media, d.name) || d.img }));
+  } catch {
+    return [];
+  }
+}
+
 function serializePost(id: string, data: any): BlogPost {
   return {
     id,
@@ -75,14 +105,13 @@ export default async function BlogPage() {
     console.error('Blog fetch error:', err);
   }
 
+  const destinations = posts.length === 0 ? await getDestinations() : [];
+
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
-      />
-      <Suspense fallback={<div className="min-h-screen bg-[#f9f6f0]" />}>
-        <BlogListClient posts={posts} />
+      <JsonLd data={schemaData} />
+      <Suspense fallback={<div className="min-h-screen bg-[#f7f4ee]" />}>
+        <BlogListClient posts={posts} destinations={destinations} />
       </Suspense>
     </>
   );

@@ -9,6 +9,8 @@ import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import NavbarSearch from './NavbarSearch';
 import InquiryDialog from './inquiry/InquiryDialog';
+import { readFavoriteCountries } from '@/lib/favoriteCountries';
+import { useBackToClose } from '@/lib/hooks/useBackToClose';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -52,7 +54,8 @@ export default function Navbar() {
     const checkFavorites = () => {
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('beliva_favorites');
-        setFavCount(stored ? JSON.parse(stored).length : 0);
+        // Любими екскурзии + любими държави (src/lib/favoriteCountries.ts)
+        setFavCount((stored ? JSON.parse(stored).length : 0) + readFavoriteCountries().length);
       }
     };
     checkFavorites();
@@ -78,7 +81,11 @@ export default function Navbar() {
     }
   }, [isOpen]);
 
-  const isHome = pathname === '/';
+  // Бутонът Назад на телефона затваря отвореното меню, вместо да сменя страницата
+  useBackToClose(isOpen, () => setIsOpen(false));
+
+  // Прозрачно меню над снимка на цял екран: началната страница и страниците на държави (/destinations/<държава>).
+  const overHero = pathname === '/' || /^\/destinations\/[^/]+\/?$/.test(pathname || '');
 
   // Lock body scroll on iOS Safari (overflow:hidden alone doesn't prevent rubber-band scroll behind fixed overlay)
   useEffect(() => {
@@ -145,7 +152,7 @@ export default function Navbar() {
     <>
       {/* NAVBAR BAR */}
       <nav data-site-navbar className={`fixed top-0 w-full z-[100] transition-all duration-500 ${
-        scrolled || !isHome ? 'bg-white/95 backdrop-blur-md py-2 md:py-3 shadow-lg' : 'bg-transparent py-4 md:py-6'
+        scrolled || !overHero ? 'bg-white/95 backdrop-blur-md py-2 md:py-3 shadow-lg' : 'bg-transparent py-4 md:py-6'
       }`}>
         <div className="container mx-auto px-6 flex justify-between items-center">
 
@@ -154,7 +161,7 @@ export default function Navbar() {
             href="/"
             onClick={handleNavClick}
             className={`flex items-center gap-2 md:gap-3 font-serif font-bold italic tracking-tighter transition-colors z-[110] ${
-              scrolled || !isHome ? 'text-brand-dark' : 'text-white'
+              scrolled || !overHero ? 'text-brand-dark' : 'text-white'
             }`}
           >
             <img
@@ -171,7 +178,7 @@ export default function Navbar() {
 
           {/* DESKTOP MENU */}
           <div className={`hidden md:flex items-center gap-4 lg:gap-8 text-xs font-black uppercase tracking-[0.2em] ${
-            scrolled || !isHome ? 'text-brand-dark' : 'text-white'
+            scrolled || !overHero ? 'text-brand-dark' : 'text-white'
           }`}>
             <Link href="/" onClick={handleNavClick} aria-current={pathname === '/' ? 'page' : undefined} className="hover:text-brand-gold transition-colors">Начало</Link>
             <Link href="/about-us" onClick={handleNavClick} aria-current={pathname === '/about-us' ? 'page' : undefined} className="hover:text-brand-gold transition-colors">За нас</Link>
@@ -179,7 +186,7 @@ export default function Navbar() {
             <Link href="/contacts" onClick={handleNavClick} aria-current={pathname === '/contacts' ? 'page' : undefined} className="hover:text-brand-gold transition-colors">Контакти</Link>
 
             <Link href="/favorites" onClick={handleNavClick} className="relative group" aria-label="Любими оферти">
-              <Heart size={20} className={`transition-colors ${scrolled || !isHome ? 'text-brand-dark group-hover:text-brand-gold' : 'text-white group-hover:text-brand-gold'}`}/>
+              <Heart size={20} className={`transition-colors ${scrolled || !overHero ? 'text-brand-dark group-hover:text-brand-gold' : 'text-white group-hover:text-brand-gold'}`}/>
               {favCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-brand-gold text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
                   {favCount}
@@ -192,10 +199,10 @@ export default function Navbar() {
               className="group"
               aria-label="Карта на сайта"
             >
-              <LayoutGrid size={20} className={`transition-colors ${scrolled || !isHome ? 'text-brand-dark group-hover:text-brand-gold' : 'text-white group-hover:text-brand-gold'}`}/>
+              <LayoutGrid size={20} className={`transition-colors ${scrolled || !overHero ? 'text-brand-dark group-hover:text-brand-gold' : 'text-white group-hover:text-brand-gold'}`}/>
             </Link>
 
-            <NavbarSearch isScrolled={scrolled || !isHome} />
+            <NavbarSearch isScrolled={scrolled || !overHero} />
 
             {/* „Запитване“ — второстепенен бутон с контур (бял върху героса, тъмносин върху бялото меню).
                 Златният, плътен вид остава само за главното действие на страницата („Разгледай екскурзиите“ в героса). */}
@@ -205,7 +212,7 @@ export default function Navbar() {
               onClick={openInquiry}
               aria-haspopup="dialog"
               className={`inline-flex h-10 items-center gap-2 rounded-full border px-5 text-[13px] font-semibold normal-case tracking-normal transition-[background-color,color,border-color,transform] duration-150 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                scrolled || !isHome
+                scrolled || !overHero
                   ? 'border-brand-dark/30 text-brand-dark hover:border-brand-dark hover:bg-brand-dark hover:text-white focus-visible:outline-brand-dark'
                   : 'border-white/70 text-white hover:border-white hover:bg-white hover:text-brand-dark focus-visible:outline-white'
               }`}
@@ -227,14 +234,14 @@ export default function Navbar() {
 
           {/* MOBILE ACTIONS */}
           <div className="md:hidden flex items-center gap-0.5 z-[110]">
-            <NavbarSearch iconOnly isScrolled={scrolled || !isHome} />
+            <NavbarSearch iconOnly isScrolled={scrolled || !overHero} />
             <Link
               href="/favorites"
               onClick={handleNavClick}
               className="relative p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center"
               aria-label="Любими оферти"
             >
-              <Heart size={24} className={scrolled || !isHome ? 'text-brand-dark' : 'text-white'} />
+              <Heart size={24} className={scrolled || !overHero ? 'text-brand-dark' : 'text-white'} />
               {favCount > 0 && (
                 <span className="absolute top-0 right-0 bg-brand-gold text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold shadow-sm border border-white">
                   {favCount}
@@ -250,7 +257,7 @@ export default function Navbar() {
                 aria-expanded={isOpen}
                 aria-controls="mobile-menu"
               >
-                <Menu size={28} className={scrolled || !isHome ? 'text-brand-dark' : 'text-white'} />
+                <Menu size={28} className={scrolled || !overHero ? 'text-brand-dark' : 'text-white'} />
               </button>
             )}
           </div>

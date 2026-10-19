@@ -32,6 +32,7 @@ import ReviewRequestsPanel from '@/components/admin/ReviewRequestsPanel';
 import SourceCheckPanel from '@/components/admin/SourceCheckPanel';
 import ClientDetailModal from '@/components/admin/ClientDetailModal';
 import SettingsTab from '@/components/admin/SettingsTab';
+import CountryGuidesTab from '@/components/admin/CountryGuidesTab';
 import MarketingAnalytics from '@/components/admin/MarketingAnalytics';
 import CountryMultiSelect from '@/components/admin/CountryMultiSelect';
 import TourPicker, { type TourChoice } from '@/components/tours/TourPicker';
@@ -1069,6 +1070,7 @@ export default function AdminDashboardClient() {
                     { id: 'blog', label: 'Блог', icon: BookOpen },
                     { id: 'reviews', label: 'Ревюта', icon: Star },
                     { id: 'subscribers', label: 'Абонати', icon: Users },
+                    { id: 'countries', label: 'Текстове за държави', icon: FileText },
                     { id: 'settings', label: 'Настройки', icon: Settings}
                     
                 ].map(item => (
@@ -1196,6 +1198,7 @@ export default function AdminDashboardClient() {
             </div>
         )}
 
+        {activeTab === 'countries' && <CountryGuidesTab />}
         {activeTab === 'settings' && <SettingsTab />}
 
         {/* ТАБ: АРХИВ И ЧЕРНОВИ (С ПОД-ТАБОВЕ) */}
