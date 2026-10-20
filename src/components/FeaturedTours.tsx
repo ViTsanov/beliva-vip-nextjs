@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Clock, MapPin, AlertTriangle } from "lucide-react";
+import { ArrowRight, Clock, MapPin, AlertTriangle, Heart } from "lucide-react";
 import { ITour } from "@/types";
 import Badge from "@/components/ui/Badge";
 import { formatPrice } from "@/lib/formatPrice";
 import { isOperatorHotlink } from "@/lib/operatorImageDomains";
+import { useFavoriteTours } from "@/lib/favoriteTours";
 
 interface FeaturedToursProps {
   tours: ITour[];
@@ -112,6 +113,12 @@ export default function FeaturedTours({ tours, todayStr }: FeaturedToursProps) {
 function FeaturedCard({ tour, isTopPick, todayStr, priority }: { tour: ITour; isTopPick: boolean; todayStr: string; priority: boolean }) {
   // Снимката се показва плавно, след като се зареди — без „примигване“ от размазания заместител към снимката.
   const [imgLoaded, setImgLoaded] = useState(false);
+  // Любими — същият запис като в останалите карти (сърцето в менюто и /favorites се обновяват веднага)
+  const { isFavorite, toggle } = useFavoriteTours();
+  const favId = tour.tourId || tour.id;
+  const isFav = isFavorite(favId);
+  // Сърцето „изскача“ само при натискане, не при зареждане
+  const [heartPops, setHeartPops] = useState(0);
 
   const isLedByPoli = !!tour.categories?.includes("Водена от ПОЛИ");
   const slug = tour.slug || tour.tourId || tour.id;
@@ -128,12 +135,16 @@ function FeaturedCard({ tour, isTopPick, todayStr, priority }: { tour: ITour; is
 
   // relative: картата е опорен блок за sr-only етикетите в цената. Без него те се позиционират спрямо страницата,
   // излизат извън плъзгащия се ред и на телефон правят страницата по-широка от екрана (празно място вдясно).
+  // <article> с линк вътре, а не линк около цялата карта — бутонът за любими не може да е вътре в линк.
   return (
-    <Link
-      href={`/tour/${slug}`}
-      className={`group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.35)] transition-shadow duration-300 hover:shadow-[0_18px_36px_-14px_rgba(15,23,42,0.45)] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-brand-dark ${
+    <article
+      className={`group relative h-full overflow-hidden rounded-3xl bg-white shadow-[0_10px_24px_-14px_rgba(15,23,42,0.35)] transition-shadow duration-300 hover:shadow-[0_18px_36px_-14px_rgba(15,23,42,0.45)] ${
         isLedByPoli ? "border-2 border-brand-gold" : "border border-slate-200"
       }`}
+    >
+    <Link
+      href={`/tour/${slug}`}
+      className="relative flex h-full flex-col rounded-3xl focus-visible:outline focus-visible:outline-[3px] focus-visible:-outline-offset-[3px] focus-visible:outline-brand-dark"
     >
       {/* Снимка */}
       <div className="relative aspect-[16/10] shrink-0 overflow-hidden bg-slate-200">
@@ -242,5 +253,22 @@ function FeaturedCard({ tour, isTopPick, todayStr, priority }: { tour: ITour; is
         </div>
       </div>
     </Link>
+
+      {/* Любими — горе вдясно върху снимката, като в останалите карти с екскурзии */}
+      <button
+        type="button"
+        onClick={() => {
+          toggle({ id: favId, title: tour.title, img: tour.img, price: tour.price, country: tour.country, date: tour.date });
+          setHeartPops(n => n + 1);
+        }}
+        aria-label={isFav ? "Премахни от любими" : "Добави в любими"}
+        aria-pressed={isFav}
+        className="group/heart absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/25 transition-all hover:bg-white active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      >
+        <span key={heartPops} className={`block ${heartPops ? "heart-pop" : ""}`}>
+          <Heart size={20} className={`transition-colors ${isFav ? "fill-red-500 text-red-500" : "text-white group-hover/heart:text-red-500"}`} />
+        </span>
+      </button>
+    </article>
   );
 }

@@ -34,7 +34,6 @@ const formatKm = (km: number) => `${Math.floor(km / 1000)} ${String(km % 1000).p
 // focusY — вертикалното изрязване на широк екран (object-position, %), така че главното да е в средата на
 //   празното място между заглавието и името. wide — колко пъти по-широка от екрана е снимката (по подразбиране
 //   PHOTO_WIDE); по-голямо, когато главното е вдясно и иначе остава зад глобуса (Операта в Сидни).
-// video — по желание; без него остава снимката (Мексико още няма клип).
 const SLIDES = [
   {
     destination: 'Мексико',
@@ -42,7 +41,6 @@ const SLIDES = [
     img: '/hero/mexico.webp',
     focus: 0.5,
     focusY: 40,
-    video: undefined as string | undefined,
     filterHref: '/?country=meksiko#tours-grid',
     em: 6.307,
     lsb: 0.06,
@@ -58,7 +56,6 @@ const SLIDES = [
     img: '/hero/peru2.jpg',
     focus: 0.5,
     focusY: 25,
-    video: '/videos/web/peru.mp4',
     filterHref: '/?country=peru#tours-grid',
     em: 3.274,
     lsb: 0.06,
@@ -74,7 +71,6 @@ const SLIDES = [
     img: '/hero/china2.jpg',
     focus: 0.48,
     focusY: 40,
-    video: '/videos/web/china.mp4',
     filterHref: '/?country=kitay#tours-grid',
     em: 4.316,
     lsb: 0.06,
@@ -91,7 +87,6 @@ const SLIDES = [
     focus: 0.6,
     focusY: 45,
     wide: 1.5,
-    video: '/videos/web/australia.mp4',
     filterHref: '/?country=avstraliya#tours-grid',
     em: 7.773,
     lsb: -0.01,
@@ -107,7 +102,6 @@ const SLIDES = [
     img: '/hero/thailand2.jpg',
     focus: 0.4,
     focusY: 70,
-    video: '/videos/web/thailand.mp4',
     filterHref: '/?country=tayland#tours-grid',
     em: 6.351,
     lsb: 0.01,
@@ -131,8 +125,6 @@ const TIME_FORMATS = SLIDES.map(s => new Intl.DateTimeFormat('en-GB', {
 
 // Колко стои всяка дестинация.
 const SLIDE_DURATION = 8000;
-// Видеото се монтира малко след като слайдът стане активен — снимката (LCP) се зарежда първа.
-const VIDEO_DELAY = 1200;
 // Глобусът: монтира се след първия кадър; при автоматична смяна първо се завърта до следващата дестинация
 // (GLOBE_SPIN) и чак когато „кацне“, снимката се сменя. При намалено движение — кратко обръщане.
 const GLOBE_DELAY = 900;
@@ -169,21 +161,8 @@ const PHOTO_WIDE = 1.3;
 const FOCUS_AT = 0.33;
 const photoShift = (focus: number, wide = PHOTO_WIDE) => Math.min(0, Math.max(1 - wide, FOCUS_AT - focus * wide)) * 100;
 
-function subscribeNoop() {
-  return () => {};
-}
 function getServerFalse() {
   return false;
-}
-// Клиповете са тежки — пускат се само на широк екран, при нормална връзка и без „намалено движение“.
-function getCanPlayVideo() {
-  const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-  const slowNetwork = !!conn && (conn.saveData === true || /(^|-)2g$/.test(conn.effectiveType ?? ''));
-  return (
-    window.matchMedia('(min-width: 1024px)').matches &&
-    !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
-    !slowNetwork
-  );
 }
 
 // Media query през useSyncExternalStore: при hydration връща сървърната стойност (false), иначе
@@ -208,7 +187,6 @@ const getMinuteServer = () => -1;
 export default function Hero() {
   const router = useRouter();
   const reduceMotion = useMedia('(prefers-reduced-motion: reduce)');
-  const canPlayVideo = useSyncExternalStore(subscribeNoop, getCanPlayVideo, getServerFalse);
   const minute = useSyncExternalStore(subscribeMinute, getMinute, getMinuteServer);
   const stage = useMedia(STAGE_QUERY);
 
@@ -272,7 +250,7 @@ export default function Hero() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
-  // Извън екрана нищо не се сменя и не върви видео — пести батерия и трафик.
+  // Извън екрана нищо не се сменя — пести батерия.
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
@@ -418,7 +396,6 @@ export default function Hero() {
               mode={changeMode}
               isFirst={current === 0}
               paused={paused}
-              canPlayVideo={canPlayVideo && stage}
               reduced={reduceMotion}
             />
           </AnimatePresence>
@@ -556,7 +533,10 @@ export default function Hero() {
         {/* Името — запълва ширината на колоната; при смяна буквите се разтварят една след друга. Стои над
             кръгчетата: имената са с различна височина и растат нагоре, а кръгчетата остават на едно място. */}
         <div className="hero-intro-word mb-3 [container-type:inline-size] lg:mb-4" aria-hidden="true">
-          <div className="grid">
+          {/* items-end: старото и новото име са в една клетка — подравнени отдолу, новото е на мястото си от първия
+              кадър. Иначе по-късото по височина (АВСТРАЛИЯ, най-дългото име с най-малък шрифт) стоеше горе в
+              клетката, висока колкото старото, и „кацаше“ надолу, щом старото изчезне. */}
+          <div className="grid items-end">
             <AnimatePresence initial={false}>
               <MorphWord key={slide.destination} slide={slide} reduced={reduceMotion} />
             </AnimatePresence>
@@ -612,32 +592,14 @@ export default function Hero() {
 // изостря и леко отдалечава; старата отдолу бавно се приближава и притъмнява. При намалено движение —
 // кръстосано избледняване (старата остава отдолу, докато новата се появи).
 function PhotoLayer({
-  slide, mode, isFirst, paused, canPlayVideo, reduced,
+  slide, mode, isFirst, paused, reduced,
 }: {
   slide: Slide;
   mode: ChangeMode;
   isFirst: boolean;
   paused: boolean;
-  canPlayVideo: boolean;
   reduced: boolean;
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoOn, setVideoOn] = useState(false);
-  const [videoShown, setVideoShown] = useState(false);
-
-  useEffect(() => {
-    if (!canPlayVideo) return;
-    const t = setTimeout(() => setVideoOn(true), VIDEO_DELAY + MORPH * 1000);
-    return () => clearTimeout(t);
-  }, [canPlayVideo]);
-
-  // Паузата на слайдшоуто спира и клипа — иначе картината и обръчът за прогрес се разминават.
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (!paused) v.play().catch(() => {});
-    else v.pause();
-  }, [paused, videoOn]);
 
   // custom = как е сменена снимката; за излизащата идва от AnimatePresence (вече новата стойност).
   // При 'slide' новата снимка вече стои на мястото си (доплъзгана е) — без разтваряне, старата изчезва веднага.
@@ -667,20 +629,7 @@ function PhotoLayer({
         className="hero-kenburns absolute inset-0"
         style={{ animationDuration: `${SLIDE_DURATION + 4000}ms`, animationPlayState: paused ? 'paused' : 'running' }}
       >
-        <HeroPhoto slide={slide} priority={isFirst}>
-          {canPlayVideo && videoOn && slide.video && (
-            <video
-              ref={videoRef}
-              src={slide.video}
-              muted
-              playsInline
-              preload="auto"
-              onPlaying={() => setVideoShown(true)}
-              className="absolute inset-0 h-full w-full select-none object-cover transition-opacity duration-700"
-              style={{ objectPosition: `${slide.focus * 100}% ${slide.focusY}%`, opacity: videoShown ? 1 : 0 }}
-            />
-          )}
-        </HeroPhoto>
+        <HeroPhoto slide={slide} priority={isFirst} />
       </div>
     </motion.div>
   );

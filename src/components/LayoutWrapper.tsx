@@ -15,9 +15,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     // Ако адресът сочи секция (напр. /#poli от търсачката) — отиваме при нея, а не най-горе.
     // #tours-grid си има собствено плавно скролване в ToursGrid.
     const hash = decodeURIComponent(window.location.hash.slice(1));
-    const target = hash && hash !== 'tours-grid' ? document.getElementById(hash) : null;
-    if (target) target.scrollIntoView();
-    else window.scrollTo(0, 0);
+    // #tours-grid: ToursGrid сам скролва плавно до каталога. Тук НЕ скролваме към върха — този ефект (на родителя)
+    // се изпълнява СЛЕД ефекта на ToursGrid и иначе отменяше скрола му (понякога страницата оставаше горе).
+    if (hash === 'tours-grid') return;
+    const target = hash ? document.getElementById(hash) : null;
+    // behavior 'instant' — без плавното скролиране от globals.css, което може да бъде изпреварено и да остави
+    // новата страница по средата
+    if (target) target.scrollIntoView({ behavior: 'instant' });
+    else window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [pathname]); // 👈 Добавихме 'pathname' като зависимост
 
   // Списък с пътища, където НЕ искаме навигация и футър. "/checkout" е добавен — тази страница е изцяло

@@ -392,12 +392,21 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
         (typeof window !== 'undefined' && window.location.hash === '#tours-grid');
     
     if (hasActiveDeepLink) {
-      const element = document.getElementById('tours-grid');
-      if (element) {
-        const yOffset = -100;
-        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: 'smooth' });
-      }
+      // Мястото на каталога се мери, след като страницата се подреди (шрифтове, снимки над него), а ако след
+      // плавния скрол каталогът се е отместил — още една корекция. Иначе понякога се спираше по-горе от него.
+      const targetY = () => {
+        const element = document.getElementById('tours-grid');
+        return element ? element.getBoundingClientRect().top + window.pageYOffset - 100 : null;
+      };
+      const first = window.setTimeout(() => {
+        const y = targetY();
+        if (y !== null) window.scrollTo({ top: y, behavior: 'smooth' });
+      }, 120);
+      const check = window.setTimeout(() => {
+        const y = targetY();
+        if (y !== null && Math.abs(window.pageYOffset - y) > 40) window.scrollTo({ top: y, behavior: 'smooth' });
+      }, 1100);
+      return () => { window.clearTimeout(first); window.clearTimeout(check); };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -484,12 +493,21 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     window.dispatchEvent(new Event("storage"));
   };
 
+  // Избрана е само държава (напр. от „Филтрирайте офертите за Япония“) — континентът ѝ се показва като избран,
+  // за да се вижда редицата с държавите и в нея избраната.
+  const countryContinentSlug = useMemo(() => {
+    if (!filterCountry) return '';
+    const name = Object.keys(COUNTRY_TO_CONTINENT).find(c => slugify(c) === filterCountry);
+    return name ? slugify(COUNTRY_TO_CONTINENT[name]) : '';
+  }, [filterCountry]);
+  const shownContinent = filterContinent || countryContinentSlug;
+
   // Държави в рамките на избрания континент — показва се САМО ако има избран континент (празен арай, ако
-  // filterContinent е празен). Сортирани по брой турове, не азбучно — най-популярните държави първи.
+  // няма). Сортирани по брой турове, не азбучно — най-популярните държави първи.
   const countryOptionsForContinent = useMemo(() => {
-    if (!filterContinent) return [];
+    if (!shownContinent) return [];
     const continentName = ['Азия', 'Европа', 'Африка', 'Северна Америка', 'Южна Америка', 'Австралия']
-      .find(c => slugify(c) === filterContinent);
+      .find(c => slugify(c) === shownContinent);
     if (!continentName) return [];
 
     const countryMap = new Map<string, number>();
@@ -509,7 +527,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     return Array.from(countryMap.entries())
       .map(([name, count]) => ({ name, slug: slugify(name), count }))
       .sort((a, b) => b.count - a.count);
-  }, [filterContinent, toursForCountryFacet]);
+  }, [shownContinent, toursForCountryFacet]);
 
   let lastYear = "";
   // Позиция на картата в реда (за поетапното ѝ появяване); нулира се след всяко заглавие с година.
@@ -721,7 +739,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
                   onSelectCategory={handleSelectCategory}
                   slugify={slugify}
                   continents={continentTiles}
-                  activeContinent={filterContinent}
+                  activeContinent={shownContinent}
                   onSelectContinent={handleSelectContinent}
                   countries={countryOptionsForContinent}
                   activeCountry={filterCountry}

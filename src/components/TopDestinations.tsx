@@ -1,13 +1,13 @@
 "use client";
 
 import { useRef, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, MapPin, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { slugify } from '@/lib/admin-helpers';
 import Image from 'next/image';
+import { useRevealOnce, revealVars } from '@/components/ui/Reveal';
 
 interface Destination {
   name: string;
@@ -27,6 +27,12 @@ export default function TopDestinations({ initialDestinations = [], counts: init
   const [destinations, setDestinations] = useState<Destination[]>(initialDestinations);
   const [counts, setCounts] = useState<Record<string, number>>(initialCounts);
   const [loading, setLoading] = useState(initialDestinations.length === 0);
+  // Появяване с чист CSS (.reveal), а не с framer-motion whileInView — framer в края на анимацията записва
+  // крайната прозрачност отделно и картите за миг „примигваха“.
+  const [rowRef, rowVisible] = useRevealOnce<HTMLDivElement>();
+  // След като последната карта се появи, махаме анимацията изцяло (крайното ѝ състояние = нормалното, затова нищо
+  // не се променя на екрана). Иначе картата остава отделен слой и в Chrome снимките изглеждат по-меки.
+  const [settled, setSettled] = useState(false);
 
   // Client-side fallback: only fires if server didn't supply data
   useEffect(() => {
@@ -96,12 +102,12 @@ export default function TopDestinations({ initialDestinations = [], counts: init
       <section id="top-destinations" className="py-16 bg-white relative z-20 scroll-mt-28 overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="mb-10">
-            <div className="h-3 w-24 bg-brand-gold/20 rounded-full mb-3 animate-pulse" />
-            <div className="h-10 w-64 bg-gray-100 rounded-2xl animate-pulse" />
+            <div className="h-3 w-24 bg-brand-gold/20 rounded-full mb-3" />
+            <div className="h-10 w-64 bg-gray-100 rounded-2xl" />
           </div>
           <div className="flex gap-6 overflow-hidden">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="min-w-[280px] md:min-w-[300px] h-[400px] rounded-[2rem] bg-gray-100 animate-pulse flex-shrink-0" />
+              <div key={i} className="min-w-[280px] md:min-w-[300px] h-[400px] rounded-[2rem] bg-gray-100 flex-shrink-0" />
             ))}
           </div>
         </div>
@@ -131,28 +137,30 @@ export default function TopDestinations({ initialDestinations = [], counts: init
         </div>
 
         <div
-          ref={scrollContainerRef}
+          ref={(el) => { scrollContainerRef.current = el; rowRef.current = el; }}
           className="flex gap-6 overflow-x-auto pb-8 snap-x snap-mandatory scroll-smooth -mx-6 px-6 md:mx-0 md:px-0"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {destinations.map((dest, index) => {
             const count = counts[dest.name] || 0;
             return (
-              <motion.div
+              <div
                 key={dest.name}
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.08, duration: 0.4 }}
                 onClick={() => handleSelect(dest.name)}
-                className="min-w-[280px] md:min-w-[300px] h-[400px] relative group rounded-[2rem] overflow-hidden cursor-pointer snap-center md:snap-start border border-gray-100"
+                style={settled ? undefined : revealVars({ y: 0, duration: 0.4, delay: index * 0.08 })}
+                onAnimationEnd={(e) => {
+                  if (e.target === e.currentTarget && index === destinations.length - 1) setSettled(true);
+                }}
+                className={`${settled ? '' : `reveal ${rowVisible ? 'revealed' : ''}`} min-w-[280px] md:min-w-[300px] h-[400px] relative group rounded-[2rem] overflow-hidden cursor-pointer snap-center md:snap-start border border-gray-100`}
               >
                 <div className="absolute inset-0">
                   <Image
                     src={dest.image}
                     alt={`Екскурзия и почивка в ${dest.name} - топ оферти от Beliva VIP Tour`}
                     fill
-                    sizes="(max-width: 768px) 85vw, 300px"
+                    // Картата е 300×400 (изправена), а снимките са хоризонтални — за да покрие височината, снимката
+                    // се рисува ~600px широка. С „300px“ браузърът сваляше двойно по-малка снимка и я разтягаше.
+                    sizes="600px"
                     className="object-cover transition-transform duration-700 group-hover:scale-110"
                     priority={index < 3}
                   />
@@ -168,12 +176,14 @@ export default function TopDestinations({ initialDestinations = [], counts: init
                     <span className="text-xs font-medium text-gray-300">
                       {count > 0 ? `${count} ${count === 1 ? 'оферта' : 'оферти'}` : 'Очаквайте скоро'}
                     </span>
-                    <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-brand-gold group-hover:text-brand-dark transition-colors">
+                    {/* „Матово стъкло“ с полупрозрачен фон и светъл кант, без backdrop-blur — размазването се
+                        преизчертава в края на появяването и мига */}
+                    <div className="w-8 h-8 rounded-full bg-white/20 ring-1 ring-inset ring-white/35 shadow-sm flex items-center justify-center group-hover:bg-brand-gold group-hover:text-brand-dark group-hover:ring-transparent transition-colors">
                       <ArrowRight size={16} />
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>

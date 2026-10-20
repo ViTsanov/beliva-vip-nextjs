@@ -239,6 +239,21 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                       <div className="text-center py-10 text-gray-400">Няма намерени резултати за "{queryText}".</div>
                   )}
 
+                  {/* Празно поле: винаги бърз път до всички дестинации */}
+                  {!queryText && (
+                      <Link
+                          href="/destinations"
+                          onClick={handleClose}
+                          className="mb-6 flex w-full items-center justify-between rounded-2xl border border-brand-gold/20 bg-brand-gold/5 p-3 text-left transition-all hover:bg-brand-gold hover:text-white group"
+                      >
+                          <span className="flex items-center gap-2 text-sm font-bold text-brand-dark group-hover:text-white">
+                              <Globe size={16} className="text-brand-gold group-hover:text-white" aria-hidden="true" />
+                              Всички дестинации
+                          </span>
+                          <ArrowRight size={16} className="text-brand-gold group-hover:text-white" aria-hidden="true"/>
+                      </Link>
+                  )}
+
                   {!queryText && !hasResults && (
                       <div className="text-center py-10 text-gray-300 flex flex-col items-center gap-2">
                           <Globe size={40} className="opacity-20"/>

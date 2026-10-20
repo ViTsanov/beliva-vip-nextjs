@@ -27,6 +27,14 @@ export default function DragScroller({
   const dragged = useRef(false);
   const [edges, setEdges] = useState({ start: true, end: false });
 
+  // Кои стрелки са активни. Вика се и след всяко превъртане със стрелка — не разчитаме само на събитието scroll.
+  const updateEdges = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setEdges({ start: el.scrollLeft <= 2, end: el.scrollLeft >= max - 2 });
+  }, []);
+
   const stop = useCallback(() => {
     if (anim.current) cancelAnimationFrame(anim.current);
     anim.current = 0;
@@ -36,7 +44,10 @@ export default function DragScroller({
   const snapPoints = useCallback(() => {
     const el = ref.current;
     if (!el) return [0];
-    const pad = parseFloat(getComputedStyle(el).scrollPaddingLeft) || 0;
+    // paddingLeft, а не scrollPaddingLeft: отстъпът е формула (max(24px, 50% - …)) и браузърът връща
+    // scroll-padding като текст, а не в px — тогава се четеше 0 и стрелките спираха на грешно място.
+    // Двете са една и съща стойност (--gutter).
+    const pad = parseFloat(getComputedStyle(el).paddingLeft) || 0;
     const max = el.scrollWidth - el.clientWidth;
     return Array.from(el.children as HTMLCollectionOf<HTMLElement>).map(c => Math.min(max, Math.max(0, c.offsetLeft - pad)));
   }, []);
@@ -50,6 +61,7 @@ export default function DragScroller({
     if (reduce) {
       el.scrollLeft = target;
       el.style.scrollSnapType = '';
+      updateEdges();
       return;
     }
     el.style.scrollSnapType = 'none';
@@ -70,13 +82,14 @@ export default function DragScroller({
         el.scrollLeft = target;
         el.style.scrollSnapType = '';
         anim.current = 0;
+        updateEdges();
         return;
       }
       el.scrollLeft = x;
       anim.current = requestAnimationFrame(step);
     };
     anim.current = requestAnimationFrame(step);
-  }, [stop]);
+  }, [stop, updateEdges]);
 
   const nearest = useCallback((pos: number) => {
     const points = snapPoints();
@@ -138,10 +151,7 @@ export default function DragScroller({
         dragged.current = false;
       }
     };
-    const onScroll = () => {
-      const max = el.scrollWidth - el.clientWidth;
-      setEdges({ start: el.scrollLeft <= 2, end: el.scrollLeft >= max - 2 });
-    };
+    const onScroll = updateEdges;
     // Колелото и пръстът прекъсват пружината веднага
     const interrupt = () => {
       if (anim.current) {
@@ -170,7 +180,7 @@ export default function DragScroller({
       el.removeEventListener('wheel', interrupt);
       el.removeEventListener('touchstart', interrupt);
     };
-  }, [nearest, springTo, stop]);
+  }, [nearest, springTo, stop, updateEdges]);
 
   const go = (dir: 1 | -1) => {
     const el = ref.current;

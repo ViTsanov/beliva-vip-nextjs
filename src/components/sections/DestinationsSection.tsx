@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ITour } from '@/types';
 import { slugify } from '@/lib/admin-helpers';
+import CountryFilterLink from './CountryFilterLink';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 import { fetchAllMedia, findCountryHeroImage } from '@/lib/media-helpers';
 
@@ -112,11 +113,11 @@ export default async function DestinationsSection({ tours, adminCountries = [], 
               FALLBACK_COLORS[name] ?? DEFAULT_FALLBACK[i % DEFAULT_FALLBACK.length];
 
             return (
-              <Link
+              <CountryFilterLink
                 key={name}
-                // Към страницата на държавата (истински линк за Google, а там има и бутон към филтрирания каталог).
-                // Държава без активни турове няма страница (404) — тогава остава филтърът в каталога.
-                href={count > 0 ? `/destinations/${slugify(name)}` : `/?country=${slugify(name)}#tours-grid`}
+                // Филтрира каталога по-долу на същата страница (собственикът не иска тук да води към /destinations/…;
+                // към страниците на държавите води „Всички дестинации“ горе)
+                countrySlug={slugify(name)}
                 className="group relative flex h-48 flex-col justify-end overflow-hidden rounded-[1.25rem] transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold"
                 style={!img ? { background: `linear-gradient(135deg, ${from}, ${to})` } : undefined}
               >
@@ -150,7 +151,7 @@ export default async function DestinationsSection({ tours, adminCountries = [], 
                     {count} {count === 1 ? 'тур' : 'тура'}
                   </p>
                 </div>
-              </Link>
+              </CountryFilterLink>
             );
           })}
         </div>

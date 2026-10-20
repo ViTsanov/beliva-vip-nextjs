@@ -6,7 +6,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { slugify } from "@/lib/admin-helpers";
 import type { ITour } from "@/types";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where, limit } from "firebase/firestore";
+import { collection, getDocs, query, where, limit, doc, getDoc } from "firebase/firestore";
 import { isOperatorHotlink } from "@/lib/operatorImageDomains";
 
 // Презарежда на 60 секунди — новите турове се появяват в продукция максимум след  1 минута
@@ -229,6 +229,21 @@ function pickSimilarTours(current: ITour, all: ITour[], max = 3) {
   })) as ITour[];
 }
 
+// „Топ дестинации“ най-долу на страницата — данните идват от сървъра, за да не се показва първо мигащ
+// заместител, който после се сменя с картите. Броят е на публичните турове по държава (както беше в браузъра).
+async function getTopDestinations(activeTours: ITour[]) {
+  let destinations: { name: string; image: string }[] = [];
+  try {
+    const snap = await getDoc(doc(db, "settings", "homepage"));
+    if (snap.exists()) destinations = snap.data().topDestinations || [];
+  } catch (error) {
+    console.error("Грешка при зареждане на топ дестинации:", error);
+  }
+  const counts: Record<string, number> = {};
+  activeTours.forEach((t) => countriesOf(t).forEach((c) => { if (c) counts[c] = (counts[c] || 0) + 1; }));
+  return { destinations, counts };
+}
+
 // 2. ОСНОВНА СТРАНИЦА
 export default async function TourPage({ params }: Props) {
   const resolvedParams = await params;
@@ -253,12 +268,13 @@ export default async function TourPage({ params }: Props) {
   const similarTours = pickSimilarTours(tour, activeTours);
   const relatedPosts = tour.country ? await getRelatedPosts(tour.country, tour.continent) : [];
   const tourReviews = await getTourReviews(tour.id);
+  const topDestinations = await getTopDestinations(activeTours);
   const tourForSchema = { ...tour, img: getRawImageUrl(tour) };
 
   return (
     <>
       <TourSchema tour={tourForSchema} reviews={tourReviews} />
-      <TourClient tourData={tour} relatedPostsData={relatedPosts} id={resolvedParams.id} similarToursData={similarTours} />
+      <TourClient tourData={tour} relatedPostsData={relatedPosts} id={resolvedParams.id} similarToursData={similarTours} topDestinationsData={topDestinations} />
     </>
   );
 }

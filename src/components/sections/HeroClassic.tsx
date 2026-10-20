@@ -2,7 +2,7 @@
 
 // Героса за телефон, таблет и нисък екран — дизайнът отпреди глобуса (по желание на собственика). На широк и
 // висок екран се показва Hero.tsx с глобуса; page.tsx рендира и двата и CSS скрива единия. Скритият
-// „спи“: не сменя слайдове, не пуска клипове и не показва подсказки.
+// „спи“: не сменя слайдове и не показва подсказки.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
@@ -40,7 +40,6 @@ const SLIDES = [
     subtitle: 'Пирамидите на маите и карибските плажове',
     img: '/hero/mexico.webp',
     cropX: 50,
-    video: undefined as string | undefined, // още няма клип — остава снимката
     filterHref: '/?country=meksiko#tours-grid',
     em: 6.307,
     lsb: 0.06,
@@ -55,7 +54,6 @@ const SLIDES = [
     subtitle: 'Мачу Пикчу и изгубените цивилизации',
     img: '/hero/peru2.jpg',
     cropX: 53,
-    video: '/videos/web/peru.mp4',
     filterHref: '/?country=peru#tours-grid',
     em: 3.274,
     lsb: 0.06,
@@ -70,7 +68,6 @@ const SLIDES = [
     subtitle: 'Хиляди години история и модерни чудеса',
     img: '/hero/china2.jpg',
     cropX: 47,
-    video: '/videos/web/china.mp4',
     filterHref: '/?country=kitay#tours-grid',
     em: 4.316,
     lsb: 0.06,
@@ -85,7 +82,6 @@ const SLIDES = [
     subtitle: 'Природа без граници, приключения без край',
     img: '/hero/australia3.jpg',
     cropX: 66,
-    video: '/videos/web/australia.mp4',
     filterHref: '/?country=avstraliya#tours-grid',
     em: 7.773,
     lsb: -0.01,
@@ -102,7 +98,6 @@ const SLIDES = [
     cropX: 18,
     photoTop: '18%',
     sky: ['#4c6fb0', '#889aba'],
-    video: '/videos/web/thailand.mp4',
     filterHref: '/?country=tayland#tours-grid',
     em: 6.351,
     lsb: 0.01,
@@ -136,8 +131,6 @@ const PEEK_PULSE_AFTER = 1.0;
 const PEEK_SHOW = 2.5;
 const PEEK_OUT = 0.45;
 const PEEK_TOTAL = PEEK_SHOW + PEEK_OUT;
-// Видеото се монтира малко след като слайдът стане активен — снимката (LCP) се зарежда първа.
-const VIDEO_DELAY = 1200;
 // Минимална част от ширината, която жестът трябва да „отнесе“ (с проектиран momentum), за да смени слайда.
 const COMMIT_RATIO = 0.3;
 // Таван за височината на надписа — късите имена (Перу) иначе биха заели половин екран.
@@ -166,21 +159,8 @@ function ringOffset(i: number, current: number, n: number) {
   return d;
 }
 
-function subscribeNoop() {
-  return () => {};
-}
 function getServerFalse() {
   return false;
-}
-// Клиповете са тежки — пускат се само на широк екран, при нормална връзка и без „намалено движение“.
-function getCanPlayVideo() {
-  const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-  const slowNetwork = !!conn && (conn.saveData === true || /(^|-)2g$/.test(conn.effectiveType ?? ''));
-  return (
-    window.matchMedia('(min-width: 1024px)').matches &&
-    !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
-    !slowNetwork
-  );
 }
 
 // Media query през useSyncExternalStore: при hydration връща сървърната стойност (false), иначе
@@ -208,7 +188,6 @@ export default function HeroClassic() {
   const reduceMotion = useMedia('(prefers-reduced-motion: reduce)');
   // На широк и висок екран се вижда Hero.tsx — тогава този спи (на сървъра е буден: първо идва телефонът)
   const active = !useMedia('(min-width: 1024px) and (min-height: 640px)');
-  const canPlayVideo = useSyncExternalStore(subscribeNoop, getCanPlayVideo, getServerFalse) && active;
   const minute = useSyncExternalStore(subscribeMinute, getMinute, getMinuteServer);
 
   const [current, setCurrent] = useState(0);
@@ -280,7 +259,7 @@ export default function HeroClassic() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
-  // Извън екрана нищо не се сменя и не върви видео — пести батерия и трафик.
+  // Извън екрана нищо не се сменя — пести батерия.
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
@@ -476,7 +455,6 @@ export default function HeroClassic() {
               streaks={peek === 'slide' && i === current}
               fadingOut={i === fadeFrom}
               paused={paused}
-              canPlayVideo={canPlayVideo}
               parallax={!reduceMotion}
               dragX={dragX}
               width={trackWidth}
@@ -645,11 +623,11 @@ export default function HeroClassic() {
   );
 }
 
-// Един слайд: снимка (с видео на широк екран), цветно поле и името на дестинацията на шева между тях.
+// Един слайд: снимка, цветно поле и името на дестинацията на шева между тях.
 // Позиционира се с left: offset*100% спрямо тракта. Паралаксът се смята от реалната позиция на слайда
 // (offset*ширина + dragX), която не се променя при смяната на current — затова и паралаксът няма скок.
 function HeroSlide({
-  slide, offset, isCurrent, isFirst, intro, layer, fadeIn, onFadeEnd, streaks, fadingOut, paused, canPlayVideo, parallax, dragX, width,
+  slide, offset, isCurrent, isFirst, intro, layer, fadeIn, onFadeEnd, streaks, fadingOut, paused, parallax, dragX, width,
 }: {
   slide: Slide;
   offset: number;
@@ -662,14 +640,10 @@ function HeroSlide({
   streaks: boolean;
   fadingOut: boolean;
   paused: boolean;
-  canPlayVideo: boolean;
   parallax: boolean;
   dragX: MotionValue<number>;
   width: number;
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoOn, setVideoOn] = useState(false);
-  const [videoShown, setVideoShown] = useState(false);
   const imgX = useMotionValue(0);
   const wordX = useMotionValue(0);
 
@@ -683,25 +657,6 @@ function HeroSlide({
     update(dragX.get());
     return dragX.on('change', update);
   }, [dragX, offset, width, parallax, imgX, wordX]);
-
-  useEffect(() => {
-    if (!isCurrent || !canPlayVideo) return;
-    const t = setTimeout(() => setVideoOn(true), VIDEO_DELAY);
-    return () => clearTimeout(t);
-  }, [isCurrent, canPlayVideo]);
-
-  // При връщане към вече гледан слайд клипът почва отначало.
-  useEffect(() => {
-    if (isCurrent && videoRef.current) videoRef.current.currentTime = 0;
-  }, [isCurrent]);
-
-  // Паузата на слайдшоуто спира и клипа — иначе картината и обръчът за прогрес се разминават.
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (isCurrent && !paused) v.play().catch(() => {});
-    else v.pause();
-  }, [isCurrent, paused, videoOn]);
 
   const fontSize = `min(calc(100cqw / ${((slide.em - slide.lsb) * 1.01).toFixed(3)}), ${WORD_MAX})`;
 
@@ -748,18 +703,6 @@ function HeroSlide({
                 ...(slide.photoTop ? { maskImage: SKY_FADE, WebkitMaskImage: SKY_FADE } : {}),
               }}
             />
-            {canPlayVideo && videoOn && slide.video && (
-              <video
-                ref={videoRef}
-                src={slide.video}
-                muted
-                playsInline
-                preload="auto"
-                onPlaying={() => setVideoShown(true)}
-                className="absolute inset-0 h-full w-full select-none object-cover transition-opacity duration-700"
-                style={{ objectPosition: `${slide.cropX}% 35%`, opacity: videoShown ? 1 : 0 }}
-              />
-            )}
           </div>
         </motion.div>
         {/* Неутрални затъмнения: горе — под менюто и заглавието; долу — под горната половина на името */}

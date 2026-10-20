@@ -48,6 +48,11 @@ export function markModalNavigation() {
   navigationMarkedAt = Date.now();
 }
 
+/** Дали модалът се затваря, защото потребителят отива на друга страница (линк в него) — тогава не връщаме скрола. */
+export function isModalNavigationPending() {
+  return Date.now() - navigationMarkedAt < 2000;
+}
+
 function scheduleSync() {
   if (syncScheduled) return;
   syncScheduled = true;

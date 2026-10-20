@@ -121,19 +121,44 @@ export default function AIChatWidget() {
     return () => cancelAnimationFrame(frame);
   }, [typing, messages]);
 
-  // Забрана на скрола на тялото при отворен чат на мобилни
-  useEffect(() => {
-    if (isOpen && window.innerWidth < 768) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-    return () => { document.body.style.overflow = 'auto'; };
-  }, [isOpen]);
-
   // Бутонът Назад на телефона затваря чата. Само за мобилни — там чатът е на цял екран
   // и се възприема като отделен "екран"; на десктоп е малък плаващ прозорец.
   useBackToClose(isOpen, () => setIsOpen(false), { mobileOnly: true });
+
+  // На телефон чатът е на цял екран. Страницата отзад се заключва с position: fixed (само overflow: hidden не
+  // спира скрола на iPhone), а при затваряне се връща точно където е била. Ефектът е СЛЕД useBackToClose: записът
+  // в историята трябва да се добави, преди страницата да се заключи — иначе браузърът запомня позиция 0 и при
+  // затваряне (history.back) връща страницата най-горе.
+  useEffect(() => {
+    if (!isOpen || window.innerWidth >= 768) return;
+    const scrollY = window.scrollY;
+    const body = document.body.style;
+    Object.assign(body, { position: 'fixed', top: `-${scrollY}px`, left: '0', right: '0', overflow: 'hidden' });
+    return () => {
+      Object.assign(body, { position: '', top: '', left: '', right: '', overflow: '' });
+      window.scrollTo({ top: scrollY, behavior: 'instant' });
+    };
+  }, [isOpen]);
+
+  // Клавиатурата на телефона намалява видимата част на екрана, а 100dvh не се намалява с нея — браузърът
+  // избутва страницата нагоре и отдолу прозира сайтът. Затова прозорецът следи visualViewport: точно с
+  // височината и мястото на видимото над клавиатурата.
+  const [visibleArea, setVisibleArea] = useState<{ height: number; top: number } | null>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!isOpen || window.innerWidth >= 768 || !vv) return;
+    const update = () => setVisibleArea({ height: vv.height, top: vv.offsetTop });
+    const first = setTimeout(update, 0);
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      clearTimeout(first);
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+      setVisibleArea(null);
+    };
+  }, [isOpen]);
+
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -177,11 +202,14 @@ export default function AIChatWidget() {
 
       {/* ЧАТ ПРОЗОРЕЦ */}
       {isOpen && (
-        <div className="
-            fixed z-[9999] bg-white flex flex-col overflow-hidden border-brand-gold/10 shadow-2xl
+        <div
+          className="
+            fixed z-[9999] bg-white flex flex-col overflow-hidden overscroll-contain border-brand-gold/10 shadow-2xl
             inset-0 w-full h-[100dvh] rounded-none
             md:fixed md:inset-auto md:bottom-24 md:right-8 md:w-[400px] md:h-[600px] md:rounded-[2.5rem] md:border
-        ">
+          "
+          style={visibleArea ? { top: visibleArea.top, height: visibleArea.height, bottom: 'auto' } : undefined}
+        >
           
           {/* HEADER */}
           <div className="bg-brand-dark p-4 md:p-6 text-white flex items-center justify-between border-b border-brand-gold/20 shrink-0">
@@ -211,7 +239,7 @@ export default function AIChatWidget() {
           </div>
 
           {/* MESSAGES AREA */}
-          <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto p-4 md:p-6 bg-[#fcfaf7] space-y-4">
+          <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto overscroll-contain p-4 md:p-6 bg-[#fcfaf7] space-y-4">
             {messages.length === 0 && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
                  <div className="max-w-[90%] bg-white p-5 rounded-2xl rounded-tl-none border border-brand-gold/20 shadow-md text-brand-dark">

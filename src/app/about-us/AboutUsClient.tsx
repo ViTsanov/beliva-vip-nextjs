@@ -3,7 +3,6 @@ import { ArrowRight } from 'lucide-react';
 import AboutHero from '@/components/about/AboutHero';
 import StoryChapters from '@/components/about/StoryChapters';
 import QuoteBand from '@/components/about/QuoteBand';
-import VideoReel from '@/components/about/VideoReel';
 import DiaryStrip from '@/components/about/DiaryStrip';
 import CommunitySection from '@/components/about/CommunitySection';
 
@@ -16,7 +15,6 @@ export default function AboutUsClient() {
       <AboutHero />
       <StoryChapters />
       <QuoteBand />
-      <VideoReel />
       <DiaryStrip />
       <CommunitySection />
 

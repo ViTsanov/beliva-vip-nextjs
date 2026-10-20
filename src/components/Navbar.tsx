@@ -10,7 +10,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import NavbarSearch from './NavbarSearch';
 import InquiryDialog from './inquiry/InquiryDialog';
 import { readFavoriteCountries } from '@/lib/favoriteCountries';
-import { useBackToClose } from '@/lib/hooks/useBackToClose';
+import { useBackToClose, isModalNavigationPending } from '@/lib/hooks/useBackToClose';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -102,7 +102,10 @@ export default function Navbar() {
         document.body.style.left = '';
         document.body.style.right = '';
         document.body.style.overflow = '';
-        window.scrollTo(0, scrollY);
+        // Затваряне с линк към друга страница: НЕ връщаме старата позиция — иначе тя се надпреварва със
+        // скрола към върха на новата страница и понякога тя се отваря по средата (напр. на формата в Контакти)
+        if (isModalNavigationPending()) return;
+        window.scrollTo({ top: scrollY, behavior: 'instant' });
       };
     }
   }, [isOpen]);
@@ -176,11 +179,13 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* DESKTOP MENU */}
-          <div className={`hidden md:flex items-center gap-4 lg:gap-8 text-xs font-black uppercase tracking-[0.2em] ${
+          {/* DESKTOP MENU — от 1280px нагоре. На таблет и по-тесен лаптоп текстовите връзки не се побират до логото
+              (застъпваха го, „За нас“ падаше на два реда), затова там е менюто с бургер, както на телефон. */}
+          <div className={`hidden xl:flex items-center gap-6 2xl:gap-8 whitespace-nowrap text-xs font-black uppercase tracking-[0.2em] ${
             scrolled || !overHero ? 'text-brand-dark' : 'text-white'
           }`}>
             <Link href="/" onClick={handleNavClick} aria-current={pathname === '/' ? 'page' : undefined} className="hover:text-brand-gold transition-colors">Начало</Link>
+            <Link href="/destinations" onClick={handleNavClick} aria-current={pathname?.startsWith('/destinations') ? 'page' : undefined} className="hover:text-brand-gold transition-colors">Дестинации</Link>
             <Link href="/about-us" onClick={handleNavClick} aria-current={pathname === '/about-us' ? 'page' : undefined} className="hover:text-brand-gold transition-colors">За нас</Link>
             <Link href="/blog" onClick={handleNavClick} aria-current={pathname === '/blog' ? 'page' : undefined} className="hover:text-brand-gold transition-colors">Блог</Link>
             <Link href="/contacts" onClick={handleNavClick} aria-current={pathname === '/contacts' ? 'page' : undefined} className="hover:text-brand-gold transition-colors">Контакти</Link>
@@ -233,7 +238,7 @@ export default function Navbar() {
           </div>
 
           {/* MOBILE ACTIONS */}
-          <div className="md:hidden flex items-center gap-0.5 z-[110]">
+          <div className="xl:hidden flex items-center gap-0.5 z-[110]">
             <NavbarSearch iconOnly isScrolled={scrolled || !overHero} />
             <Link
               href="/favorites"
@@ -296,7 +301,9 @@ export default function Navbar() {
               </button>
             </div>
 
-            <div className="flex flex-col items-center justify-center flex-grow gap-8 p-6 overflow-y-auto">
+            {/* my-auto на първия/последния елемент центрира списъка, но при нисък екран той просто скролва —
+                justify-center би изрязал горните връзки извън обсега */}
+            <div className="flex flex-col items-center flex-grow gap-6 [@media(min-height:760px)]:gap-8 p-6 overflow-y-auto overscroll-contain [&>*]:shrink-0 [&>*:first-child]:mt-auto [&>*:last-child]:mb-auto">
               <button
                 type="button"
                 onClick={openInquiry}
@@ -307,6 +314,7 @@ export default function Navbar() {
                 Изпрати запитване
               </button>
               <Link href="/" onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined} className="text-2xl font-bold text-brand-dark hover:text-brand-gold transition-colors">Начало</Link>
+              <Link href="/destinations" onClick={() => setIsOpen(false)} aria-current={pathname?.startsWith('/destinations') ? 'page' : undefined} className="text-2xl font-bold text-brand-dark hover:text-brand-gold transition-colors">Дестинации</Link>
               <Link href="/about-us" onClick={() => setIsOpen(false)} aria-current={pathname === '/about-us' ? 'page' : undefined} className="text-2xl font-bold text-brand-dark hover:text-brand-gold transition-colors">За нас</Link>
               <Link href="/blog" onClick={() => setIsOpen(false)} aria-current={pathname === '/blog' ? 'page' : undefined} className="text-2xl font-bold text-brand-dark hover:text-brand-gold transition-colors">Блог</Link>
               <Link href="/contacts" onClick={() => setIsOpen(false)} aria-current={pathname === '/contacts' ? 'page' : undefined} className="text-2xl font-bold text-brand-dark hover:text-brand-gold transition-colors">Контакти</Link>

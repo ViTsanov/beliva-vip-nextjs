@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CalendarRange, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 interface MonthData {
@@ -34,6 +34,56 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
 
   const scrollByAmount = (dir: 1 | -1) => {
     scrollerRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' });
+  };
+
+  // Лента за превъртане под месеците. Нарисувана е сами, защото на iPhone браузърът не показва лента на
+  // хоризонтален скрол (и не приема стилове за нея). size = видимата част, pos = докъде е превъртяно (0…1).
+  const [bar, setBar] = useState({ size: 1, pos: 0 });
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const update = () => {
+      const max = el.scrollWidth - el.clientWidth;
+      setBar({ size: el.scrollWidth > 0 ? el.clientWidth / el.scrollWidth : 1, pos: max > 0 ? el.scrollLeft / max : 0 });
+    };
+    const first = setTimeout(update, 0);
+    el.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      clearTimeout(first);
+      el.removeEventListener('scroll', update);
+      observer.disconnect();
+    };
+  }, [months.length]);
+
+  // Влачене на лентата (и докосване по нея — плъзгачът отива там). Докато се влачи, „залепването“ към карта е
+  // изключено, иначе редът подскача на всяка стъпка.
+  const dragRef = useRef<{ x: number; left: number } | null>(null);
+  const onBarPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const thumbW = rect.width * bar.size;
+    const thumbLeft = rect.left + bar.pos * (rect.width - thumbW);
+    el.style.scrollSnapType = 'none';
+    if (e.clientX < thumbLeft || e.clientX > thumbLeft + thumbW) {
+      const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left - thumbW / 2) / (rect.width - thumbW)));
+      el.scrollLeft = ratio * (el.scrollWidth - el.clientWidth);
+    }
+    dragRef.current = { x: e.clientX, left: el.scrollLeft };
+  };
+  const onBarPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = scrollerRef.current;
+    const drag = dragRef.current;
+    if (!el || !drag) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    el.scrollLeft = drag.left + (e.clientX - drag.x) * (el.scrollWidth / rect.width);
+  };
+  const onBarPointerEnd = () => {
+    dragRef.current = null;
+    if (scrollerRef.current) scrollerRef.current.style.scrollSnapType = '';
   };
 
   // Ако в текущия филтърен контекст няма никакви бъдещи заминавания — не показваме календара
@@ -119,6 +169,25 @@ export default function DeparturesCalendar({ months, activeMonth, onSelectMonth 
           );
         })}
       </div>
+
+      {/* Лентата за превъртане — само когато месеците не се побират. Висока зона за докосване, тънка на вид. */}
+      {bar.size < 0.995 && (
+        <div
+          className="-my-1 cursor-pointer touch-none select-none py-2"
+          onPointerDown={onBarPointerDown}
+          onPointerMove={onBarPointerMove}
+          onPointerUp={onBarPointerEnd}
+          onPointerCancel={onBarPointerEnd}
+          aria-hidden="true"
+        >
+          <div className="relative h-1.5 rounded-full bg-slate-200">
+            <div
+              className="absolute inset-y-0 rounded-full bg-brand-gold"
+              style={{ width: `${bar.size * 100}%`, left: `${bar.pos * (1 - bar.size) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

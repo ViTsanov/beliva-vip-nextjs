@@ -25,9 +25,10 @@ interface TourClientProps {
   relatedPostsData: IPost[]; // 👈 Вече е масив от постове
   id: string;
   similarToursData?: ITour[]; // „Вижте още“ — изчислени на сървъра (линковете трябва да са в HTML-а заради Google)
+  topDestinationsData?: { destinations: { name: string; image: string }[]; counts: Record<string, number> }; // „Топ дестинации“ — от сървъра
 }
 
-export default function TourClient({ tourData, relatedPostsData, id, similarToursData }: TourClientProps) {
+export default function TourClient({ tourData, relatedPostsData, id, similarToursData, topDestinationsData }: TourClientProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
@@ -179,7 +180,7 @@ export default function TourClient({ tourData, relatedPostsData, id, similarTour
       </div>
 
       <SimilarTours currentTour={tourData} initialTours={similarToursData} />
-      <TopDestinations />
+      <TopDestinations initialDestinations={topDestinationsData?.destinations} counts={topDestinationsData?.counts} />
       
       <ImageModal isOpen={selectedImageIndex !== null} image={selectedImageIndex !== null ? galleryImages[selectedImageIndex] : ''} caption={selectedImageIndex !== null ? (gallery[selectedImageIndex]?.caption || '') : ''} currentIndex={selectedImageIndex ?? 0} totalCount={galleryImages.length} onClose={() => setSelectedImageIndex(null)} onNext={() => setSelectedImageIndex(prev => prev !== null && prev < galleryImages.length - 1 ? prev + 1 : prev)} onPrev={() => setSelectedImageIndex(prev => prev !== null && prev > 0 ? prev - 1 : prev)} hasNext={selectedImageIndex !== null && selectedImageIndex < galleryImages.length - 1} hasPrev={selectedImageIndex !== null && selectedImageIndex > 0} />
       {/* Същата форма като в менюто и на „Контакти“ (имейлът е задължителен, две стъпки), с този тур избран */}

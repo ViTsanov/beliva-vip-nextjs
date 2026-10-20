@@ -57,26 +57,43 @@ export default function ScrollToTop() {
     const difference = targetY - startY;
     let startTime: number | null = null;
 
+    // Намалено движение — направо на мястото, без анимация
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.scrollTo({ top: targetY, behavior: 'instant' });
+      setTimeout(() => { isProgrammaticScroll.current = false; }, 100);
+      return;
+    }
+
+    // Докосване или колелце по време на анимацията я спира — не се бори с пръста на потребителя
+    let cancelled = false;
+    const cancel = () => { cancelled = true; };
+    window.addEventListener('touchstart', cancel, { passive: true, once: true });
+    window.addEventListener('wheel', cancel, { passive: true, once: true });
+    const finish = () => {
+      window.removeEventListener('touchstart', cancel);
+      window.removeEventListener('wheel', cancel);
+      setTimeout(() => { isProgrammaticScroll.current = false; }, 100);
+    };
+
     const step = (currentTime: number) => {
+      if (cancelled) { finish(); return; }
       if (!startTime) startTime = currentTime;
       const progress = currentTime - startTime;
-      
-      // Easing функция за много естествено и плавно спиране
-      const easeInOutCubic = (t: number) => 
-        t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      
+
+      // Ease-out: тръгва веднага и плавно спира. (Старото ease-in-out тръгваше бавно и после рязко ускоряваше.)
+      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
       const percent = Math.min(progress / duration, 1);
-      window.scrollTo(0, startY + difference * easeInOutCubic(percent));
+      // behavior 'instant' на всяка стъпка: сайтът има глобално плавно скролиране (globals.css) и без това всяка
+      // стъпка ставаше отделна малка анимация — на iPhone те изоставаха и после наваксваха наведнъж.
+      window.scrollTo({ top: startY + difference * easeOutCubic(percent), behavior: 'instant' });
 
       if (progress < duration) {
         window.requestAnimationFrame(step);
       } else {
-        window.scrollTo(0, targetY); // Фиксираме точно на крайната позиция
-        
-        // Даваме 100ms отсрочка на браузъра да "успокои" скрола, преди да върнем контрола
-        setTimeout(() => {
-          isProgrammaticScroll.current = false;
-        }, 100);
+        window.scrollTo({ top: targetY, behavior: 'instant' }); // Фиксираме точно на крайната позиция
+        // 100ms отсрочка, за да се "успокои" скролът, преди да върнем контрола; махаме и слушателите за докосване
+        finish();
       }
     };
 
