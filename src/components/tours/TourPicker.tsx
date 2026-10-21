@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Check, MapPin, Search, X } from 'lucide-react';
+import Image from 'next/image';
 import { formatPrice } from '@/lib/formatPrice';
 
 // Избор на екскурзия без да се знае заглавието ѝ: по дестинация (чипове с броя турове), с търсене по държава,
@@ -303,9 +304,8 @@ function TourThumb({ tour }: { tour: PickerTour }) {
   return (
     <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-dark">
       {tour.img ? (
-        // Обикновен <img>: снимките може да са от външни оператори, които не са в next/image домейните.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={tour.img} alt="" loading="lazy" className="h-full w-full object-cover" />
+        // next/image (всички домейни са разрешени в next.config): малък WebP вместо оригиналната снимка
+        <Image src={tour.img} alt="" fill sizes="56px" className="object-cover" />
       ) : (
         <span className="font-serif text-xl italic text-brand-gold/60" aria-hidden="true">{first.charAt(0)}</span>
       )}

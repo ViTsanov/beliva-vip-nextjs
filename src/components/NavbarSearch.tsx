@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, MapPin, FileText, Globe, ArrowRight, ChevronRight, Layout, Filter, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation'; // Трябва ни за навигацията към филтъра
 import { db } from '@/lib/firebase';
 import { collection, query, getDocs } from 'firebase/firestore';
@@ -344,7 +345,7 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                                         )}
                                     </div>
                                     <div className="relative w-20 h-14 rounded-xl overflow-hidden shrink-0 ml-4">
-                                        <img src={item.img} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                        {item.img && <Image src={item.img} alt={item.title} fill sizes="80px" className="object-cover group-hover:scale-110 transition-transform duration-500" />}
                                     </div>
                                 </Link>
                             ))}
@@ -366,8 +367,8 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                                     onClick={handleClose}
                                     className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-gray-100 hover:border-brand-gold/30 hover:shadow-md transition-all group"
                                 >
-                                    <div className="w-16 h-12 rounded-lg overflow-hidden shrink-0 bg-gray-200">
-                                        {post.coverImg && <img src={post.coverImg} alt="" className="w-full h-full object-cover" />}
+                                    <div className="relative w-16 h-12 rounded-lg overflow-hidden shrink-0 bg-gray-200">
+                                        {post.coverImg && <Image src={post.coverImg} alt="" fill sizes="64px" className="object-cover" />}
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-brand-dark text-sm leading-tight group-hover:text-brand-gold transition-colors line-clamp-1">

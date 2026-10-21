@@ -9,6 +9,7 @@ import { flushSync } from 'react-dom';
 import { AnimatePresence, animate, motion, useMotionValue, type MotionValue, type PanInfo } from 'framer-motion';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
+import { glideToElement } from '@/lib/smoothScroll';
 import Link from 'next/link';
 
 const SOFIA = { lat: 42.6977, lon: 23.3219 };
@@ -394,8 +395,8 @@ export default function HeroClassic() {
   // JS-контролиран скрол: нативната hash-навигация на iOS Safari се бие със CSS smooth scroll.
   const scrollToTours = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    document.getElementById('tours-grid')?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-  }, [reduceMotion]);
+    glideToElement(document.getElementById('tours-grid'));
+  }, []);
 
   // Дестинацията, за която са текстът и кръгчетата — по време на плъзгане сменя се още в средата.
   const shown = shownDir === 0

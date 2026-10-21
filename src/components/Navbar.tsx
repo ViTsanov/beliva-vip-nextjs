@@ -154,8 +154,10 @@ export default function Navbar() {
   return (
     <>
       {/* NAVBAR BAR */}
-      <nav data-site-navbar className={`fixed top-0 w-full z-[100] transition-all duration-500 ${
-        scrolled || !overHero ? 'bg-white/95 backdrop-blur-md py-2 md:py-3 shadow-lg' : 'bg-transparent py-4 md:py-6'
+      {/* Плътно бяло вместо bg-white/95 + backdrop-blur: при 95% бяло блурът не се вижда, но iPhone го преизчислява
+          на всеки кадър от скрола (менюто е fixed над снимки) — скролът засичаше. */}
+      <nav data-site-navbar className={`fixed top-0 w-full z-[100] transition-[padding,background-color,box-shadow] duration-500 ${
+        scrolled || !overHero ? 'bg-white py-2 md:py-3 shadow-lg' : 'bg-transparent py-4 md:py-6'
       }`}>
         <div className="container mx-auto px-6 flex justify-between items-center">
 

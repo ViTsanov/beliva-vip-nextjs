@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import { AnimatePresence, animate, motion, useMotionValue, type PanInfo, type Variants } from 'framer-motion';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
+import { glideToElement } from '@/lib/smoothScroll';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
@@ -300,14 +301,14 @@ export default function Hero() {
   // Клик върху страна на глобуса — тя влиза във филтъра на екскурзиите.
   const applyFilter = useCallback((i: number) => {
     router.push(SLIDES[i].filterHref.replace('#tours-grid', ''), { scroll: false });
-    document.getElementById('tours-grid')?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-  }, [router, reduceMotion]);
+    glideToElement(document.getElementById('tours-grid'));
+  }, [router]);
 
   // JS-контролиран скрол: нативната hash-навигация на iOS Safari се бие със CSS smooth scroll.
   const scrollToTours = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    document.getElementById('tours-grid')?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-  }, [reduceMotion]);
+    glideToElement(document.getElementById('tours-grid'));
+  }, []);
 
   // Плъзгане с ръка. Хващане по време на анимация я спира и продължава от текущата позиция.
   const handleDragStart = () => {

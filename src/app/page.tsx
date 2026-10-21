@@ -7,8 +7,7 @@ import MeetGuides from "@/components/MeetGuides";
 import { LazyTestimonials } from "@/components/LazyClient";
 import CTASection from "@/components/sections/CTASection";
 import DestinationsSection from "@/components/sections/DestinationsSection";
-import { Suspense } from "react";
-import { getActiveTours } from "@/services/tourService";
+import { getActiveTours, toTourSummary } from "@/services/tourService";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import type { Metadata } from "next";
@@ -22,7 +21,8 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const tours = await getActiveTours();
+  // Без програмите, галериите и т.н. — картите не ги показват, а иначе влизат в HTML-а (виж toTourSummary)
+  const tours = (await getActiveTours()).map(toTourSummary);
 
   let destinationsSectionCountries: string[] = [];
   let destinationsSectionImages: Record<string, string> = {};
@@ -64,16 +64,8 @@ export default async function HomePage() {
       {/* 3. Дестинации */}
       <DestinationsSection tours={tours} adminCountries={destinationsSectionCountries} adminImages={destinationsSectionImages} />
 
-      {/* 4. Всички предложения */}
-      <Suspense
-        fallback={
-          <div className="container mx-auto px-4 py-20 flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-gold" />
-          </div>
-        }
-      >
-        <ToursGrid initialTours={tours} todayStr={todayStr} />
-      </Suspense>
+      {/* 4. Всички предложения — рендира се на сървъра (параметрите от адреса чете вътре, в собствен Suspense) */}
+      <ToursGrid initialTours={tours} todayStr={todayStr} />
 
       {/* 5. Коя е Поли */}
       <MeetGuides />

@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { glideToElement } from '@/lib/smoothScroll';
 
 // Линк, който филтрира каталога на началната страница по държава, без да я презарежда: сменя ?country= на място
 // и плавно скролва до каталога (#tours-grid). Адресът е истински (/?country=…#tours-grid), така че нов раздел
@@ -30,11 +31,7 @@ export default function CountryFilterLink({
       const grid = document.getElementById('tours-grid');
       if (!grid) return;
       const navHeight = document.querySelector<HTMLElement>('[data-site-navbar]')?.offsetHeight ?? 80;
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      window.scrollTo({
-        top: grid.getBoundingClientRect().top + window.scrollY - navHeight - 16,
-        behavior: reduce ? 'instant' : 'smooth',
-      });
+      glideToElement(grid, { offset: navHeight + 16 });
     }, 120);
   };
 

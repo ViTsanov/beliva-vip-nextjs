@@ -38,6 +38,22 @@ export const normalizeTour = (docData: DocumentData, docId: string): ITour => {
 };
 
 
+// Полета, които се виждат само на страницата на самия тур. Картите и филтрите не ги ползват, а всичко, подадено на
+// клиентски компонент, влиза в HTML-а: на началната страница те бяха ~900 KB от 1.1 MB — телефонът ги теглеше и
+// обработваше, преди страницата да оживее.
+const DETAIL_ONLY_FIELDS = [
+  'itinerary', 'gallery', 'galleryWithCaptions', 'images', 'included', 'excluded', 'notIncluded',
+  'generalInfo', 'intro', 'documents', 'route', 'originalUrl', 'externalSourceLink', 'sourceTitle',
+] as const;
+
+// Тур без тежките полета — за списъци и карти (начална страница).
+export const toTourSummary = (tour: ITour): ITour => {
+  const summary: Record<string, unknown> = { ...tour };
+  for (const field of DETAIL_ONLY_FIELDS) delete summary[field];
+  return summary as unknown as ITour;
+};
+
+
 /**
  * 2. УСЛУГИ ЗА ИЗВЛИЧАНЕ (Firebase Queries)
  */

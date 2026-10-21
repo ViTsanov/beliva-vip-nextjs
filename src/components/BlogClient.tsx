@@ -11,6 +11,7 @@ import {
   ChevronUp
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import ImageModal from '@/components/ImageModal';
 import ShareButtons from '@/components/ShareButtons';
 
@@ -126,12 +127,18 @@ export default function BlogClient({ post }: { post: any }) {
       
       {/* --- HERO SECTION --- */}
       <div className="relative w-full h-[70vh] bg-brand-dark overflow-hidden">
-          <img 
-            src={post.coverImg || post.img} 
-            className={`w-full h-full object-cover transition-all duration-1000 ease-out ${isHeroLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-110'}`} 
-            alt={post.title} 
-            onLoad={() => setIsHeroLoaded(true)}
-          />
+          {/* next/image: WebP в размера на екрана, вместо оригиналния файл */}
+          {(post.coverImg || post.img) && (
+            <Image
+              src={post.coverImg || post.img}
+              fill
+              priority
+              sizes="100vw"
+              className={`object-cover transition-all duration-1000 ease-out ${isHeroLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-110'}`}
+              alt={post.title}
+              onLoad={() => setIsHeroLoaded(true)}
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent"></div>
           
           <div className="absolute inset-0 flex flex-col justify-end p-6 pb-20 md:pb-24">
@@ -225,9 +232,11 @@ export default function BlogClient({ post }: { post: any }) {
                                     ${isHiddenOnMobile ? 'hidden md:block' : 'block'}`}
                                   onClick={() => setSelectedImageIndex(idx)}
                                 >
-                                    <img 
-                                      src={img} 
-                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                    <Image
+                                      src={img}
+                                      fill
+                                      sizes="(max-width: 768px) 50vw, 300px"
+                                      className="object-cover transition-transform duration-700 group-hover:scale-110"
                                       alt={`Gallery ${idx}`}
                                     />
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -293,11 +302,15 @@ export default function BlogClient({ post }: { post: any }) {
                                 className="min-w-full md:min-w-0 snap-center group flex flex-col gap-4"
                             >
                                 <div className="relative h-48 w-full rounded-2xl overflow-hidden shadow-md">
-                                    <img 
-                                        src={sPost.coverImg || sPost.img} 
+                                    {(sPost.coverImg || sPost.img) && (
+                                      <Image
+                                        src={sPost.coverImg || sPost.img}
                                         alt={sPost.title}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                                    />
+                                        fill
+                                        sizes="(max-width: 768px) 100vw, 400px"
+                                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                      />
+                                    )}
                                     {sPost.relatedCountry && (
                                         <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg text-[10px] font-bold uppercase text-brand-dark shadow-sm border border-gray-100">
                                             {sPost.relatedCountry}
@@ -357,7 +370,7 @@ export default function BlogClient({ post }: { post: any }) {
                                {relatedTours.map((tour: any) => (
                                    <Link key={tour.id} href={`/tour/${tour.tourId || tour.id}`} className="block bg-white/5 hover:bg-white/10 hover:scale-[1.02] transition-all p-4 rounded-2xl border border-white/10 group shadow-md">
                                                <div className="flex items-center gap-4">
-                                                   <img src={tour.img} className="w-16 h-16 rounded-xl object-cover shadow-sm" alt=""/>
+                                                   {tour.img && <Image src={tour.img} width={64} height={64} className="w-16 h-16 rounded-xl object-cover shadow-sm" alt=""/>}
                                                    <div>
                                                        <h4 className="font-bold text-sm leading-tight mb-2 group-hover:text-brand-gold transition-colors line-clamp-2">{tour.title}</h4>
                                                        <p className="text-xs text-brand-gold font-mono bg-brand-gold/10 inline-block px-2 py-1 rounded-md">{tour.price}</p>

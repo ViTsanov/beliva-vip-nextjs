@@ -67,7 +67,7 @@ export default function CookieConsent() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-brand-gold/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] z-[1001] px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+          className="fixed bottom-0 left-0 w-full bg-white border-t border-brand-gold/20 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] z-[1001] px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
         >
           <div className="container mx-auto">
             <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6">

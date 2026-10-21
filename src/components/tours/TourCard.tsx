@@ -29,13 +29,18 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli, pri
   const [heartPops, setHeartPops] = useState(0);
   const cardImg = tour.img && !isOperatorHotlink(tour.img) ? tour.img : null;
 
-  // Появяване при скрол: картата излиза едва когато е видима И снимката ѝ е заредена (или след 1.2 s най-много),
-  // за да не се променя нищо по нея след като анимацията свърши — иначе се вижда „примигване“.
+  // Снимката започва да се тегли около два екрана ПРЕДИ картата да стигне до екрана. Обикновеното loading="lazy"
+  // в Safari на iPhone чака почти до ръба на екрана — картата идваше празна и се появяваше със закъснение.
+  const [photoRef, nearScreen] = useRevealOnce<HTMLDivElement>({ rootMargin: '1600px 0px 1600px 0px' });
+
+  // Появяване при скрол: картата излиза, когато е видима И снимката ѝ е заредена (или след 0.5 s най-много),
+  // за да не се променя нищо по нея след като анимацията свърши — иначе се вижда „примигване“. Снимката обикновено
+  // е готова отдавна (виж по-горе), а 0.5 s е горната граница при бавна мрежа (преди беше 1.2 s).
   const [revealRef, inView] = useRevealOnce<HTMLDivElement>();
   const [waitedForPhoto, setWaitedForPhoto] = useState(false);
   useEffect(() => {
     if (!inView) return;
-    const t = setTimeout(() => setWaitedForPhoto(true), 1200);
+    const t = setTimeout(() => setWaitedForPhoto(true), 500);
     return () => clearTimeout(t);
   }, [inView]);
   const photoReady = !cardImg || imgError || imgLoaded || waitedForPhoto;
@@ -137,14 +142,14 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli, pri
       </button>
 
       {/* h-72 = --seam в .ticket-cut — при промяна на височината се сменят и двете */}
-      <div className="relative h-72 shrink-0 overflow-hidden bg-gray-200 isolate transform-gpu">
+      <div ref={photoRef} className="relative h-72 shrink-0 overflow-hidden bg-gray-200 isolate transform-gpu">
         {cardImg && !imgError ? (
           <Image
             src={cardImg}
             alt={`Екскурзия до ${tour.country} - ${tour.title}`}
             fill
             priority={priority}
-            loading={priority ? undefined : 'lazy'}
+            loading={priority ? undefined : nearScreen ? 'eager' : 'lazy'}
             onLoad={() => setImgLoaded(true)}
             className={`object-cover group-hover:scale-110 ${imgLoaded || priority ? 'opacity-100' : 'opacity-0'}`}
             style={{ transition: 'transform 300ms ease, opacity 500ms ease', objectPosition: tour.imgPosition || '50% 50%' }}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Filter, Globe2, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
@@ -69,9 +69,21 @@ const getTourContinents = (tour: ITour): string[] => {
   return Array.from(result);
 };
 
+// useSearchParams() на статична (ISR) страница кара Next да НЕ рендира компонента на сървъра — в HTML-а
+// стоеше само спинър и целият каталог (и снимките му) се появяваше едва след като JavaScript-ът се зареди.
+// Затова параметрите се четат в този малък компонент в собствен Suspense: каталогът се рендира на сървъра
+// без филтри, а филтрите от адреса се прилагат веднага след зареждане (useLayoutEffect — преди да се изрисува
+// кадър при навигация в сайта).
+function SearchParamsSync({ onChange }: { onChange: (query: string) => void }) {
+  const query = useSearchParams().toString();
+  useLayoutEffect(() => { onChange(query); }, [query, onChange]);
+  return null;
+}
+
 export default function ToursGrid({ initialTours = [], hideFilters = false, todayStr }: ToursGridProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [query, setQuery] = useState('');
+  const searchParams = useMemo(() => new URLSearchParams(query), [query]);
   const resultsRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLDivElement>(null);
 
@@ -104,11 +116,20 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
 
   // Височина на фиксираното меню — лентата с бутона „Филтри“ се залепя точно под него, без процеп.
   // Мери се с ResizeObserver, защото менюто променя височината си (padding при скрол, мобилно/десктоп).
-  const [navHeight, setNavHeight] = useState(60);
+  // Пише се направо в стила на лентата и на панела, а не в state или в променлива на целия каталог: менюто анимира
+  // височината си 0.5s в началото на скрола и иначе каталогът (50+ карти) се преизчисляваше на всеки кадър — на
+  // телефон скролът засичаше точно тогава.
+  const stickyBarRef = useRef<HTMLDivElement>(null);
+  const filtersPanelRef = useRef<HTMLDivElement>(null);
+  const navHeightRef = useRef(60);
   useEffect(() => {
     const nav = document.querySelector<HTMLElement>('[data-site-navbar]');
     if (!nav) return;
-    const update = () => setNavHeight(Math.round(nav.getBoundingClientRect().height));
+    const update = () => {
+      navHeightRef.current = Math.round(nav.getBoundingClientRect().height);
+      if (stickyBarRef.current) stickyBarRef.current.style.top = `${navHeightRef.current - 1}px`;
+      filtersPanelRef.current?.style.setProperty('--nav-h', `${navHeightRef.current}px`);
+    };
     const observer = new ResizeObserver(update);
     // border-box е важно: при скрол менюто сменя само padding-а си (py-6 → py-3), а това НЕ променя content-box и
     // обикновеният ResizeObserver не би се задействал — лентата би останала на стара височина (видим процеп).
@@ -385,11 +406,13 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
   // интерактивно кликване на филтър и ще се бие с scrollToResults() по-долу — точно това правеше страницата
   // видимо да „скача“ нагоре след всяко кликване.
   useEffect(() => {
-    const hasActiveDeepLink = 
-        searchParams.get('country') || 
-        searchParams.get('continent') || 
-        searchParams.get('cat') ||
-        (typeof window !== 'undefined' && window.location.hash === '#tours-grid');
+    // От адреса, а не от searchParams: при първото изпълнение SearchParamsSync още не ги е подал.
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasActiveDeepLink =
+        urlParams.get('country') ||
+        urlParams.get('continent') ||
+        urlParams.get('cat') ||
+        window.location.hash === '#tours-grid';
     
     if (hasActiveDeepLink) {
       // Мястото на каталога се мери, след като страницата се подреди (шрифтове, снимки над него), а ако след
@@ -408,7 +431,6 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
       }, 1100);
       return () => { window.clearTimeout(first); window.clearTimeout(check); };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateParam = (key: string, value: string) => {
@@ -431,7 +453,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
   const scrollToResults = () => {
     const target = headingRef.current ?? resultsRef.current;
     if (target) {
-      const y = target.getBoundingClientRect().top + window.pageYOffset - (navHeight + 16);
+      const y = target.getBoundingClientRect().top + window.pageYOffset - (navHeightRef.current + 16);
       window.scrollTo({ top: y, behavior: 'smooth' });
     }
   };
@@ -574,6 +596,9 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     <div
       className="w-full py-16 relative overflow-clip bg-white"
     >
+    <Suspense fallback={null}>
+      <SearchParamsSync onChange={setQuery} />
+    </Suspense>
 
     <section
       id="tours-grid"
@@ -658,7 +683,8 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
           скрол контейнер и чупи sticky. Лек градиент под лентата (after:) мае съдържанието, което минава отдолу. */}
       {!hideFilters && (
         <div
-          style={{ top: navHeight - 1 }}
+          ref={stickyBarRef}
+          style={{ top: 59 }}
           className="sticky z-30 -mx-6 mb-3 flex items-center justify-between gap-3 bg-white px-6 pb-2 pt-0.5 md:pb-3 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-3 before:bg-white after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-white after:to-transparent"
         >
           <button
@@ -697,13 +723,14 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
           и от екранните четци, докато е затворен. * */}
       {!hideFilters && (
           <div
+            ref={filtersPanelRef}
             id="tours-filters-panel"
             role="dialog"
             aria-label="Филтри"
             inert={!filtersOpen}
             style={{
-              top: `calc(${navHeight}px + (100svh - ${navHeight}px) / 2)`,
-              maxHeight: `calc(100svh - ${navHeight}px - 2rem)`,
+              top: 'calc(var(--nav-h, 60px) + (100svh - var(--nav-h, 60px)) / 2)',
+              maxHeight: 'calc(100svh - var(--nav-h, 60px) - 2rem)',
             }}
             // Бял панел върху затъмнената страница — същото бяло като страницата, без беж.
             className={`fixed left-1/2 z-[50] w-[calc(100%-1.5rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-white px-5 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.45)] transition-[opacity,transform,visibility] duration-300 ease-out sm:px-7 ${
@@ -785,7 +812,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
             </div>
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-16 items-start">
-            {filteredTours.map((tour, index) => {
+            {filteredTours.map((tour) => {
                 const earliestDate = getEarliestDate(tour);
                 let tourYear = earliestDate !== "9999-99-99" ? earliestDate.split('-')[0] : "";
                 
@@ -807,7 +834,6 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
                         isFav={isFav} 
                         toggleFavorite={toggleFavorite} 
                         isLedByPoli={!!tour.categories?.includes('Водена от ПОЛИ')}
-                        priority={index < 3}
                         column={column++}
                     />
                 </React.Fragment>
