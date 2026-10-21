@@ -17,7 +17,7 @@
 
 import { load } from 'cheerio';
 import { WORLD_COUNTRIES } from '@/lib/constants';
-import { readableFlightInfo } from './flightSchedule';
+import { readableFlightInfo, flightsFromProgram, hasFlightTimes } from './flightSchedule';
 
 export const DARI_BASE_URL = 'https://dari-tour.com/';
 export const DARI_HOSTNAMES = new Set(['dari-tour.com', 'www.dari-tour.com']);
@@ -168,8 +168,9 @@ export interface ScrapedTour {
 }
 
 // Начало на блока с полети и редовете, които все още са част от него. Общи за 2МКО и Дари Тур.
-// 2МКО: „Полетна информация:“; Дари Тур: „Полетно разписание“ (без двоеточие) в края на таба „Програма“.
-export const FLIGHTS_HEADING = /^(полетн[ао]\s+(информация|разписание)|информация\s+за\s+полет\S*|полети)\s*:?\s*$/i;
+// 2МКО: „Полетна информация:“ (и „ПОЛЕТНА ИНФОРМАЦИЯ:“ в Word файла); Дари Тур: „Полетно разписание“ (понякога без
+// двоеточие, понякога „Полетно разписание (подлежи на препотвърждение):“).
+export const FLIGHTS_HEADING = /^(?:полетн[ао]\s+(?:информация|разписание|програма)|информация\s+за\s+полет[а-я]*|полети)(?![а-яА-Я])[^:]{0,50}:?\s*$/i;
 // Ред от блока: „7 ДЕН – …“, ред с полет/кацане/багаж или ред от разписание „1 TK1128 21MAR SOFIST …“.
 // „летище“ нарочно липсва — „трансфери летище-хотел-летище“ е точка от „Цената включва“.
 export const FLIGHT_LINE = /^\d{1,2}\s*(?:-?\s*(?:ви|ри|ти|ми|ва))?\s*ден(?![а-яА-Я])|полет|кацане|излитане|багаж|авиокомпани|седалк|^\d{1,2}\s+[A-Z0-9]{2}\s?\d{1,4}\s/i;
@@ -203,7 +204,7 @@ const PROGRAM_END_LINE_STARTS = [
   'документи', 'фабрики', 'условия', 'полетно разписание', 'полетна информация',
 ];
 
-function splitProgram(text: string): { days: ScrapedTour['program']; tail: string } {
+function splitProgram(text: string): { days: ScrapedTour['program']; head: string; tail: string } {
   const matches = [...text.matchAll(DAY_REGEX)];
   const markers: { day: number; index: number }[] = [];
   let expected = 1;
@@ -214,7 +215,7 @@ function splitProgram(text: string): { days: ScrapedTour['program']; tail: strin
       expected++;
     }
   }
-  if (markers.length === 0) return { days: [], tail: '' };
+  if (markers.length === 0) return { days: [], head: '', tail: '' };
 
   const days: ScrapedTour['program'] = [];
   let tail = '';
@@ -237,7 +238,31 @@ function splitProgram(text: string): { days: ScrapedTour['program']; tail: strin
     const description = text.slice(start, end).replace(/\s+/g, ' ').trim();
     days.push({ day: markers[i].day, title: `Ден ${markers[i].day}`, description });
   }
-  return { days, tail };
+  return { days, head: text.slice(0, markers[0].index).trim(), tail };
+}
+
+// Ред само с градове през тире („София - Истанбул - Банкок“) — в блока с полети е маршрут на полет
+const ROUTE_ONLY = /^[А-ЯA-Z][\p{L} .]*(?:\s*[-–—]\s*[А-ЯA-Z][\p{L} .]*)+$/u;
+
+// Изважда блока с полети („Полетно разписание:“ и редовете след него) от текста на програмата. Някои страници го
+// имат ПРЕДИ програмата, с редове „1 ДЕН – …“, „2 ДЕН – …“ — без това тези редове се взимаха за първите дни.
+function extractFlightBlock(text: string): { flights: string[]; rest: string } {
+  const lines = text.split('\n');
+  // Без „- “ отпред: в списък (<li>) редовете идват с тире от blockText()
+  const bare = (l: string) => l.trim().replace(/^[-•]\s*/, '');
+  const start = lines.findIndex((l) => FLIGHTS_HEADING.test(bare(l)));
+  if (start === -1) return { flights: [], rest: text };
+  let end = start + 1;
+  while (end < lines.length) {
+    const l = bare(lines[end]);
+    if (!(FLIGHT_LINE.test(l) || /^превозвач/i.test(l) || (l.length < 60 && ROUTE_ONLY.test(l)))) break;
+    end++;
+  }
+  return {
+    // „Превозвач:“ без нищо след него — авиокомпанията е лого (картинка) на страницата
+    flights: lines.slice(start + 1, end).map(bare).filter((l) => l && !/^превозвач\s*:?$/i.test(l)),
+    rest: [...lines.slice(0, start), ...lines.slice(end)].join('\n'),
+  };
 }
 
 type SectionKind = 'included' | 'notIncluded' | 'docs' | 'info' | 'flights';
@@ -256,6 +281,11 @@ function splitTailSections(tail: string): { kind: SectionKind; heading: string; 
   const sections: { kind: SectionKind; heading: string; lines: string[] }[] = [];
   let current = { kind: 'info' as SectionKind, heading: '', lines: [] as string[] };
   for (const line of tail.split('\n').map((l) => l.trim()).filter(Boolean)) {
+    // Вътре в полетите „Превозвач:“ и „1 ДЕН – …:“ са редове от тях, не нов раздел
+    if (current.kind === 'flights' && (FLIGHT_LINE.test(line) || /^превозвач/i.test(line))) {
+      current.lines.push(line);
+      continue;
+    }
     // „Полетно разписание“ при Дари Тур е без двоеточие — затова е отделна проверка
     const isHeading = (line.length < 70 && /:\s*$/.test(line)) || FLIGHTS_HEADING.test(line);
     if (isHeading) {
@@ -359,7 +389,18 @@ export function parseDariTour(html: string): ScrapedTour {
     if (main.length) programText = blockText(main.html() || '');
   }
 
-  const { days, tail } = splitProgram(programText);
+  const flightBlock = extractFlightBlock(programText);
+  flightLines.push(...flightBlock.flights);
+  const { days, head, tail } = splitProgram(flightBlock.rest);
+
+  // Преди програмата понякога са „Цената включва/не включва“ (цялата програма е след тях) — взимаме само тези раздели,
+  // не и уводния текст, който не е „допълнителна информация“
+  splitTailSections(head).forEach((sec) => {
+    const body = sec.lines.join('\n');
+    if (sec.kind === 'included' && !included) included = body;
+    else if (sec.kind === 'notIncluded' && !notIncluded) notIncluded = body;
+    else if (sec.kind === 'docs') docLines.push(...sec.lines);
+  });
 
   // „Опашката“ след програмата: цени/плащане/анулации/документи. Секциите „включва/не включва“ ги взимаме оттук
   // само ако съответният таб липсва — иначе дублират таба.
@@ -410,7 +451,13 @@ export function parseDariTour(html: string): ScrapedTour {
     notIncluded: notIncluded.trim(),
     documents: Array.from(new Set(docLines)).join('\n').trim(),
     generalInfo,
-    // „2 TK 196 21MAR ISTPEK …“ → „21 март – полет TK 196 Истанбул (IST) – Пекин (PEK), …“
-    flightInfo: readableFlightInfo(flightLines.map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n')),
+    // „2 TK 196 21MAR ISTPEK …“ → „21 март – полет TK 196 Истанбул (IST) – Пекин (PEK), …“. Без раздел с полети
+    // (напр. Дубай) — изреченията с полет и час от самата програма.
+    flightInfo: (() => {
+      const block = readableFlightInfo(flightLines.map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n'));
+      if (!block) return flightsFromProgram(days);
+      // Блок само с маршрути, без часове (Тайланд: „Превозвач: / София - Истанбул - Банкок“) — добавяме часовете от програмата
+      return hasFlightTimes(block) ? block : [block, flightsFromProgram(days)].filter(Boolean).join('\n');
+    })(),
   };
 }

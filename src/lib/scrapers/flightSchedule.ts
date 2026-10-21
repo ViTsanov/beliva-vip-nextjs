@@ -48,3 +48,40 @@ export function readableFlightLine(line: string): string {
 
 export const readableFlightInfo = (text: string) =>
   text.split('\n').map(readableFlightLine).join('\n');
+
+// Резерва, когато туроператорът няма отделен раздел с полети (напр. Дари Тур — Дубай): часовете са в самата програма
+// („1-ви ДЕН Излитане от летище София в 14:25 ч. с директен полет на Fly Dubai. Кацане в Дубай в 21:25 ч.“).
+// Взимаме изреченията, в които има и полет/излитане/кацане, и час — по един ред на ден: „Ден 1: …“.
+const FLIGHT_WORD = /полет|излит|каца|кацн/i;
+const CLOCK = /(?<!\d)\d{1,2}[:.,]\d{2}(?!\d)\s*(?:ч|h)?/i;
+const DAY_PREFIX = /^\s*(?:\d{1,2}\s*(?:-?\s*(?:ви|ри|ти|ми|ва))?\s*ден(?![а-яА-Я])|ден\s*\d{1,2})\s*[–\-—:]?\s*/i;
+
+export function flightsFromProgram(days: { day: number; description: string }[]): string {
+  // Някои програми споменават полетите без часове („Полет на Турските авиолинии от София до Токио през Истанбул.“) —
+  // тогава взимаме тези изречения: авиокомпания и маршрут са пак полезни.
+  return flightSentences(days, true) || flightSentences(days, false);
+}
+
+/** Има ли поне един час в текста с полети (иначе страницата дава само маршрути — „София - Истанбул - Банкок“). */
+export const hasFlightTimes = (text: string) => CLOCK.test(text);
+
+function flightSentences(days: { day: number; description: string }[], withClock: boolean): string {
+  return days.map((d) => {
+    const kept: string[] = [];
+    let prevKept = false;
+    // Изречения: „ч.“, „г.“ и „ул.“ не са край на изречение („В 21:05ч. полет София – Истанбул“ е едно изречение),
+    // освен ако следва главна буква („…в 15:35ч. Трансфер до хотел.“)
+    for (const raw of d.description.replace(DAY_PREFIX, '').split(/(?<=[.!?])(?<![чЧгГ]\.|ул\.)\s+|(?<=[чЧ]\.)\s+(?=[А-ЯA-Z])/)) {
+      // Датата в началото („28.04.2027 –“) не е час — махаме я, за да не дублира
+      const s = raw.replace(/^\d{1,2}\.\d{1,2}\.\d{2,4}\s*[–\-—]?\s*/, '').trim();
+      const hasClock = CLOCK.test(s);
+      // Полет с час — и веднага след него изречението с часа на пристигане („Пристигане в Истанбул в 22:35ч.“)
+      const keep: boolean = withClock
+        ? hasClock && (FLIGHT_WORD.test(s) || (prevKept && /пристиг/i.test(s)))
+        : /полет/i.test(s);
+      if (keep) kept.push(s);
+      prevKept = keep;
+    }
+    return kept.length ? `Ден ${d.day}: ${kept.join(' ')}` : '';
+  }).filter(Boolean).join('\n');
+}

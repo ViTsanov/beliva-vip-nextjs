@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/adminAuth';
 import { DARI_HOSTNAMES, parseDariTour } from '@/lib/scrapers/dariTour';
 import { parseTwoMkoTour } from '@/lib/scrapers/twoMko';
+import { findTwoMkoDocxUrl, flightsFromDocx } from '@/lib/scrapers/twoMkoDocx';
+import { flightsFromProgram } from '@/lib/scrapers/flightSchedule';
 
 // Разрешени са САМО домейните на туроператорите, с които работим — предпазва от SSRF към вътрешни мрежи/метаданни
 const ALLOWED_HOSTNAMES = new Set(['2mko.com', 'www.2mko.com', ...DARI_HOSTNAMES]);
@@ -48,6 +50,24 @@ export async function POST(req: Request) {
 
         // 2МКО — парсерът е в src/lib/scrapers/twoMko.ts
         const { debug, ...tour } = parseTwoMkoTour(html);
+
+        // Полетите: на страницата обикновено ги няма — 2МКО ги държи в Word файла на програмата. Ако и там няма
+        // (или файлът не се изтегли) — изреченията с полет и час от самата програма.
+        if (!tour.flightInfo) {
+            const docxUrl = findTwoMkoDocxUrl(html);
+            if (docxUrl && ALLOWED_HOSTNAMES.has(new URL(docxUrl).hostname)) {
+                try {
+                    const docxRes = await fetch(docxUrl, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        signal: AbortSignal.timeout(15000),
+                    });
+                    if (docxRes.ok) tour.flightInfo = flightsFromDocx(new Uint8Array(await docxRes.arrayBuffer()));
+                } catch (err) {
+                    console.error('[scrape] Word файлът на 2МКО не се прочете:', docxUrl, err);
+                }
+            }
+            if (!tour.flightInfo) tour.flightInfo = flightsFromProgram(tour.program);
+        }
         return NextResponse.json({
             success: true, operator: '2mko', ...tour,
             // Дебъг данни само в development — не излагаме вътрешна логика в production
