@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { shareMetadata } from '@/lib/shareMeta';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { getActiveTours } from '@/services/tourService';
@@ -28,6 +29,11 @@ export const metadata: Metadata = {
   title: 'Карта на сайта',
   description: 'Пълен списък с всички дестинации, екскурзии, статии и информационни страници на Beliva VIP Tour.',
   alternates: { canonical: 'https://belivavip.bg/sitemaps' },
+  ...shareMetadata({
+    path: '/sitemaps',
+    title: 'Карта на сайта | Beliva VIP Tour',
+    description: 'Пълен списък с всички дестинации, екскурзии, статии и информационни страници на Beliva VIP Tour.',
+  }),
 };
 
 export default async function SitemapPage() {
@@ -99,7 +105,7 @@ export default async function SitemapPage() {
       <div className="absolute inset-0 z-0">
          {/* Сложи тук хубава снимка, например world map или landscape */}
          <Image 
-            src="/hero/thailand.webp" 
+            src="/hero/thailand2.jpg" 
             alt="Background" 
             fill 
             className="object-cover opacity-10 blur-sm" 

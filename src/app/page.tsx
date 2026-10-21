@@ -11,6 +11,7 @@ import { getActiveTours, toTourSummary } from "@/services/tourService";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import type { Metadata } from "next";
+import { homeShareImage, shareMetadata } from "@/lib/shareMeta";
 
 export const revalidate = 120;
 
@@ -18,6 +19,14 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://belivavip.bg",
   },
+  // Превюто при споделяне — първият слайд на hero-то (Мексико) като JPEG 1200×630 (/og/home.jpg)
+  ...shareMetadata({
+    path: '/',
+    title: "Beliva VIP Tour | Изживейте Изключителното",
+    description: "Групови екскурзии с водач до Китай, Япония, Австралия, Нова Зеландия, Перу и още.",
+    image: homeShareImage(),
+    imageAlt: "Beliva VIP Tour — екскурзии с водач",
+  }),
 };
 
 export default async function HomePage() {

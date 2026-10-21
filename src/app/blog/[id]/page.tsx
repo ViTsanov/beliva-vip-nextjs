@@ -1,8 +1,8 @@
-import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import type { Metadata } from 'next';
 import { notFound } from "next/navigation";
 import BlogClient from "@/components/BlogClient";
+import { getPostData } from "@/lib/blogPost";
+import { blogShareImage, shareMetadata } from "@/lib/shareMeta";
 
 // Константа за вашия домейн
 const SITE_URL = "https://belivavip.bg";
@@ -12,58 +12,7 @@ type Props = {
 };
 
 /**
- * 1. Функция за извличане на данни (Сървърна)
- */
-async function getPostData(identifier: string) {
-  if (!identifier) return null;
-  
-  const decodedId = decodeURIComponent(identifier);
-
-  try {
-    let postData = null;
-    let postId = null;
-
-    // А. Търсене по Slug
-    const q = query(collection(db, "posts"), where("slug", "==", decodedId));
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      postData = doc.data();
-      postId = doc.id;
-    } 
-    else {
-      // Б. Търсене по ID
-      try {
-        const docRef = doc(db, "posts", decodedId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-           postData = docSnap.data();
-           postId = docSnap.id;
-        }
-      } catch (e) {
-        return null;
-      }
-    }
-
-    if (!postData) return null;
-
-    // Сериализация на датите за Next.js
-    return {
-      id: postId,
-      ...postData,
-      createdAt: postData.createdAt?.toDate ? postData.createdAt.toDate().toISOString() : new Date().toISOString(),
-      updatedAt: postData.updatedAt?.toDate ? postData.updatedAt.toDate().toISOString() : null,
-    };
-
-  } catch (error) {
-    console.error("Error fetching post:", error);
-    return null;
-  }
-}
-
-/**
- * 2. ГЕНЕРИРАНЕ НА ДИНАМИЧНИ МЕТАДАННИ (SEO)
+ * 1. ГЕНЕРИРАНЕ НА ДИНАМИЧНИ МЕТАДАННИ (SEO)
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
@@ -81,15 +30,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Каноничният адрес е по slug, дори статията да е отворена по ID на документа
   const url = `${SITE_URL}/blog/${post.slug || resolvedParams.id}`;
 
-  // --- ЛОГИКА ЗА СНИМКАТА (FIX) ---
-  // 1. Взимаме снимката (coverImg или img) или слагаме дефолтна
-  const rawImage = post.coverImg || post.img || "/og-default.jpg";
-  
-  // 2. Правим я абсолютен път (ако вече не е)
-  const imageUrl = rawImage.startsWith("http") ? rawImage : `${SITE_URL}${rawImage}`;
+  // Снимката за превю — корицата като JPEG 1200×630 (/blog/<id>/og.jpg); без корица — снимката по подразбиране
+  const imageUrl = blogShareImage(post.slug || resolvedParams.id, post);
 
   return {
-    metadataBase: new URL(SITE_URL),
     title: title,
     description: description,
     
@@ -97,33 +41,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       canonical: url,
     },
 
-    // Социални мрежи (Facebook, Viber, LinkedIn)
-    openGraph: {
-      title: title,
-      description: description,
-      url: url,
-      siteName: 'Beliva VIP Tour',
-      images: [
-        {
-          url: imageUrl, // 👈 Вече е гарантирано пълен URL
-          width: 1200,   // 👈 Задължително за Facebook
-          height: 630,   // 👈 Задължително за Facebook
-          alt: post.title,
-        }
-      ],
-      locale: 'bg_BG',
+    // Социални мрежи (Facebook, Messenger, Viber, LinkedIn, X)
+    ...shareMetadata({
+      path: `/blog/${post.slug || resolvedParams.id}`,
+      title,
+      description,
+      image: imageUrl,
+      imageAlt: post.title,
       type: 'article',
-      publishedTime: post.createdAt,
-      authors: [post.author || 'Beliva VIP'],
-    },
-
-    // Twitter / X
-    twitter: {
-      card: 'summary_large_image',
-      title: title,
-      description: description,
-      images: [imageUrl],
-    },
+      article: { publishedTime: post.createdAt, authors: [post.author || 'Beliva VIP'] },
+    }),
 
     robots: {
       index: true,
@@ -140,7 +67,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * 3. ОСНОВЕН КОМПОНЕНТ НА СТРАНИЦАТА
+ * 2. ОСНОВЕН КОМПОНЕНТ НА СТРАНИЦАТА
  */
 export default async function BlogPostPage({ params }: Props) {
   const resolvedParams = await params;
@@ -150,16 +77,15 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
-  // Изчисляваме снимката и тук за JSON-LD
-  const rawImage = post.coverImg || post.img || "/og-default.jpg";
-  const imageUrl = rawImage.startsWith("http") ? rawImage : `${SITE_URL}${rawImage}`;
+  // Същата снимка като в превюто — за JSON-LD
+  const imageUrl = blogShareImage(post.slug || resolvedParams.id, post);
 
   // Структурирани данни (JSON-LD) за Google Rich Snippets
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     "headline": post.title,
-    "image": imageUrl, // 👈 Ползваме пълния URL
+    "image": imageUrl,
     "datePublished": post.createdAt,
     "author": {
       "@type": "Person",

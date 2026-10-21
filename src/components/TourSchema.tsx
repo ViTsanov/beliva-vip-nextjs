@@ -1,6 +1,6 @@
 import { ITour } from "@/types";
 import JsonLd from "@/components/JsonLd";
-import { isOperatorHotlink } from "@/lib/operatorImageDomains";
+import { tourShareImage, tourShareSources } from "@/lib/shareMeta";
 import { normalizeTourDates, toISODate } from "@/lib/tourDates";
 
 interface TourReview {
@@ -28,16 +28,17 @@ export default function TourSchema({ tour, reviews = [] }: { tour: ITour; review
   const promoEnd = tour.discountPrice ? toISODate(tour.promoEnd) : null;
   const priceValidUntil = [lastDate, promoEnd].filter((d): d is string => !!d).sort()[0];
 
-  // Снимка само от нашия сайт/хранилище — чужди сайтове на туроператори не се ползват за Google
-  const image = tour.img && !isOperatorHotlink(tour.img)
-    ? (tour.img.startsWith("http") ? tour.img : `${SITE_URL}${tour.img}`)
-    : undefined;
+  // Снимка само от нашия сайт/хранилище — чужди сайтове на туроператори не се ползват за Google. Първо JPEG-ът
+  // 1200×630 от og:image (същата снимка като в превюто), после оригиналът.
+  const best = tourShareSources(tour)[0];
+  const original = best && (best.startsWith("http") ? best : `${SITE_URL}${best}`);
+  const image = [tourShareImage(tour, tour.slug || tour.tourId || tour.id), original].filter(Boolean);
 
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product", // Използваме Product, защото Google най-добре визуализира цени за него
     "name": tour.title,
-    ...(image && { "image": image }),
+    "image": image,
     "description": tour.intro ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 160) : `Резервирайте незабравимо пътуване до ${country}.`,
     "brand": {
       "@type": "Brand",

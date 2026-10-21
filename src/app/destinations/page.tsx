@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { shareMetadata } from '@/lib/shareMeta';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
@@ -30,13 +31,11 @@ export const metadata: Metadata = {
   description:
     'Всички дестинации на Beliva VIP Tour на едно място: групови екскурзии с водач по държави и континенти – дати, цени и програми.',
   alternates: { canonical: `${SITE_URL}/destinations` },
-  openGraph: {
-    type: 'website',
-    url: `${SITE_URL}/destinations`,
+  ...shareMetadata({
+    path: '/destinations',
     title: 'Дестинации – екскурзии по държави | Beliva VIP Tour',
     description: 'Групови екскурзии с водач по държави и континенти.',
-    images: [{ url: `${SITE_URL}/hero/singapore.webp`, width: 1200, height: 630 }],
-  },
+  }),
 };
 
 // Континентите — ред, име, цвят на фона (bg), по-тъмен тон за силуета (ink) и силует

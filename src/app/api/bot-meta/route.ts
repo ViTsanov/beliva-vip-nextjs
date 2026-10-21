@@ -1,6 +1,7 @@
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { NextRequest, NextResponse } from "next/server";
+import { defaultShareImage } from "@/lib/shareMeta";
 
 const SITE_URL = "https://belivavip.bg";
 
@@ -12,7 +13,8 @@ export async function GET(request: NextRequest) {
   // Дефолтни данни
   let title = "Beliva VIP Tour";
   let description = "Луксозни екскурзии и почивки.";
-  let image = `${SITE_URL}/hero/australia.webp`;
+  // JPEG 1200×630 (WebP снимките Messenger не ги показва) — виж src/lib/shareMeta.ts
+  let image = defaultShareImage();
 
   try {
     if (!id) throw new Error("No ID");
@@ -29,15 +31,7 @@ export async function GET(request: NextRequest) {
         const rawDesc = data.intro || data.generalInfo || "";
         description = rawDesc.replace(/<[^>]*>?/gm, '').substring(0, 150) + "...";
         
-        let rawImg = data.img || data.images || (data.gallery && data.gallery[0]);
-        if (rawImg && rawImg.includes(',')) rawImg = rawImg.split(',')[0].trim();
-        
-        if (rawImg) {
-          // ИЗЧИСТВАМЕ UNSPLASH ЛИНКА ОТ ПРОБЛЕМНИТЕ ПАРАМЕТРИ
-          if (rawImg.includes('unsplash.com')) rawImg = rawImg.split('?')[0];
-          else if (rawImg.startsWith('/')) rawImg = `${SITE_URL}${rawImg}`;
-          image = rawImg;
-        }
+        image = `${SITE_URL}/tour/${encodeURIComponent(decodedId)}/og.jpg`;
       }
     } 
     // Б) БЛОГ
@@ -58,11 +52,7 @@ export async function GET(request: NextRequest) {
         const rawDesc = data.excerpt || data.content || "";
         description = rawDesc.replace(/<[^>]*>?/gm, '').substring(0, 150) + "...";
         
-        let rawImg = data.coverImg || data.image;
-        if (rawImg) {
-           if (rawImg.startsWith('/')) rawImg = `${SITE_URL}${rawImg}`;
-           image = rawImg;
-        }
+        image = `${SITE_URL}/blog/${encodeURIComponent(decodedId)}/og.jpg`;
       }
     }
 

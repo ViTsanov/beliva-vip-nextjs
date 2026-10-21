@@ -7,7 +7,7 @@ import { slugify } from "@/lib/admin-helpers";
 import type { ITour } from "@/types";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, limit, doc, getDoc } from "firebase/firestore";
-import { isOperatorHotlink } from "@/lib/operatorImageDomains";
+import { shareMetadata, tourShareImage } from "@/lib/shareMeta";
 
 // Презарежда на 60 секунди — новите турове се появяват в продукция максимум след  1 минута
 export const revalidate = 60; 
@@ -79,48 +79,6 @@ async function getRelatedPosts(countryData: string | string[], continentData?: s
   }
 }
 
-// Извлича най-добрия наличен URL за Facebook OG/Twitter preview
-const getRawImageUrl = (tour: any): string => {
-  // Проверява дали даденият URL е достъпен за външни ботове (FB, Twitter)
-  const isPublicUrl = (url: any): url is string => {
-    if (!url || typeof url !== 'string') return false;
-    if (!url.startsWith('http')) return false;
-    // Google Drive и lh3 изискват Google auth — не работят за OG
-    if (url.includes('drive.google.com')) return false;
-    if (url.includes('docs.google.com')) return false;
-    // Сайтове на оператори — хотlink риск / hotlink protection, блокират Facebook crawler
-    if (isOperatorHotlink(url)) return false;
-    return true;
-  };
-
-  // 1. Основната снимка на тура
-  if (isPublicUrl(tour.img)) return tour.img;
-
-  // 2. Нов формат на галерията (galleryWithCaptions = [{url, caption}])
-  if (Array.isArray(tour.galleryWithCaptions)) {
-    for (const item of tour.galleryWithCaptions) {
-      const url = typeof item === 'string' ? item : item?.url;
-      if (isPublicUrl(url)) return url;
-    }
-  }
-
-  // 3. Стар формат (gallery = [url1, url2] — масив от стрингове)
-  if (Array.isArray(tour.gallery)) {
-    for (const item of tour.gallery) {
-      const url = typeof item === 'string' ? item : item?.url;
-      if (isPublicUrl(url)) return url;
-    }
-  }
-
-  // 4. Relative път (от /public)
-  if (tour.img && typeof tour.img === 'string' && tour.img.startsWith('/')) {
-    return `${SITE_URL}${tour.img}`;
-  }
-
-  // 5. Fallback — херо снимка от сайта (не логото!)
-  return `${SITE_URL}/hero/singapore.webp`;
-};
-
 // 1. ГЕНЕРИРАНЕ НА МЕТАДАННИ
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
@@ -130,9 +88,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // вече го добавя (иначе заглавието ставаше „… | Beliva VIP Tour | Beliva VIP Tour“).
   if (!tour) return { title: 'Турът не е намерен', robots: { index: false, follow: true } };
 
-  // Build the best possible absolute image URL
-  const ogImageUrl = getRawImageUrl(tour);
-  const canonicalUrl = `${SITE_URL}/tour/${tour.slug || tour.tourId || tour.id}`;
+  const slug = tour.slug || tour.tourId || tour.id;
+  const canonicalUrl = `${SITE_URL}/tour/${slug}`;
   const description = tour.intro
     ? tour.intro.replace(/<[^>]*>?/gm, '').substring(0, 155) + '...'
     : `Открийте ${Array.isArray(tour.country) ? tour.country.join(', ') : tour.country} с Beliva VIP Tour. ${tour.price ? 'Цена от ' + tour.price + '.' : ''}`;
@@ -154,26 +111,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     // Архивирани / чакащи / чернови турове остават достъпни по линк (напр. за клиенти), но не трябва да се показват
     // в Google — с минали дати или непубликувано съдържание само биха влошили качеството на сайта в очите на търсачката.
     ...(tour.status !== 'public' && { robots: { index: false, follow: true } }),
-    openGraph: {
-      type: 'website',
-      url: canonicalUrl,
-      title: tour.title,
-      description,
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 630,
-          alt: tour.title,
-        },
-      ],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: tour.title,
-      description,
-      images: [ogImageUrl],
-    },
+    // Снимката за превю — снимката на тура като JPEG 1200×630 (/tour/<id>/og.jpg); WebP-то от Storage Messenger не го показва
+    ...shareMetadata({ path: `/tour/${slug}`, title: tour.title, description, image: tourShareImage(tour, slug), imageAlt: tour.title }),
   };
 }
 
@@ -269,11 +208,10 @@ export default async function TourPage({ params }: Props) {
   const relatedPosts = tour.country ? await getRelatedPosts(tour.country, tour.continent) : [];
   const tourReviews = await getTourReviews(tour.id);
   const topDestinations = await getTopDestinations(activeTours);
-  const tourForSchema = { ...tour, img: getRawImageUrl(tour) };
 
   return (
     <>
-      <TourSchema tour={tourForSchema} reviews={tourReviews} />
+      <TourSchema tour={tour} reviews={tourReviews} />
       <TourClient tourData={tour} relatedPostsData={relatedPosts} id={resolvedParams.id} similarToursData={similarTours} topDestinationsData={topDestinations} />
     </>
   );

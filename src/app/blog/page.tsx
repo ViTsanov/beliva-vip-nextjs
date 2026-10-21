@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { shareMetadata } from '@/lib/shareMeta';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import BlogListClient from './BlogListClient';
@@ -15,13 +16,11 @@ export const metadata: Metadata = {
   title: { absolute: 'Пътеводител и Блог | Beliva VIP Tour' },
   description: 'Пътеводители, съвети и истории от пътешествия до Япония, Австралия, Тайланд, Перу и още 60+ дестинации. Четете преди да тръгнете.',
   alternates: { canonical: 'https://belivavip.bg/blog' },
-  openGraph: {
-    type: 'website',
-    url: 'https://belivavip.bg/blog',
+  ...shareMetadata({
+    path: '/blog',
     title: 'Пътеводител и Блог | Beliva VIP Tour',
     description: 'Статии и пътеводители за над 60 дестинации.',
-    images: [{ url: 'https://belivavip.bg/beliva_logo.png', width: 1200, height: 630 }],
-  },
+  }),
 };
 
 const schemaData = {

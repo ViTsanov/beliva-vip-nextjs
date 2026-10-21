@@ -5,6 +5,7 @@ import LayoutWrapper from "@/components/LayoutWrapper";
 import ConditionalAnalytics from '@/components/ConditionalAnalytics';
 import { LazyAIChatWidget } from '@/components/LazyClient';
 import { COMPANY_INFO } from '@/lib/companyInfo';
+import { SHARE_IMAGE_SIZE, defaultShareImage, homeShareImage } from '@/lib/shareMeta';
 
 // 1. ШРИФТОВЕ
 const inter = Inter({ 
@@ -38,7 +39,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "TravelAgency",
   "name": SITE_NAME,
-  "image": `${SITE_URL}/hero/australia.webp`, // Използваме една от hero снимките като fallback лого/имидж
+  "image": homeShareImage(), // Първата hero снимка като JPEG 1200×630 — същата като в превюто на началната страница
   "logo": `${SITE_URL}/beliva_logo.png`,
   "@id": SITE_URL,
   "url": SITE_URL,
@@ -88,29 +89,23 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  // Open Graph (За Facebook, Viber, WhatsApp, LinkedIn)
+  // Open Graph (За Facebook, Messenger, Viber, WhatsApp, LinkedIn) — само за страниците без собствен openGraph
+  // (чек-аут, обратна връзка, 404). Публичните страници дават свой адрес, заглавие и снимка през shareMetadata()
+  // (src/lib/shareMeta.ts). Тук няма og:url — иначе всяка такава страница се споделя като началната.
   openGraph: {
     type: "website",
     locale: "bg_BG",
-    url: SITE_URL,
     title: "Beliva VIP Tour | Изживейте Изключителното",
     description: "Групови екскурзии с водач до Китай, Япония, Австралия, Нова Зеландия, Перу и още.",
     siteName: SITE_NAME,
-    images: [
-      {
-        url: "/hero/singapore.webp", // Картинка, която излиза при споделяне на началната страница
-        width: 1200,
-        height: 630,
-        alt: "Beliva VIP Tour Destinations",
-      },
-    ],
+    images: [{ url: defaultShareImage(), ...SHARE_IMAGE_SIZE, type: "image/jpeg", alt: "Beliva VIP Tour — екскурзии с водач" }],
   },
   // Twitter Card
   twitter: {
     card: "summary_large_image",
     title: "Beliva VIP Tour",
     description: "Групови екскурзии с водач до Китай, Япония, Австралия, Нова Зеландия, Перу и още.",
-    images: ["/hero/singapore.webp"], // Twitter също ползва тази снимка
+    images: [{ url: defaultShareImage(), ...SHARE_IMAGE_SIZE, type: "image/jpeg", alt: "Beliva VIP Tour — екскурзии с водач" }],
   },
   icons: {
     icon: [
