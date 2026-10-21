@@ -173,12 +173,12 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* ── Данни за фирмата — доверие: лицензиран туроператор ── */}
+      {/* ── Данни за фирмата — доверие: лицензирана туристическа агенция ── */}
       <section aria-labelledby="company-heading" className="border-t border-slate-100 pb-20 pt-12">
         <div className="container mx-auto px-6">
           <h2 id="company-heading" className="flex items-center gap-2 text-[15px] font-semibold text-brand-dark">
             <ShieldCheck size={18} className="text-brand-goldDeep" aria-hidden="true" />
-            Лицензиран туроператор
+            Лицензирана туристическа агенция
           </h2>
           <dl className="mt-5 grid gap-x-10 gap-y-4 text-[15px] sm:grid-cols-2 lg:grid-cols-4">
             <div>

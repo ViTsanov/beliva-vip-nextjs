@@ -1,23 +1,29 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Calendar } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { getActiveTours } from '@/services/tourService';
 import { slugify } from '@/lib/admin-helpers';
 import { COUNTRY_TO_CONTINENT } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatPrice';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 import { fetchAllMedia, findCountryHeroImage } from '@/lib/media-helpers';
-import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
+import { normalizeTourDates } from '@/lib/tourDates';
 import type { ITour } from '@/types';
 import JsonLd from '@/components/JsonLd';
+import ContinentLinks from '@/components/destination/ContinentLinks';
+import ContinentShape from '@/components/destination/ContinentShape';
+import { DestinationInquiryHost, InquiryButton } from '@/components/destination/DestinationInquiry';
 
-// Hub страница „Всички дестинации“. Освен за клиентите, тя е важна и за Google: от нея има обикновени
-// (server-rendered) линкове към всяка страница на дестинация и към всеки тур — така Googlebot намира новите
-// екскурзии за 1–2 клика от началната страница, без да зависи от JavaScript-а на филтрите.
+// Hub страница „Всички дестинации“ — по континенти, всеки в свой цвят и със своя силует (public/assets/continents),
+// а под него картите на държавите му (снимка, брой екскурзии, цена от, следващо заминаване). Континентите се редуват
+// ляво/дясно, а най-голямата държава на всеки континент е на широка карта — страницата е разчупена, но всеки
+// континент е ясно отделен с голямо заглавие. Обикновени (server-rendered) линкове към всяка страница на дестинация
+// са важни и за Google; линковете към всеки тур са в каталога на началната страница и в sitemap.
 export const revalidate = 3600;
 
 const SITE_URL = 'https://belivavip.bg';
+const POLI = 'Водена от ПОЛИ';
 
 export const metadata: Metadata = {
   title: { absolute: 'Дестинации – екскурзии по държави | Beliva VIP Tour' },
@@ -33,8 +39,19 @@ export const metadata: Metadata = {
   },
 };
 
-// Редът на континентите на страницата
-const CONTINENT_ORDER = ['Азия', 'Европа', 'Африка', 'Северна Америка', 'Южна Америка', 'Австралия', 'Други'];
+// Континентите — ред, име, цвят на фона (bg), по-тъмен тон за силуета (ink) и силует
+const CONTINENTS: { key: string; name: string; bg: string; ink: string; shape: string }[] = [
+  { key: 'Азия', name: 'Азия', bg: '#fbeadf', ink: '#c0623a', shape: '/assets/continents/asia_tr.png' },
+  { key: 'Европа', name: 'Европа', bg: '#e6edf8', ink: '#47679f', shape: '/assets/continents/europe_tr.png' },
+  { key: 'Африка', name: 'Африка', bg: '#f7ecd2', ink: '#b07d1c', shape: '/assets/continents/africa_tr.png' },
+  { key: 'Северна Америка', name: 'Северна Америка', bg: '#e1eff4', ink: '#2c7a95', shape: '/assets/continents/north_america_tr.png' },
+  { key: 'Южна Америка', name: 'Южна Америка', bg: '#e4f1e6', ink: '#3c8a5a', shape: '/assets/continents/south_america_tr.png' },
+  // „Австралия“ е и държава — като континент я пишем „Австралия и Океания“, за да не се бъркат
+  { key: 'Австралия', name: 'Австралия и Океания', bg: '#eee8f6', ink: '#7f5aa6', shape: '/assets/continents/australia_tr.png' },
+  { key: 'Други', name: 'Други дестинации', bg: '#eef1f4', ink: '#64748b', shape: '/assets/continents/europe_tr.png' },
+];
+
+const MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 
 const tourCountries = (tour: ITour): string[] =>
   Array.isArray(tour.country)
@@ -43,51 +60,75 @@ const tourCountries = (tour: ITour): string[] =>
       ? tour.country.split(',').map((c) => c.trim()).filter(Boolean)
       : [];
 
-const priceNumber = (tour: ITour): number => {
-  const n = parseFloat(String(tour.discountPrice || tour.price || '').replace(/[^\d.]/g, ''));
+const priceOf = (tour: ITour) => String(tour.discountPrice || tour.price || '');
+const priceNumber = (raw: string): number => {
+  const n = parseFloat(raw.replace(/[^\d.]/g, ''));
   return Number.isFinite(n) ? n : Infinity;
 };
 
-const displayDate = (iso?: string) => (iso ? iso.split('T')[0].split('-').reverse().join('.') : '');
+// „2027-03-16“ → „16 март 2027“
+const longDate = (iso: string) => {
+  const [y, m, d] = iso.split('-');
+  return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`;
+};
 
-type CountryGroup = { name: string; slug: string; tours: ITour[]; minPriceTour?: ITour; image?: string };
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+const focusRing = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-brand-gold';
+
+type Country = {
+  slug: string;
+  name: string;
+  img: string | null;
+  tours: number;
+  price: string | null;
+  nextDeparture: string | null;
+  poli: boolean;
+};
 
 export default async function DestinationsPage() {
-  const tours = await getActiveTours();
+  const [tours, allMedia] = await Promise.all([getActiveTours(), fetchAllMedia()]);
+  const today = new Date().toISOString().split('T')[0];
 
   // Групираме по държава (тур с няколко държави влиза във всяка от тях)
-  const byCountry = new Map<string, CountryGroup>();
+  const byCountry = new Map<string, ITour[]>();
   tours.forEach((tour) => {
-    tourCountries(tour).forEach((name) => {
-      const group = byCountry.get(name) || { name, slug: slugify(name), tours: [] };
-      group.tours.push(tour);
-      byCountry.set(name, group);
+    tourCountries(tour).forEach((name) => byCountry.set(name, [...(byCountry.get(name) || []), tour]));
+  });
+
+  // Държавите по континенти; пазим и самите турове, за да преброим екскурзиите на континента без повторения
+  const byContinent = new Map<string, { countries: Country[]; tourIds: Set<string> }>();
+  byCountry.forEach((list, name) => {
+    const cheapest = [...list].sort((a, b) => priceNumber(priceOf(a)) - priceNumber(priceOf(b)))[0];
+    const next = normalizeTourDates(list.flatMap((t) => [...(t.dates || []), t.date])).find((d) => d >= today);
+    const continent = COUNTRY_TO_CONTINENT[name] || list[0]?.continent || 'Други';
+    const key = CONTINENTS.some((c) => c.key === continent) ? continent : 'Други';
+    const entry = byContinent.get(key) || { countries: [], tourIds: new Set<string>() };
+    list.forEach((t) => entry.tourIds.add(t.id));
+    entry.countries.push({
+      slug: slugify(name),
+      name,
+      // Снимка: „<Държава> hero“ от Media Library, иначе първата снимка от неин тур
+      img: findCountryHeroImage(allMedia, name) || list.map((t) => t.img).find((img) => img && !isOperatorHotlink(img)) || null,
+      tours: list.length,
+      price: cheapest && priceNumber(priceOf(cheapest)) !== Infinity ? formatPrice(priceOf(cheapest)) : null,
+      nextDeparture: next ? longDate(next) : null,
+      poli: list.some((t) => t.categories?.includes(POLI)),
     });
+    byContinent.set(key, entry);
   });
 
-  // Снимка на държавата: „<Държава> hero“ от Media Library, иначе първата снимка от неин тур
-  const allMedia = await fetchAllMedia();
-  byCountry.forEach((group) => {
-    group.tours.sort((a, b) => String(a.date || '9999').localeCompare(String(b.date || '9999')));
-    group.minPriceTour = [...group.tours].sort((a, b) => priceNumber(a) - priceNumber(b))[0];
-    group.image = findCountryHeroImage(allMedia, group.name)
-      || group.tours.map((t) => t.img).find((img) => img && !isOperatorHotlink(img));
-  });
-
-  // Групираме държавите по континент
-  const byContinent = new Map<string, CountryGroup[]>();
-  byCountry.forEach((group) => {
-    const continent = COUNTRY_TO_CONTINENT[group.name] || group.tours[0]?.continent || 'Други';
-    const key = CONTINENT_ORDER.includes(continent) ? continent : 'Други';
-    byContinent.set(key, [...(byContinent.get(key) || []), group]);
-  });
-  const continents = CONTINENT_ORDER
-    .filter((c) => byContinent.has(c))
-    .map((c) => ({
-      name: c,
-      id: slugify(c),
-      countries: byContinent.get(c)!.sort((a, b) => b.tours.length - a.tours.length || a.name.localeCompare(b.name, 'bg')),
-    }));
+  const continents = CONTINENTS
+    .filter((c) => byContinent.has(c.key))
+    .map((c) => {
+      const { countries, tourIds } = byContinent.get(c.key)!;
+      return {
+        ...c,
+        id: slugify(c.key),
+        tours: tourIds.size,
+        countries: countries.sort((a, b) => b.tours - a.tours || a.name.localeCompare(b.name, 'bg')),
+      };
+    });
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -95,134 +136,181 @@ export default async function DestinationsPage() {
     name: 'Дестинации – Beliva VIP Tour',
     url: `${SITE_URL}/destinations`,
     numberOfItems: byCountry.size,
-    itemListElement: Array.from(byCountry.values()).map((g, i) => ({
+    itemListElement: continents.flatMap((c) => c.countries).map((c, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      name: `Екскурзии до ${g.name}`,
-      url: `${SITE_URL}/destinations/${g.slug}`,
+      name: `Екскурзии до ${c.name}`,
+      url: `${SITE_URL}/destinations/${c.slug}`,
     })),
   };
 
   // Обвивката е <div>, не <main>: LayoutWrapper вече слага <main> около всяка страница, а <main> в <main> е невалиден HTML.
   return (
-    <div className="min-h-screen bg-[#f7f4ee]">
+    <div className="min-h-screen bg-white text-brand-dark">
       <JsonLd data={jsonLd} />
+      <DestinationInquiryHost country="" />
 
-      {/* Заглавие */}
-      <section className="bg-[#0f1724] pb-14 pt-32 text-white md:pb-16 md:pt-40">
-        <div className="container mx-auto px-6">
-          <nav aria-label="Навигация" className="mb-6 text-xs text-white/50">
-            <Link href="/" className="transition-colors hover:text-brand-gold">Начало</Link>
-            <span className="mx-2" aria-hidden="true">/</span>
-            <span className="text-white/80">Дестинации</span>
-          </nav>
-          <h1 className="font-serif text-5xl italic leading-tight md:text-6xl">Дестинации</h1>
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/70 md:text-lg">
-            {byCountry.size} държави и {tours.length} групови екскурзии с водач. Изберете държава, за да видите всички дати,
-            програми и цени.
+      {/* Заглавие и плочките на континентите */}
+      <header className="mx-auto max-w-[1240px] px-4 pb-10 pt-[112px] sm:px-6 md:pb-14 md:pt-[140px]">
+        <nav aria-label="Навигационна пътека" className="mb-6 px-2 sm:px-0">
+          <ol className="flex flex-wrap items-center gap-2.5 text-[15px] text-slate-600">
+            <li><Link href="/" className={`rounded-sm hover:text-brand-dark ${focusRing}`}>Начало</Link></li>
+            <li aria-hidden="true" className="text-slate-400">/</li>
+            <li aria-current="page" className="font-semibold text-brand-dark">Дестинации</li>
+          </ol>
+        </nav>
+        <div className="px-2 sm:px-0">
+          <h1 className="font-serif text-[clamp(42px,5.5vw,68px)] font-normal italic leading-[1.05] tracking-[-0.01em]">Дестинации</h1>
+          <p className="mt-5 max-w-[640px] text-lg leading-[1.7] text-slate-700">
+            {plural(byCountry.size, 'държава', 'държави')} и {plural(tours.length, 'групова екскурзия', 'групови екскурзии')} с водач,
+            подредени по континенти. Изберете континент или държава, за да видите всички дати, програми и цени.
           </p>
-
-          {continents.length > 1 && (
-            <ul className="mt-8 flex flex-wrap gap-2">
-              {continents.map((c) => (
-                <li key={c.id}>
-                  <a
-                    href={`#${c.id}`}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm text-white/80 transition-colors hover:border-brand-gold hover:text-brand-gold"
-                  >
-                    {c.name}
-                    <span className="text-white/40">{c.countries.length}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
-      </section>
+        {continents.length > 1 && (
+          <div className="mt-9">
+            <ContinentLinks
+              continents={continents.map((c) => ({ id: c.id, name: c.name, countries: c.countries.length, bg: c.bg, ink: c.ink, shape: c.shape }))}
+            />
+          </div>
+        )}
+      </header>
 
-      {/* Континенти → държави → турове */}
-      <div className="container mx-auto space-y-16 px-6 py-14 md:py-20">
-        {continents.map((continent) => (
-          <section key={continent.id} id={continent.id} className="scroll-mt-28" aria-labelledby={`${continent.id}-heading`}>
-            <h2 id={`${continent.id}-heading`} className="mb-8 border-b border-brand-gold/20 pb-3 font-serif text-3xl italic text-brand-dark md:text-4xl">
-              {continent.name}
-            </h2>
-
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {continent.countries.map((country) => (
-                <article key={country.slug} className="flex flex-col overflow-hidden rounded-[2rem] border border-brand-gold/15 bg-white shadow-sm">
-                  <Link href={`/destinations/${country.slug}`} className="group relative block h-44 overflow-hidden">
-                    {country.image ? (
-                      <Image
-                        src={country.image}
-                        alt={`Екскурзии до ${country.name}`}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                        placeholder="blur"
-                        blurDataURL={BLUR_PLACEHOLDER}
-                        className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand-dark/70" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                    <div className="absolute inset-x-5 bottom-4 text-white">
-                      <h3 className="font-serif text-2xl italic leading-tight">Екскурзии до {country.name}</h3>
-                      <p className="mt-1 text-sm text-white/80">
-                        {country.tours.length} {country.tours.length === 1 ? 'екскурзия' : 'екскурзии'}
-                        {country.minPriceTour && priceNumber(country.minPriceTour) !== Infinity && (
-                          <> · от {formatPrice(String(country.minPriceTour.discountPrice || country.minPriceTour.price))}</>
-                        )}
+      {/* Континенти — цветни ленти, заглавието се редува ляво/дясно */}
+      <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-4 pb-20 sm:px-6 md:gap-8 md:pb-28">
+        {continents.map((continent, ci) => {
+          const flip = ci % 2 === 1;
+          const count = continent.countries.length;
+          return (
+            <section
+              key={continent.id}
+              id={continent.id}
+              aria-labelledby={`${continent.id}-title`}
+              style={{ backgroundColor: continent.bg }}
+              className="relative scroll-mt-24 rounded-[32px] px-5 pb-6 pt-7 sm:px-8 sm:pb-8 md:rounded-[44px] lg:px-12 lg:py-12"
+            >
+              <div className={`grid grid-cols-1 gap-7 lg:gap-12 ${flip ? 'lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]' : 'lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]'}`}>
+                {/* Заглавието на континента със силуета му; на компютър върви с превъртането */}
+                <div className={`self-start lg:sticky lg:top-28 ${flip ? 'lg:order-2' : ''}`}>
+                  <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-start lg:justify-start lg:gap-0">
+                    <div className="lg:mt-6">
+                      <h2 id={`${continent.id}-title`} className="font-serif text-[clamp(34px,4vw,52px)] font-normal italic leading-[1.05]">
+                        {continent.name}
+                      </h2>
+                      <p className="mt-2 text-base text-slate-700">
+                        {plural(count, 'държава', 'държави')}, {plural(continent.tours, 'екскурзия', 'екскурзии')}
                       </p>
                     </div>
-                  </Link>
+                    <ContinentShape src={continent.shape} color={continent.ink} className="h-24 w-24 shrink-0 sm:h-28 sm:w-28 lg:order-first lg:h-[220px] lg:w-full lg:max-w-[260px]" />
+                  </div>
+                </div>
 
-                  <ul className="flex-1 divide-y divide-gray-100 px-5 py-2">
-                    {country.tours.slice(0, 5).map((tour) => (
-                      <li key={tour.id}>
-                        <Link
-                          href={`/tour/${tour.slug || tour.tourId || tour.id}`}
-                          className="group flex items-start justify-between gap-3 py-3 text-sm text-brand-dark transition-colors hover:text-brand-goldDeep"
-                        >
-                          <span className="font-medium leading-snug">{tour.title}</span>
-                          {tour.date && (
-                            <span className="flex shrink-0 items-center gap-1 text-xs text-gray-500">
-                              <Calendar size={12} className="text-brand-gold" aria-hidden="true" />
-                              {displayDate(String(tour.date))}
-                            </span>
-                          )}
-                        </Link>
+                {/* Държавите: първата (с най-много екскурзии) е на широка карта; ако останат нечетен брой, и последната */}
+                <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  {continent.countries.map((country, i) => {
+                    const wide = count > 1 && (i === 0 || (i === count - 1 && (count - 1) % 2 === 1));
+                    return (
+                      <li key={country.slug} className={wide ? 'sm:col-span-2' : ''}>
+                        <CountryCard country={country} wide={wide} accent={continent.ink} />
                       </li>
-                    ))}
-                  </ul>
-
-                  <Link
-                    href={`/destinations/${country.slug}`}
-                    className="flex items-center justify-between border-t border-gray-100 px-5 py-4 text-xs font-bold uppercase tracking-widest text-brand-dark transition-colors hover:bg-brand-gold/5 hover:text-brand-goldDeep"
-                  >
-                    {country.tours.length > 5 ? `Всички ${country.tours.length} екскурзии` : 'Повече за дестинацията'}
-                    <ArrowRight size={14} aria-hidden="true" />
-                  </Link>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
+                    );
+                  })}
+                </ul>
+              </div>
+            </section>
+          );
+        })}
 
         {continents.length === 0 && (
-          <p className="rounded-[2rem] bg-white p-10 text-center text-gray-500">В момента няма публикувани екскурзии.</p>
+          <p className="rounded-3xl bg-slate-50 p-10 text-center text-lg text-slate-600">В момента няма публикувани екскурзии.</p>
         )}
-
-        <div className="flex justify-center pt-4">
-          <Link
-            href="/#tours-grid"
-            className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-8 py-4 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-brand-gold hover:text-brand-dark"
-          >
-            Всички оферти с филтри
-            <ArrowRight size={14} aria-hidden="true" />
-          </Link>
-        </div>
       </div>
+
+      {/* Край на страницата — тъмна, заоблена и стига под ъглите на футъра (-mb-12), като на страницата на държава */}
+      <section aria-labelledby="dest-close-title" className="-mb-12 rounded-t-[48px] bg-brand-dark pb-[calc(88px+3rem)] pt-20 text-white md:pt-24">
+        <div className="mx-auto grid max-w-[1240px] grid-cols-1 items-end gap-8 px-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
+          <div>
+            <h2 id="dest-close-title" className="font-serif text-[clamp(32px,4vw,52px)] font-normal italic leading-[1.08] [text-wrap:balance]">
+              Не знаете откъде да започнете?
+            </h2>
+            <p className="mt-5 max-w-[540px] text-[17px] leading-[1.7] text-white/80">
+              Напишете ни кога искате да пътувате и какво ви привлича, и ще ви предложим подходящите екскурзии. Или
+              разгледайте всички оферти с филтри по месец, континент и тип пътуване.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 lg:justify-end">
+            <InquiryButton className={`inline-flex min-h-[52px] items-center gap-2.5 rounded-full bg-brand-gold px-[26px] text-[15px] font-bold text-brand-dark transition-colors hover:bg-[#e6c65c] ${focusRing}`}>
+              Направи запитване
+              <ArrowRight size={17} strokeWidth={2.2} aria-hidden="true" />
+            </InquiryButton>
+            <Link
+              href="/#tours-grid"
+              className={`inline-flex min-h-[52px] items-center gap-2.5 rounded-full border border-white/45 px-6 text-[15px] font-semibold text-white transition-colors hover:bg-white/15 ${focusRing}`}
+            >
+              Всички оферти с филтри
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
+  );
+}
+
+// Карта на държава: снимка, име, факти с надписи и ясно „Виж екскурзиите“. Широката е хоризонтална (от sm нагоре).
+// Без анимация на появяване: картите се виждат веднага, дори ако JavaScript закъснее.
+function CountryCard({ country, wide, accent }: { country: Country; wide: boolean; accent: string }) {
+  return (
+    <article className="h-full overflow-hidden rounded-3xl bg-white shadow-[0_12px_28px_-16px_rgba(15,23,42,0.35)] transition-shadow hover:shadow-[0_20px_38px_-16px_rgba(15,23,42,0.45)]">
+      <Link href={`/destinations/${country.slug}`} className={`group flex h-full flex-col rounded-3xl ${wide ? 'sm:flex-row' : ''} ${focusRing}`}>
+        <div className={`relative shrink-0 overflow-hidden bg-slate-200 ${wide ? 'h-52 sm:h-auto sm:min-h-[260px] sm:w-1/2' : 'h-48'}`}>
+          {country.img && (
+            <Image
+              src={country.img}
+              alt={`Екскурзии до ${country.name}`}
+              fill
+              sizes={wide ? '(max-width: 640px) 100vw, 420px' : '(max-width: 640px) 100vw, 380px'}
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          )}
+          {country.poli && (
+            <span className="absolute left-4 top-4 rounded-full bg-brand-gold px-3.5 py-1.5 text-sm font-semibold text-brand-dark shadow-sm">
+              Водена от Поли
+            </span>
+          )}
+        </div>
+
+        {/* <div>, не <span>: вътре има заглавие и списък, които не може да са в <span> */}
+        <div className={`flex grow flex-col px-6 pb-5 ${wide ? 'pt-5 sm:justify-center sm:px-8 sm:py-7' : 'pt-5'}`}>
+          <h3 className={`font-serif font-semibold leading-tight ${wide ? 'text-[28px] sm:text-[36px]' : 'text-[26px]'}`}>{country.name}</h3>
+          <dl className="mb-5 mt-3 flex flex-col gap-1.5 text-base text-slate-700">
+            <div className="flex gap-2">
+              <dt>Екскурзии:</dt>
+              <dd className="font-semibold text-brand-dark">{country.tours}</dd>
+            </div>
+            {country.price && (
+              <div className="flex gap-2">
+                <dt>Цени от:</dt>
+                <dd className="font-semibold text-brand-dark">{country.price}</dd>
+              </div>
+            )}
+            {country.nextDeparture && (
+              <div className="flex flex-wrap gap-x-2">
+                <dt>Следващо заминаване:</dt>
+                <dd className="font-semibold text-brand-dark">{country.nextDeparture}</dd>
+              </div>
+            )}
+          </dl>
+          <span className={`flex items-center justify-between border-t border-slate-200 pt-4 text-base font-semibold text-brand-goldDeep ${wide ? 'mt-auto sm:mt-0' : 'mt-auto'}`}>
+            {country.tours === 1 ? 'Виж екскурзията' : 'Виж екскурзиите'}
+            <span
+              aria-hidden="true"
+              style={{ backgroundColor: accent }}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white transition-transform group-hover:translate-x-1"
+            >
+              <ArrowRight size={18} strokeWidth={2.2} />
+            </span>
+          </span>
+        </div>
+      </Link>
+    </article>
   );
 }

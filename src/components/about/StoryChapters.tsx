@@ -25,7 +25,7 @@ const BODY: Record<string, ReactNode> = {
       </p>
       <p className="mt-6 inline-flex items-center gap-2.5 rounded-full border border-brand-dark/10 px-4 py-2 text-[13px] font-semibold text-brand-dark">
         <ShieldCheck size={16} className="text-brand-goldDeep" aria-hidden="true" />
-        Лицензиран туроператор · {COMPANY_INFO.license}
+        Лицензирана туристическа агенция · {COMPANY_INFO.license}
       </p>
     </>
   ),

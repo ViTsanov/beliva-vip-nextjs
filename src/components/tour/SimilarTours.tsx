@@ -96,6 +96,7 @@ export default function SimilarTours({ currentTour, initialTours }: { currentTou
   // „Всички предложения“ води към страницата на дестинацията (истинска страница за Google), не към филтър на началната
   const firstCountry = Array.isArray(currentTour.country) ? currentTour.country[0] : String(currentTour.country || '').split(',')[0]?.trim();
   const allToursHref = firstCountry ? `/destinations/${slugify(firstCountry)}` : '/destinations';
+  const destinationsHref = '/destinations';
 
   const uniqueSimilarTours = similarTours.filter((tour, index, self) =>
     index === self.findIndex((t) => t.id === tour.id)
@@ -113,7 +114,7 @@ export default function SimilarTours({ currentTour, initialTours }: { currentTou
               </h2>
           </div>
           <Link 
-              href={allToursHref}
+              href={destinationsHref}
               className="hidden md:flex group items-center gap-2 text-brand-dark font-bold hover:text-brand-gold transition-colors"
           >
               Всички предложения <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

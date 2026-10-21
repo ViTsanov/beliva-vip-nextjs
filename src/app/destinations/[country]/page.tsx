@@ -373,7 +373,7 @@ export default async function DestinationPage({ params }: Props) {
                 Направи запитване
                 <ArrowRight size={16} strokeWidth={2.2} aria-hidden="true" />
               </InquiryButton>
-              <p className="text-sm text-slate-600">Лицензиран туроператор · {COMPANY_INFO.license}</p>
+              <p className="text-sm text-slate-600">Лицензирана туристическа агенция · {COMPANY_INFO.license}</p>
             </div>
             {relatedPosts.length > 0 && (
               <div className="mt-10">
