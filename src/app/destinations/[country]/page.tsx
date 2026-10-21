@@ -1,7 +1,9 @@
 import { getActiveTours } from "@/services/tourService";
 import { slugify } from "@/lib/admin-helpers";
-import { WORLD_COUNTRIES, COUNTRY_TO_CONTINENT } from "@/lib/constants";
-import { fetchAllMedia, findCountryHeroImage } from "@/lib/media-helpers";
+import { COUNTRY_TO_CONTINENT } from "@/lib/constants";
+import { fetchAllMedia } from "@/lib/media-helpers";
+import { resolveCountryName, resolveHeroImage, tourCountryList } from "@/lib/countryPage";
+import { countryShareImage, shareMetadata } from "@/lib/shareMeta";
 import { formatPrice } from "@/lib/formatPrice";
 import { isOperatorHotlink } from "@/lib/operatorImageDomains";
 import { normalizeTourDates } from "@/lib/tourDates";
@@ -34,11 +36,6 @@ const POLI_PHOTO = { src: '/guides/poly-10.jpg', alt: 'Поли пред Анг�
 
 const MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 
-const tourCountryList = (tour: ITour): string[] =>
-  typeof tour.country === 'string'
-    ? tour.country.split(',').map(c => c.trim()).filter(Boolean)
-    : (Array.isArray(tour.country) ? tour.country.filter(Boolean) : []);
-
 const priceOf = (tour: ITour) => String(tour.discountPrice || tour.price || '');
 const priceNumber = (raw: string) => {
   const n = parseFloat(raw.replace(/[^\d.]/g, ''));
@@ -51,21 +48,6 @@ const longDate = (iso: string) => {
   return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`;
 };
 
-// Името на държавата от адреса. Преди се търсеше само в WORLD_COUNTRIES — за държави извън списъка
-// (напр. Френска Полинезия) заглавието в Google излизаше със самия адрес: „Екскурзии до frenska-polineziya“.
-// Затова търсим и в държавите на самите турове и в COUNTRY_TO_CONTINENT.
-function resolveCountryName(countrySlug: string, tours: ITour[]): string {
-  return WORLD_COUNTRIES.find(c => slugify(c) === countrySlug)
-    || tours.flatMap(tourCountryList).find(c => slugify(c) === countrySlug)
-    || Object.keys(COUNTRY_TO_CONTINENT).find(c => slugify(c) === countrySlug)
-    || countrySlug;
-}
-
-// Главна снимка: „<Държава> hero“ от Media Library; ако няма — снимката на първия тур
-function resolveHeroImage(allMedia: { name?: string; url?: string }[], countryName: string, tours: ITour[]): string | null {
-  return findCountryHeroImage(allMedia, countryName) || tours.map(t => t.img).find(img => img && !isOperatorHotlink(img)) || tours[0]?.img || null;
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const countrySlug = resolvedParams.country;
@@ -73,8 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const allTours = await getActiveTours();
   const destinationTours = allTours.filter(tour => tourCountryList(tour).some(c => slugify(c) === countrySlug));
   const countryName = resolveCountryName(countrySlug, destinationTours);
-  const rawHero = resolveHeroImage(await fetchAllMedia(), countryName, destinationTours) || '/hero/australia.webp';
-  const ogImage = rawHero.startsWith('http') ? rawHero : `${SITE_URL}${rawHero}`;
+  const hero = resolveHeroImage(await fetchAllMedia(), countryName, destinationTours);
   const count = destinationTours.length;
   const year = new Date().getFullYear();
   const title = `Екскурзии до ${countryName} ${year}/${year + 1} | Beliva VIP Tour`;
@@ -82,8 +63,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: { absolute: title }, description,
     alternates: { canonical: canonicalUrl },
-    openGraph: { type: 'website', url: canonicalUrl, title, description, images: [{ url: ogImage, width: 1200, height: 630 }] },
-    twitter: { card: 'summary_large_image', title, description, images: [ogImage] },
+    // Снимката за превю — главната снимка на държавата като JPEG 1200×630 (/destinations/<държава>/og.jpg)
+    ...shareMetadata({ path: `/destinations/${countrySlug}`, title, description, image: countryShareImage(countrySlug, hero), imageAlt: `Екскурзии до ${countryName}` }),
   };
 }
 
@@ -207,6 +188,7 @@ export default async function DestinationPage({ params }: Props) {
   const jsonLd = {
     "@context": "https://schema.org", "@type": "ItemList",
     "name": `Екскурзии до ${countryName}`, "url": `${SITE_URL}/destinations/${countrySlug}`,
+    "image": countryShareImage(countrySlug, resolveHeroImage(allMedia, countryName, destinationTours)),
     "numberOfItems": destinationTours.length,
     "itemListElement": rows.slice(0, 10).map((row, i) => ({
       "@type": "ListItem", "position": i + 1, "name": row.title, "url": `${SITE_URL}${row.href}`,

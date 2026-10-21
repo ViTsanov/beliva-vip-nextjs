@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/tour/[id]/programa.pdf': ['./src/assets/fonts/**/*', './public/beliva_logo.png'],
     '/api/admin/tour-pdf': ['./src/assets/fonts/**/*', './public/beliva_logo.png'],
+    // Снимките за превю при споделяне (src/lib/shareImage.ts) четат hero снимките, логото и public/og-default.jpg от диска
+    '/tour/[id]/og.jpg': ['./public/hero/**/*', './public/beliva_logo.png', './public/og-default.*'],
+    '/destinations/[country]/og.jpg': ['./public/hero/**/*', './public/beliva_logo.png', './public/og-default.*'],
+    '/blog/[id]/og.jpg': ['./public/hero/**/*', './public/beliva_logo.png', './public/og-default.*'],
   },
   images: {
     // Firebase App Hosting изключва вградената оптимизация на снимки, ако това не е зададено изрично. Без него <Image>

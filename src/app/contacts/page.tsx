@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { shareMetadata } from "@/lib/shareMeta";
 import Image from "next/image";
 import { ArrowUpRight, Clock, Facebook, Instagram, Mail, MessageCircle, Phone, ShieldCheck } from "lucide-react";
 import InquiryForm from "@/components/inquiry/InquiryForm";
@@ -8,6 +9,11 @@ export const metadata: Metadata = {
   title: "Контакти",
   alternates: { canonical: "https://belivavip.bg/contacts" },
   description: "Свържете се с нас за индивидуална консултация. Ние сме на линия онлайн и по телефона, за да организираме вашето мечтано пътуване.",
+  ...shareMetadata({
+    path: "/contacts",
+    title: "Контакти | Beliva VIP Tour",
+    description: "Свържете се с нас за индивидуална консултация. Ние сме на линия онлайн и по телефона, за да организираме вашето мечтано пътуване.",
+  }),
 };
 
 // Schema.org — туристическа агенция без физически адрес. Работното време съвпада с COMPANY_INFO.workHours

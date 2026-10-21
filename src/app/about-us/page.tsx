@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { shareMetadata } from '@/lib/shareMeta';
 import AboutUsClient from './AboutUsClient';
 import { COMPANY_INFO } from '@/lib/companyInfo';
 
@@ -8,6 +9,11 @@ export const metadata: Metadata = {
   title: { absolute: 'За Нас — Поли | Beliva VIP Tour' },
   description: 'Запознайте се с Поли — човекът зад Beliva VIP Tour. Над 15 години опит, над 60 дестинации и над 150 лично водени групи.',
   alternates: { canonical: 'https://belivavip.bg/about-us' },
+  ...shareMetadata({
+    path: '/about-us',
+    title: 'За Нас — Поли | Beliva VIP Tour',
+    description: 'Запознайте се с Поли — човекът зад Beliva VIP Tour. Над 15 години опит, над 60 дестинации и над 150 лично водени групи.',
+  }),
 };
 
 const schemaData = {

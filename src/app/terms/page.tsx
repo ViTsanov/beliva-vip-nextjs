@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
+import { shareMetadata } from "@/lib/shareMeta";
 import { COMPANY_INFO } from "@/lib/companyInfo";
 
 export const metadata: Metadata = {
   title: "Общи условия",
   alternates: { canonical: "https://belivavip.bg/terms" },
   description: "Официални общи условия за ползване на услугите и уебсайта на туристическа агенция Beliva VIP Tour.",
+  ...shareMetadata({
+    path: "/terms",
+    title: "Общи условия | Beliva VIP Tour",
+    description: "Официални общи условия за ползване на услугите и уебсайта на туристическа агенция Beliva VIP Tour.",
+  }),
 };
 
 export default function TermsPage() {

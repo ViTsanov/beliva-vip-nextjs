@@ -23,7 +23,7 @@ export default function NotFound() {
             <div className="absolute inset-0 flex items-center justify-center">
                 <div className="relative w-40 h-40 md:w-60 md:h-60 rounded-full overflow-hidden border-8 border-white shadow-2xl rotate-12 animate-in zoom-in duration-700">
                     <Image 
-                        src="/hero/thailand.webp" // ⚠️ Увери се, че имаш тази снимка или сложи друга красива
+                        src="/hero/thailand2.jpg"
                         alt="Lost in paradise"
                         fill
                         className="object-cover"
