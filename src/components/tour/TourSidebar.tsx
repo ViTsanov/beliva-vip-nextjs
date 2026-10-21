@@ -20,6 +20,14 @@ interface TourSidebarProps {
 export default function TourSidebar({ tour, relatedPosts, onOpenInquiry, onOpenInclusions, onOpenDocuments}: TourSidebarProps) {
   const isPromoActive = tour.isPromo && tour.discountPrice;
 
+  // PDF програмата: ръчно качен файл, ако има; иначе генерираната от сайта (/tour/<id>/programa.pdf).
+  // ?v= е датата на последната редакция — след промяна в админ панела линкът е нов и кешът не връща стария PDF.
+  const tourSlug = tour.slug || tour.tourId || tour.id;
+  const pdfHref = tour.pdfUrl
+    || (tourSlug && tour.itinerary?.length
+      ? `/tour/${encodeURIComponent(tourSlug)}/programa.pdf${tour.updatedAt ? `?v=${Date.parse(tour.updatedAt) || ''}` : ''}`
+      : '');
+
   // Стейт за слайдера с блогове
   const [currentPostIndex, setCurrentPostIndex] = useState(0);
 
@@ -76,9 +84,9 @@ export default function TourSidebar({ tour, relatedPosts, onOpenInquiry, onOpenI
               </button>
           </div>
 
-          {tour.pdfUrl && (
-            <a href={tour.pdfUrl} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center gap-2 border border-white/20 py-3 rounded-xl font-bold text-[10px] uppercase hover:bg-white hover:text-brand-dark transition-all mt-1">
-              <FileText size={14}/> Изтегли PDF
+          {pdfHref && (
+            <a href={pdfHref} target="_blank" rel="noopener" className="w-full flex items-center justify-center gap-2 border border-white/20 py-3 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-white hover:text-brand-dark transition-all mt-1">
+              <FileText size={14}/> Изтегли програмата (PDF)
             </a>
           )}
         </div>

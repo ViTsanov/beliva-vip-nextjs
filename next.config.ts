@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // PDF програмата на тура (src/lib/pdf): @react-pdf се зарежда от node_modules, а не се пакетира, а шрифтовете
+  // и логото, които чете от диска, трябва да влязат в сървърната версия на сайта
+  serverExternalPackages: ['@react-pdf/renderer'],
+  outputFileTracingIncludes: {
+    '/tour/[id]/programa.pdf': ['./src/assets/fonts/**/*', './public/beliva_logo.png'],
+    '/api/admin/tour-pdf': ['./src/assets/fonts/**/*', './public/beliva_logo.png'],
+  },
   images: {
     // Firebase App Hosting изключва вградената оптимизация на снимки, ако това не е зададено изрично. Без него <Image>
     // сервираше оригиналния файл (напр. 600 KB снимка за кръгче от 56px). https://firebase.google.com/docs/app-hosting/optimize-image-loading

@@ -61,7 +61,9 @@ export interface ITour {
   excluded?: string[]; // Понякога е excluded, понякога notIncluded
   
   documents?: string | string[]; // 👈 Добавено
-  pdfUrl?: string;
+  // Полетите — по един ред (ден/дата, номер на полет, часове, багаж). От скрейпъра, редактира се в админ панела.
+  flightInfo?: string;
+  pdfUrl?: string; // ръчно качен PDF; ако липсва, сайтът генерира програмата сам (/tour/<id>/programa.pdf)
   notes?: string;
   categories?: string[];
   slug?: string;

@@ -627,10 +627,12 @@ export default function AdminDashboardClient() {
     let aiAttempts = 0;
     const maxAiAttempts = 2; // до 2 повторни опита след първоначалния, при rate limit
     while (true) {
+      // Полетите не минават през AI — часовете и номерата на полетите се пазят дума по дума (записват се по-долу)
+      const scrapedForAi = { ...scrapedData, flightInfo: undefined }; // undefined изпада от JSON-а
       const aiRes = await fetch('/api/ai-format-tour', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scrapedData })
+        body: JSON.stringify({ scrapedData: scrapedForAi })
       });
       aiData = await aiRes.json();
       if (aiData.success) break;
@@ -819,6 +821,7 @@ export default function AdminDashboardClient() {
       notIncluded: joinArr(finalTour.excludes),
       documents: joinArr(finalTour.docs),
       generalInfo: joinArr(finalTour.info),
+      flightInfo: scrapedData.flightInfo || '', // за PDF-а и сайта; не е минавало през AI
       img: finalTour.img || '',
       galleryWithCaptions: finalTour.galleryWithCaptions || [],
       images: finalTour.images || '',

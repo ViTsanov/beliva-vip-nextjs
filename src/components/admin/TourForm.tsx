@@ -71,7 +71,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     date: '', img: '', duration: '', nights: '', route: '', 
     groupStatus: 'active', status: 'public', 
     
-    included: '', notIncluded: '', documents: '', pdfUrl: '', generalInfo: '', intro: '', images: '', categories: [] as string[],
+    included: '', notIncluded: '', documents: '', pdfUrl: '', generalInfo: '', flightInfo: '', intro: '', images: '', categories: [] as string[],
     
     peakViewId: '',
     source: 'own', // По подразбиране е собствена екскурзия
@@ -240,6 +240,30 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
       setShowMedia(false);
   };
 
+  // „Преглед на PDF“: програмата за изтегляне, генерирана от ТЕКУЩИТЕ данни във формата (и незаписаните промени).
+  // Прозорецът се отваря веднага (иначе браузърът го блокира като изскачащ), а PDF-ът се зарежда в него след това.
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const previewPdf = async () => {
+    const win = window.open('', '_blank');
+    setPdfBusy(true);
+    try {
+      const res = await fetch('/api/admin/tour-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tour: { ...form, itinerary } }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || `Грешка ${res.status}`);
+      const url = URL.createObjectURL(await res.blob());
+      if (win) win.location.href = url;
+      else window.open(url, '_blank');
+    } catch (err: any) {
+      win?.close();
+      alert(`PDF-ът не можа да бъде създаден: ${err?.message || ''}`);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const removeMainImage = () => setForm({...form, img: '', imgPosition: ''});
   const removeGalleryImage = (indexToRemove: number) => {
       setGalleryWithCaptions(prev => prev.filter((_, idx) => idx !== indexToRemove));
@@ -337,6 +361,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                                                 if (data.notIncluded) updatedForm.notIncluded = data.notIncluded;
                                                 if (data.documents) updatedForm.documents = data.documents;
                                                 if (data.generalInfo) updatedForm.generalInfo = data.generalInfo;
+                                                if (data.flightInfo) updatedForm.flightInfo = data.flightInfo;
 
                                                 // 5. Програма
                                                 if (data.program && data.program.length > 0) {
@@ -560,6 +585,27 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                 <div><label className={labelStyle}>Необходими документи</label><textarea className={`${inputStyle} h-32`} value={form.documents} onChange={e => setForm({...form, documents: e.target.value})} /></div>
                 <div><label className={labelStyle}>Обща информация / Допълнителни условия</label><textarea className={`${inputStyle} h-32`} value={form.generalInfo} onChange={e => setForm({...form, generalInfo: e.target.value})} /></div>
             </div>
+
+            <div>
+                <label className={labelStyle}>Полетна информация (по един полет на ред)</label>
+                <textarea className={`${inputStyle} h-32 font-mono text-sm`} placeholder="пр. 21 март – полет TK 1128 София (SOF) – Истанбул (IST), излитане 11:55, кацане 14:20" value={form.flightInfo || ''} onChange={e => setForm({...form, flightInfo: e.target.value})} />
+                <p className="text-[10px] text-gray-400 mt-1 ml-2">Ботът я попълва от страницата на туроператора. Показва се на страницата на тура и в PDF програмата.</p>
+            </div>
+        </div>
+
+        {/* СЕКЦИЯ 3.5: PDF ПРОГРАМА */}
+        <div className="bg-brand-dark p-8 rounded-[2.5rem] shadow-sm text-white flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+                <div className="flex items-center gap-3 text-brand-gold"><FileText size={20}/> <h3 className="font-bold uppercase tracking-widest text-sm">PDF програма</h3></div>
+                <p className="text-sm text-white/70 mt-2 max-w-xl">
+                    Създава се автоматично от текстовете по-горе — с логото и контактите ни, снимката, програмата по дни и полетите.
+                    Прегледай я тук, поправи текста, ако трябва, и запиши. На сайта се показва под цената като „Изтегли програмата (PDF)“.
+                </p>
+                {form.pdfUrl && <p className="text-xs text-amber-300 mt-2">Внимание: има ръчно качен PDF (поле pdfUrl) — на сайта се показва той вместо генерирания.</p>}
+            </div>
+            <button type="button" onClick={previewPdf} disabled={pdfBusy || !form.title} className="shrink-0 px-6 py-4 bg-brand-gold text-brand-dark font-black uppercase text-[11px] tracking-widest rounded-2xl hover:bg-white transition-all disabled:opacity-50">
+                {pdfBusy ? 'Създаване…' : 'Преглед на PDF'}
+            </button>
         </div>
 
         {/* СЕКЦИЯ 4: СНИМКИ */}

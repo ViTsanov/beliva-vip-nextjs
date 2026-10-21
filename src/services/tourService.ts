@@ -43,7 +43,7 @@ export const normalizeTour = (docData: DocumentData, docId: string): ITour => {
 // обработваше, преди страницата да оживее.
 const DETAIL_ONLY_FIELDS = [
   'itinerary', 'gallery', 'galleryWithCaptions', 'images', 'included', 'excluded', 'notIncluded',
-  'generalInfo', 'intro', 'documents', 'route', 'originalUrl', 'externalSourceLink', 'sourceTitle',
+  'generalInfo', 'intro', 'documents', 'route', 'originalUrl', 'externalSourceLink', 'sourceTitle', 'flightInfo',
 ] as const;
 
 // Тур без тежките полета — за списъци и карти (начална страница).

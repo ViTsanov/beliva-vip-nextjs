@@ -17,6 +17,7 @@
 
 import { load } from 'cheerio';
 import { WORLD_COUNTRIES } from '@/lib/constants';
+import { readableFlightInfo } from './flightSchedule';
 
 export const DARI_BASE_URL = 'https://dari-tour.com/';
 export const DARI_HOSTNAMES = new Set(['dari-tour.com', 'www.dari-tour.com']);
@@ -163,7 +164,15 @@ export interface ScrapedTour {
   notIncluded: string;
   documents: string;
   generalInfo: string;
+  flightInfo: string; // полетите (часове, номера на полети, багаж) — показват се отделно на сайта и в PDF-а
 }
+
+// Начало на блока с полети и редовете, които все още са част от него. Общи за 2МКО и Дари Тур.
+// 2МКО: „Полетна информация:“; Дари Тур: „Полетно разписание“ (без двоеточие) в края на таба „Програма“.
+export const FLIGHTS_HEADING = /^(полетн[ао]\s+(информация|разписание)|информация\s+за\s+полет\S*|полети)\s*:?\s*$/i;
+// Ред от блока: „7 ДЕН – …“, ред с полет/кацане/багаж или ред от разписание „1 TK1128 21MAR SOFIST …“.
+// „летище“ нарочно липсва — „трансфери летище-хотел-летище“ е точка от „Цената включва“.
+export const FLIGHT_LINE = /^\d{1,2}\s*(?:-?\s*(?:ви|ри|ти|ми|ва))?\s*ден(?![а-яА-Я])|полет|кацане|излитане|багаж|авиокомпани|седалк|^\d{1,2}\s+[A-Z0-9]{2}\s?\d{1,4}\s/i;
 
 // Текст от HTML фрагмент с запазени нови редове: <br>, блокови елементи и <li> стават отделни редове.
 function blockText(html: string): string {
@@ -191,7 +200,7 @@ const DAY_REGEX = /(?:(\d{1,2})\s*(?:-?\s*(?:ви|ри|ти|ми|ва))?\s*(?<![
 const PROGRAM_END_LINE_STARTS = [
   'цена', 'дати:', 'дати на отпътуване', 'примерни хотели', 'хотели:', 'предвидени хотели', 'в цената',
   'цени на допълнителни', 'допълнителни екскурзии', 'плащане', 'анулаци', 'забележк', 'необходими документи',
-  'документи', 'фабрики', 'условия',
+  'документи', 'фабрики', 'условия', 'полетно разписание', 'полетна информация',
 ];
 
 function splitProgram(text: string): { days: ScrapedTour['program']; tail: string } {
@@ -231,10 +240,11 @@ function splitProgram(text: string): { days: ScrapedTour['program']; tail: strin
   return { days, tail };
 }
 
-type SectionKind = 'included' | 'notIncluded' | 'docs' | 'info';
+type SectionKind = 'included' | 'notIncluded' | 'docs' | 'info' | 'flights';
 
 function classifyHeading(heading: string): SectionKind {
   const h = heading.toLowerCase();
+  if (FLIGHTS_HEADING.test(heading.trim())) return 'flights';
   if (/не\s+включва|не\s+са\s+включени|не\s+се\s+включват|допълнително\s+се\s+заплаща/.test(h)) return 'notIncluded';
   if (/включва|са\s+включени|се\s+включват/.test(h)) return 'included';
   if (/документ|виза|визи|паспорт/.test(h)) return 'docs';
@@ -246,7 +256,8 @@ function splitTailSections(tail: string): { kind: SectionKind; heading: string; 
   const sections: { kind: SectionKind; heading: string; lines: string[] }[] = [];
   let current = { kind: 'info' as SectionKind, heading: '', lines: [] as string[] };
   for (const line of tail.split('\n').map((l) => l.trim()).filter(Boolean)) {
-    const isHeading = line.length < 70 && /:\s*$/.test(line);
+    // „Полетно разписание“ при Дари Тур е без двоеточие — затова е отделна проверка
+    const isHeading = (line.length < 70 && /:\s*$/.test(line)) || FLIGHTS_HEADING.test(line);
     if (isHeading) {
       if (current.heading || current.lines.length) sections.push(current);
       current = { kind: classifyHeading(line), heading: line, lines: [] };
@@ -327,6 +338,7 @@ export function parseDariTour(html: string): ScrapedTour {
   let notIncluded = '';
   const infoParts: string[] = [];
   const docLines: string[] = [];
+  const flightLines: string[] = [];
 
   tabTitles.forEach((tabTitle, i) => {
     const pane = panes[i];
@@ -335,6 +347,7 @@ export function parseDariTour(html: string): ScrapedTour {
     if (!text) return;
     const t = tabTitle.toLowerCase();
     if (t.includes('програма')) programText = text;
+    else if (t.includes('полет')) flightLines.push(...text.split('\n'));
     else if (/не\s+включва/.test(t)) notIncluded = text;
     else if (t.includes('включва')) included = text;
     else infoParts.push(`${tabTitle}:\n${text}`);
@@ -358,6 +371,8 @@ export function parseDariTour(html: string): ScrapedTour {
       if (!notIncluded) notIncluded = body;
     } else if (sec.kind === 'docs') {
       docLines.push(...sec.lines);
+    } else if (sec.kind === 'flights') {
+      flightLines.push(...sec.lines);
     } else {
       infoParts.push(sec.heading ? `${sec.heading}\n${body}` : body);
     }
@@ -395,5 +410,7 @@ export function parseDariTour(html: string): ScrapedTour {
     notIncluded: notIncluded.trim(),
     documents: Array.from(new Set(docLines)).join('\n').trim(),
     generalInfo,
+    // „2 TK 196 21MAR ISTPEK …“ → „21 март – полет TK 196 Истанбул (IST) – Пекин (PEK), …“
+    flightInfo: readableFlightInfo(flightLines.map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n')),
   };
 }

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ITour } from "@/types";
-import { ArrowRight, Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronLeft, ChevronRight, Plane } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '@/lib/formatPrice';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
@@ -460,6 +460,21 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
               <ChevronRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ─── ПОЛЕТНА ИНФОРМАЦИЯ ─── (поле flightInfo: по един полет на ред, от скрейпъра или ръчно от админ панела) */}
+      {tour.flightInfo?.trim() && (
+        <div className="bg-white p-8 md:p-10 rounded-[3rem] shadow-xl border border-gray-100">
+          <h2 className="text-3xl md:text-4xl font-serif italic mb-6 text-brand-dark pl-4 border-l-4 border-brand-gold">Полетна информация</h2>
+          <ul className="space-y-3">
+            {tour.flightInfo.split('\n').map(line => line.trim()).filter(Boolean).map((line, i) => (
+              <li key={i} className="flex gap-3 text-[15px] leading-relaxed text-gray-600">
+                <Plane size={16} className="mt-1 shrink-0 text-brand-goldDeep" aria-hidden="true" />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
