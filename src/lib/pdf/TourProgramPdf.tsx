@@ -93,6 +93,7 @@ const s = StyleSheet.create({
   // (целият ден отиваше на следващата). Разстоянието между абзаците е отгоре (paraNext).
   para: { fontSize: 9.5, color: C.text, lineHeight: 1.55 },
   paraNext: { marginTop: 4 },
+  infoHeading: { fontWeight: 700, color: C.dark, marginTop: 10 },
 
   flights: { backgroundColor: C.cream, borderRadius: 10, padding: 14 },
   flightLine: { flexDirection: 'row', marginBottom: 5 },
@@ -272,7 +273,11 @@ export function TourProgramPdf({ tour }: { tour: PdfTourData }) {
 
           {tour.info.length > 0 && (
             <Section label="Условия" title="Допълнителна информация">
-              {tour.info.map((p, i) => <Text key={i} style={i ? [s.para, s.paraNext] : s.para}>{p}</Text>)}
+              {/* Кратък ред с двоеточие („Хотели:“, „Забележки:“) е подзаглавие — удебелен, с малко място отгоре */}
+              {tour.info.map((p, i) => {
+                const subheading = p.length < 60 && /:\s*$/.test(p);
+                return <Text key={i} style={[s.para, ...(i ? [s.paraNext] : []), ...(subheading ? [s.infoHeading] : [])]}>{p}</Text>;
+              })}
             </Section>
           )}
 
