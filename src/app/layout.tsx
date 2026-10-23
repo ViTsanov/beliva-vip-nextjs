@@ -5,7 +5,7 @@ import LayoutWrapper from "@/components/LayoutWrapper";
 import ConditionalAnalytics from '@/components/ConditionalAnalytics';
 import { LazyAIChatWidget } from '@/components/LazyClient';
 import { COMPANY_INFO } from '@/lib/companyInfo';
-import { SHARE_IMAGE_SIZE, defaultShareImage, homeShareImage } from '@/lib/shareMeta';
+import { SHARE_IMAGE_SIZE, defaultShareImage } from '@/lib/shareMeta';
 
 // 1. ШРИФТОВЕ
 const inter = Inter({ 
@@ -39,7 +39,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "TravelAgency",
   "name": SITE_NAME,
-  "image": homeShareImage(), // Първата hero снимка като JPEG 1200×630 — същата като в превюто на началната страница
+  "image": defaultShareImage(), // Колажът от hero снимките, JPEG 1200×630 — същият като в превюто на началната страница
   "logo": `${SITE_URL}/beliva_logo.png`,
   "@id": SITE_URL,
   "url": SITE_URL,

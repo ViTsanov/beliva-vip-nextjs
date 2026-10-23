@@ -3,7 +3,7 @@
 // Превюто при споделяне (Facebook, Messenger, Viber, WhatsApp, X) и снимката в резултатите на Google.
 // Всяка публична страница дава своите og:* и twitter:* тагове през shareMetadata(), със снимка 1200×630 JPEG
 // от нашия домейн — WebP снимките (hero, Firebase Storage) Messenger изобщо не ги показва, а Facebook ги реже
-// грешно, защото истинският им размер не е 1200×630. JPEG-ите се правят от маршрутите /og/home.jpg,
+// грешно, защото истинският им размер не е 1200×630. JPEG-ите се правят от маршрутите
 // /og/default.jpg, /tour/<id>/og.jpg, /destinations/<държава>/og.jpg и /blog/<id>/og.jpg (виж shareImage.ts).
 import type { Metadata } from 'next';
 import type { ITour } from '@/types';
@@ -13,8 +13,9 @@ export const SITE_URL = 'https://belivavip.bg';
 export const SITE_NAME = 'Beliva VIP Tour';
 export const SHARE_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 
-// Снимките на началната страница — по реда на слайдовете в Hero.tsx / HeroClassic.tsx (първата е на /og/home.jpg,
-// всички заедно правят колажа на /og/default.jpg). При смяна на hero снимките се сменя и този списък.
+// Снимките на началната страница — по реда на слайдовете в Hero.tsx / HeroClassic.tsx. От тях е колажът на
+// /og/default.jpg (началната страница и страниците без собствена снимка): първата голяма вляво, другите 2×2.
+// При смяна на hero снимките се сменя и този списък.
 export const HERO_SHARE_PHOTOS = [
   '/hero/mexico.webp',
   '/hero/peru2.jpg',
@@ -34,7 +35,6 @@ function version(...parts: (string | null | undefined)[]): string {
   return h.toString(36);
 }
 
-export const homeShareImage = () => `${SITE_URL}/og/home.jpg?v=${version(HERO_SHARE_PHOTOS[0])}`;
 export const defaultShareImage = () => `${SITE_URL}/og/default.jpg?v=${version(...HERO_SHARE_PHOTOS)}`;
 
 // Адрес, който външни ботове (Facebook, Google) могат да изтеглят. Google Drive иска вход, а сайтовете на
