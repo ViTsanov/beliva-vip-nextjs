@@ -28,6 +28,13 @@ export const revalidate = 3600;
 // Първото отваряне на нова държава може да чака ИИ да напише текста „За <държава>“ (5–15 s)
 export const maxDuration = 60;
 
+// Празен списък = страниците не се правят при build, а при първото отваряне, и после се пазят готови (ISR,
+// обновяват се според revalidate). Така мета таговете (og:image и т.н.) са в <head>. Без това страницата беше
+// напълно динамична, Next пращаше таговете в <body> и Messenger показваше гол линк без текст и снимка.
+export async function generateStaticParams() {
+  return [];
+}
+
 type Props = { params: Promise<{ country: string }> };
 
 const SITE_URL = 'https://belivavip.bg';

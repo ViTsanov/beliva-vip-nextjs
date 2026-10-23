@@ -7,6 +7,15 @@ import { blogShareImage, shareMetadata } from "@/lib/shareMeta";
 // Константа за вашия домейн
 const SITE_URL = "https://belivavip.bg";
 
+// Готовата страница се обновява на 30 минути (като списъка /blog)
+export const revalidate = 1800;
+
+// Празен списък = статиите не се правят при build, а при първото отваряне, и после се пазят готови (ISR).
+// Така мета таговете (og:image и т.н.) са в <head> — иначе Next ги пращаше в <body> и Messenger показваше гол линк.
+export async function generateStaticParams() {
+  return [];
+}
+
 type Props = {
   params: { id: string }
 };

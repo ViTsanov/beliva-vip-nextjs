@@ -12,6 +12,13 @@ import { shareMetadata, tourShareImage } from "@/lib/shareMeta";
 // Презарежда на 60 секунди — новите турове се появяват в продукция максимум след  1 минута
 export const revalidate = 60; 
 
+// Празен списък = страниците не се правят при build, а при първото отваряне, и после се пазят готови (ISR,
+// обновяват се според revalidate). Така мета таговете (og:image и т.н.) са в <head>. Без това страницата беше
+// напълно динамична, Next пращаше таговете в <body> и Messenger показваше гол линк без текст и снимка.
+export async function generateStaticParams() {
+  return [];
+}
+
 const SITE_URL = "https://belivavip.bg";
 
 type Props = {
