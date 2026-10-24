@@ -40,21 +40,6 @@ const formatKm = (km: number) => `${Math.floor(km / 1000)} ${String(km % 1000).p
 //   PHOTO_WIDE); по-голямо, когато главното е вдясно и иначе остава зад глобуса (Операта в Сидни).
 const SLIDES = [
   {
-    destination: 'Мексико',
-    blurb: 'Пирамидите на маите в Чичен Ица, карибските плажове на Юкатан и шарените улици на Мексико Сити.',
-    img: '/hero/mexico.webp',
-    focus: 0.5,
-    focusY: 40,
-    filterHref: '/?country=meksiko#tours-grid',
-    em: 6.307,
-    lsb: 0.06,
-    city: 'Мексико Сити',
-    timeZone: 'America/Mexico_City',
-    lat: 19.4326,
-    lon: -99.1332,
-    globe: { geoName: 'Mexico', lat: 23, lng: -102 },
-  },
-  {
     destination: 'Перу',
     blurb: 'Мачу Пикчу високо в Андите, Свещената долина и улиците на Куско — до сърцето на империята на инките.',
     img: '/hero/peru2.jpg',
@@ -83,6 +68,21 @@ const SLIDES = [
     lat: 39.9042,
     lon: 116.4074,
     globe: { geoName: 'China', lat: 34, lng: 104 },
+  },
+    {
+    destination: 'Мексико',
+    blurb: 'Пирамидите на маите в Чичен Ица, карибските плажове на Юкатан и шарените улици на Мексико Сити.',
+    img: '/hero/mexico.webp',
+    focus: 0.5,
+    focusY: 40,
+    filterHref: '/?country=meksiko#tours-grid',
+    em: 6.307,
+    lsb: 0.06,
+    city: 'Мексико Сити',
+    timeZone: 'America/Mexico_City',
+    lat: 19.4326,
+    lon: -99.1332,
+    globe: { geoName: 'Mexico', lat: 23, lng: -102 },
   },
   {
     destination: 'Австралия',
