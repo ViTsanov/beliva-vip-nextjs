@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseAuth';
 import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Search, Users, Calendar, Plane, UserCheck, ChevronRight, History, Package } from 'lucide-react';
 import GroupDetailModal from './GroupDetailModal'; // Ще го създадем в следващата стъпка

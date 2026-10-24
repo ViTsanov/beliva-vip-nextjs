@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, User, Heart, LayoutGrid, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { logoutAction } from '@/app/actions/auth';
 import NavbarSearch from './NavbarSearch';
 import InquiryDialog from './inquiry/InquiryDialog';
 import { readFavoriteCountries } from '@/lib/favoriteCountries';
@@ -16,7 +15,8 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [favCount, setFavCount] = useState(0);
-  const [user, setUser] = useState<any>(null);
+  // Влязъл админ — от бисквитката admin_ui (виж createSession в actions/auth.ts), без Firebase Auth
+  const [user, setUser] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -62,15 +62,12 @@ export default function Navbar() {
     window.addEventListener('storage', checkFavorites);
     window.addEventListener('favoritesUpdated', checkFavorites);
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
+    setUser(/(?:^|;\s*)admin_ui=1(?:;|$)/.test(document.cookie));
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('storage', checkFavorites);
       window.removeEventListener('favoritesUpdated', checkFavorites);
-      unsubscribeAuth();
     };
   }, []);
 
@@ -116,7 +113,11 @@ export default function Navbar() {
   };
 
   const handleLogout = async () => {
+    // Firebase Auth се зарежда само тук, при изход — на публичните страници не трябва
+    const [{ auth }, { signOut }] = await Promise.all([import('@/lib/firebaseAuth'), import('firebase/auth')]);
     await signOut(auth);
+    await logoutAction();
+    setUser(false);
     setIsOpen(false);
     router.push('/');
   };

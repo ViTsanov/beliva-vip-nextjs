@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseAuth';
 import { signOut } from 'firebase/auth';
 import { 
   collection, onSnapshot, query, orderBy, deleteDoc, doc, 
