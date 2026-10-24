@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, limit, getDocs } from 'firebase/firestore'; 
 import { MapPin, Calendar, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ITour } from "@/types";
+import { normalizeTour } from '@/services/tourService';
 import { slugify } from '@/lib/admin-helpers';
 import { formatPrice } from '@/lib/formatPrice';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
@@ -25,11 +26,11 @@ export default function SimilarTours({ currentTour, initialTours }: { currentTou
 
       try {
         const toursRef = collection(db, "tours");
-        let combinedTours: any[] = [];
+        let combinedTours: ITour[] = [];
 
         // country може да е стринг (ръчни турове) ИЛИ масив (скрейпнати) — нормализираме
         const countryVal = Array.isArray(currentTour.country) ? currentTour.country[0] : currentTour.country;
-        const isSelf = (t: any) => t.id === currentTour.id || (t.tourId && t.tourId === (currentTour as any).tourId);
+        const isSelf = (t: ITour) => t.id === currentTour.id || (!!t.tourId && t.tourId === currentTour.tourId);
 
         // 1. Търсим от същата държава — с две заявки, защото полето в базата е смесен тип
         if (countryVal) {
@@ -38,8 +39,8 @@ export default function SimilarTours({ currentTour, initialTours }: { currentTou
             getDocs(query(toursRef, where("status", "==", "public"), where("country", "array-contains", countryVal), limit(4)))
           ]);
           const countryTours = [...snapEq.docs, ...snapArr.docs]
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter((t: any) => !isSelf(t));
+            .map(doc => normalizeTour(doc.data(), doc.id))
+            .filter(t => !isSelf(t));
           combinedTours = [...countryTours];
         }
 
@@ -53,8 +54,8 @@ export default function SimilarTours({ currentTour, initialTours }: { currentTou
           );
           const continentSnapshot = await getDocs(continentQuery);
           const continentTours = continentSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter((t: any) => !isSelf(t) && t.country !== countryVal);
+            .map(doc => normalizeTour(doc.data(), doc.id))
+            .filter(t => !isSelf(t) && t.country !== countryVal);
 
           combinedTours = [...combinedTours, ...continentTours];
         }
@@ -63,12 +64,12 @@ export default function SimilarTours({ currentTour, initialTours }: { currentTou
         if (combinedTours.length < 3) {
           const anySnapshot = await getDocs(query(toursRef, where("status", "==", "public"), limit(10)));
           const anyTours = anySnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter((t: any) => !isSelf(t) && !combinedTours.some(c => c.id === t.id));
+            .map(doc => normalizeTour(doc.data(), doc.id))
+            .filter(t => !isSelf(t) && !combinedTours.some(c => c.id === t.id));
           combinedTours = [...combinedTours, ...anyTours];
         }
 
-        setSimilarTours(combinedTours.slice(0, 3) as ITour[]);
+        setSimilarTours(combinedTours.slice(0, 3));
 
       } catch (error) {
         console.error("Error fetching similar tours:", error);
