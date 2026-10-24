@@ -1,0 +1,43 @@
+/* Падащите държави на картата на сайта (<details>). Съдържанието се разгъва плавно на височина в браузърите,
+   които поддържат ::details-content (Chrome, Edge); в останалите просто се отваря веднага. */
+.acc {
+  interpolate-size: allow-keywords;
+}
+.acc > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.acc > summary::-webkit-details-marker {
+  display: none;
+}
+.acc::details-content {
+  block-size: 0;
+  overflow: clip;
+  opacity: 0;
+  transition:
+    block-size 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease,
+    content-visibility 0.38s allow-discrete;
+}
+.acc[open]::details-content {
+  block-size: auto;
+  opacity: 1;
+}
+
+/* Стрелката се обръща нагоре, когато държавата е отворена */
+.chev {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.acc[open] .chev {
+  transform: rotate(180deg);
+}
+
+/* Намалено движение: без разгъване на височина, само плавно появяване */
+@media (prefers-reduced-motion: reduce) {
+  .acc::details-content {
+    block-size: auto;
+    transition:
+      opacity 0.25s ease,
+      content-visibility 0.25s allow-discrete;
+  }
+}
