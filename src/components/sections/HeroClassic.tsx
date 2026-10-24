@@ -10,6 +10,9 @@ import { AnimatePresence, animate, motion, useMotionValue, type MotionValue, typ
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { glideToElement } from '@/lib/smoothScroll';
+import { afterPageLoad } from '@/lib/afterPageLoad';
+import HeroRing from './HeroRing';
+import { useVisitorEngaged } from '@/lib/hooks/useVisitorEngaged';
 import Link from 'next/link';
 
 const SOFIA = { lat: 42.6977, lon: 23.3219 };
@@ -221,7 +224,9 @@ export default function HeroClassic() {
   const [dragging, setDragging] = useState(false);
   const [tabHidden, setTabHidden] = useState(false);
   const [inView, setInView] = useState(true);
-  const paused = userPaused || hoverPaused || focusPaused || dragging || tabHidden || !inView || !active;
+  // Автоматичната смяна тръгва след първия скрол/докосване/клавиш на посетителя — виж useVisitorEngaged
+  const engaged = useVisitorEngaged();
+  const paused = userPaused || hoverPaused || focusPaused || dragging || tabHidden || !inView || !active || !engaged;
 
   const sectionRef = useRef<HTMLElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -237,8 +242,8 @@ export default function HeroClassic() {
   }, [current]);
 
   useLayoutEffect(() => {
-    peekBlocked.current = userPaused || dragging || tabHidden || !inView || !active;
-  }, [userPaused, dragging, tabHidden, inView, active]);
+    peekBlocked.current = userPaused || dragging || tabHidden || !inView || !active || !engaged;
+  }, [userPaused, dragging, tabHidden, inView, active, engaged]);
 
   useEffect(() => dragX.on('change', v => {
     const w = trackRef.current?.offsetWidth ?? 0;
@@ -246,11 +251,13 @@ export default function HeroClassic() {
   }), [dragX]);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setNeighborsReady(true), 2000);
-    const t2 = setTimeout(() => setAllReady(true), 4500);
+    // Съседните и останалите снимки — чак след като страницата се зареди (иначе на бавен телефон се бутат с
+    // първия екран за мрежата и процесора)
+    const cancelNeighbors = afterPageLoad(() => setNeighborsReady(true), 2000);
+    const cancelAll = afterPageLoad(() => setAllReady(true), 4500);
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
+      cancelNeighbors();
+      cancelAll();
     };
   }, []);
 
@@ -775,24 +782,8 @@ function DestinationDot({
         </span>
         <svg viewBox="0 0 48 48" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
           <circle cx="24" cy="24" r="22.5" fill="none" stroke="white" strokeOpacity={active ? 0.35 : 0.5} strokeWidth="2" />
-          {active && (
-            <circle
-              key={slide.img}
-              cx="24"
-              cy="24"
-              r="22.5"
-              fill="none"
-              stroke="white"
-              strokeWidth="3"
-              strokeLinecap="round"
-              pathLength={1}
-              strokeDasharray="1"
-              className="hero-ring"
-              style={{ animationDuration: `${SLIDE_DURATION}ms`, animationPlayState: paused ? 'paused' : 'running' }}
-              onAnimationEnd={onRingEnd}
-            />
-          )}
         </svg>
+        {active && <HeroRing key={slide.img} duration={SLIDE_DURATION} paused={paused} onEnd={onRingEnd} />}
 
       </span>
       <span className={`hidden text-[13px] leading-none text-white sm:block lg:text-sm lg:[@media(max-height:780px)]:hidden ${active ? 'font-bold' : 'font-medium'}`}>

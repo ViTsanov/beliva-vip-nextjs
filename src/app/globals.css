@@ -157,16 +157,17 @@ html[data-dialog-open] [data-floating-button] { visibility: hidden; }
   .hero-glass { background: #0f172a; backdrop-filter: none; -webkit-backdrop-filter: none; border-color: #fff; }
 }
 
-/* Hero: обръч за прогрес около активната дестинация. Краят на анимацията сменя слайда. Остава и при
-   reduced motion — отмерва времето, а самата смяна тогава е кратко избледняване. */
-@keyframes hero-ring {
-  from { stroke-dashoffset: 1; }
-  to { stroke-dashoffset: 0; }
+/* Hero: обръч за прогрес около активната дестинация (HeroRing.tsx) — две половини, които се завъртат на 180°.
+   Само transform, за да го движи видеокартата. Краят на анимацията сменя слайда. Остава и при reduced motion —
+   отмерва времето, а самата смяна тогава е кратко избледняване. */
+@keyframes hero-ring-sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(180deg); }
 }
-.hero-ring {
-  animation-name: hero-ring;
+.hero-ring-half {
+  animation-name: hero-ring-sweep;
   animation-timing-function: linear;
-  animation-fill-mode: forwards;
+  animation-fill-mode: both;
 }
 
 /* Hero: бавно приближаване на снимката, докато дестинацията е на екран. Продължителността идва от JS. */
@@ -188,12 +189,14 @@ html[data-dialog-open] [data-floating-button] { visibility: hidden; }
 .hero-intro-band {
   animation: hero-band-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
 }
+/* Името се вижда от първия кадър и само се повдига заедно с полето — без избледняване от нула и без закъснение.
+   То е най-големият елемент на екрана (LCP): докато е невидимо, Google смята, че страницата още не е заредена. */
 @keyframes hero-word-in {
-  from { opacity: 0; transform: translateY(45%); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(45%); }
+  to { transform: none; }
 }
 .hero-intro-word {
-  animation: hero-word-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
+  animation: hero-word-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
 }
 
 /* Hero: текстът за дестинацията се появява наново при смяна (без изход — няма „призрак“ на старото име). */

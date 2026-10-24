@@ -10,6 +10,9 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import type { GlobePlace } from './HeroGlobe';
+import { afterPageLoad } from '@/lib/afterPageLoad';
+import HeroRing from './HeroRing';
+import { useVisitorEngaged } from '@/lib/hooks/useVisitorEngaged';
 
 // Глобусът (globe.gl / three.js) се зарежда отделно и само на широк екран — не тежи на първото зареждане.
 const HeroGlobe = dynamic(() => import('./HeroGlobe'), { ssr: false });
@@ -150,7 +153,7 @@ const project = (velocity: number) => ((velocity / 1000) * 0.998) / (1 - 0.998);
 type ChangeMode = 'morph' | 'slide';
 // Глобусът — само на широк и достатъчно висок екран (иначе застъпва заглавието или името). Същото условие
 // е и в CSS класовете с [@media(min-height:640px)].
-const STAGE_QUERY = '(min-width: 1024px) and (min-height: 640px)';
+export const STAGE_QUERY = '(min-width: 1024px) and (min-height: 640px)';
 // Диаметърът на сферата; 20% от нея остава извън екрана вдясно и долу. Над нея (под менюто) остава ивица
 // за текста на дестинацията — затова не е по-голям от 80% от височината.
 const GLOBE_D = 'min(80svh, 62vw)';
@@ -223,7 +226,9 @@ export default function Hero() {
   const [tabHidden, setTabHidden] = useState(false);
   const [inView, setInView] = useState(true);
   // На телефон и нисък екран се вижда HeroClassic.tsx — тогава този спи (!stage)
-  const paused = userPaused || hoverPaused || globeHover || focusPaused || dragging || tabHidden || !inView || !stage;
+  // Автоматичната смяна тръгва след първия скрол/докосване/клавиш на посетителя — виж useVisitorEngaged
+  const engaged = useVisitorEngaged();
+  const paused = userPaused || hoverPaused || globeHover || focusPaused || dragging || tabHidden || !inView || !stage || !engaged;
   const pausedRef = useRef(false);
 
   const sectionRef = useRef<HTMLElement>(null);
@@ -236,10 +241,11 @@ export default function Hero() {
   }, [paused]);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPreload(true), 2000);
+    // Останалите снимки — чак след като страницата се зареди (иначе се бутат с първия екран за мрежата)
+    const cancelPreload = afterPageLoad(() => setPreload(true), 2000);
     const t2 = setTimeout(() => setGlobeMounted(true), GLOBE_DELAY);
     return () => {
-      clearTimeout(t1);
+      cancelPreload();
       clearTimeout(t2);
       if (retryTimer.current) clearTimeout(retryTimer.current);
     };
@@ -467,7 +473,11 @@ export default function Hero() {
 
       {/* ─── ГОРЕ: какво правим и главното действие. pointer-events-none, за да минава жестът през текста. ─── */}
       <div className="pointer-events-none relative z-20 container mx-auto px-6 pt-24 lg:pt-28 lg:[@media(max-height:780px)]:pt-24">
-        <h1
+        {/* Заглавие ниво 1 за екранните четци, но не <h1>: в HTML-а са и двата героса и истинският <h1> е този в
+            HeroClassic (телефонът, който Google гледа) — иначе страницата имаше два <h1>. */}
+        <p
+          role="heading"
+          aria-level={1}
           className="hero-enter max-w-[11.8em] font-display font-normal text-white"
           style={{
             fontSize: 'min(3.25rem, (100vw - 3rem) / 11.4)',
@@ -477,7 +487,7 @@ export default function Hero() {
           }}
         >
           Групови екскурзии по света с водач
-        </h1>
+        </p>
 
         <p
           className="hero-enter mt-4 hidden max-w-[30rem] text-lg leading-relaxed text-white sm:[@media(min-height:781px)]:block"
@@ -819,24 +829,8 @@ function DestinationDot({
         </span>
         <svg viewBox="0 0 48 48" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
           <circle cx="24" cy="24" r="22.5" fill="none" stroke="white" strokeOpacity={active ? 0.35 : 0.5} strokeWidth="2" />
-          {active && (
-            <circle
-              key={slide.img}
-              cx="24"
-              cy="24"
-              r="22.5"
-              fill="none"
-              stroke="white"
-              strokeWidth="3"
-              strokeLinecap="round"
-              pathLength={1}
-              strokeDasharray="1"
-              className="hero-ring"
-              style={{ animationDuration: `${SLIDE_DURATION}ms`, animationPlayState: paused ? 'paused' : 'running' }}
-              onAnimationEnd={onRingEnd}
-            />
-          )}
         </svg>
+        {active && <HeroRing key={slide.img} duration={SLIDE_DURATION} paused={paused} onEnd={onRingEnd} />}
       </span>
       <span className={`hidden text-[13px] leading-none text-white sm:block lg:[@media(max-height:780px)]:hidden ${active ? 'font-bold' : 'font-medium'}`}>
         {slide.destination}

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { storage, db, auth } from '@/lib/firebase';
+import { storage, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseAuth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { Upload, Trash2, Search, X, Check, Loader2, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
