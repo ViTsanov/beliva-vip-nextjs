@@ -10,7 +10,6 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import type { GlobePlace } from './HeroGlobe';
-import { afterPageLoad } from '@/lib/afterPageLoad';
 import HeroRing from './HeroRing';
 import { useVisitorEngaged } from '@/lib/hooks/useVisitorEngaged';
 
@@ -241,11 +240,12 @@ export default function Hero() {
   }, [paused]);
 
   useEffect(() => {
-    // Останалите снимки — чак след като страницата се зареди (иначе се бутат с първия екран за мрежата)
-    const cancelPreload = afterPageLoad(() => setPreload(true), 2000);
+    // Останалите снимки — 2 s след първия кадър (LCP снимката вече е дошла), без да чакаме събитието load: то идва
+    // късно и при смяна следващата снимка не беше готова. Първото действие на посетителя ги тегли веднага.
+    const t1 = setTimeout(() => setPreload(true), 2000);
     const t2 = setTimeout(() => setGlobeMounted(true), GLOBE_DELAY);
     return () => {
-      cancelPreload();
+      clearTimeout(t1);
       clearTimeout(t2);
       if (retryTimer.current) clearTimeout(retryTimer.current);
     };
@@ -388,7 +388,7 @@ export default function Hero() {
           className="absolute inset-0 cursor-grab active:cursor-grabbing"
         >
           {/* Съседите — отляво и отдясно, извън кадъра, докато ръката не ги издърпа */}
-          {(preload || dragging) && [-1, 1].map(side => {
+          {(preload || engaged || dragging) && [-1, 1].map(side => {
             const s = SLIDES[(current + side + SLIDES.length) % SLIDES.length];
             return (
               <div key={`${side}-${s.img}`} aria-hidden="true" className="absolute inset-y-0 w-full overflow-hidden" style={{ left: `${side * 100}%` }}>
@@ -415,7 +415,7 @@ export default function Hero() {
       </div>
 
       {/* Останалите снимки — скрито предварително зареждане със същите sizes, за да е готова всяка, преди да потрябва */}
-      {preload && (
+      {(preload || engaged) && (
         <div aria-hidden="true" className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
           {SLIDES.filter((_, i) => i !== current).map(s => (
             <div key={s.img} className="relative h-px w-px">
