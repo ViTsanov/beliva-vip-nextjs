@@ -161,8 +161,8 @@ export default function TopDestinations({ initialDestinations = [], counts: init
                     // Картата е 300×400 (изправена), а снимките са хоризонтални — за да покрие височината, снимката
                     // се рисува ~600px широка. С „300px“ браузърът сваляше двойно по-малка снимка и я разтягаше.
                     sizes="600px"
+                    // Без priority: лентата е най-долу на страницата на тура и снимките ѝ се бутаха за мрежата с главната
                     className="object-cover transition-transform duration-700 group-hover:scale-110"
-                    priority={index < 3}
                   />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
