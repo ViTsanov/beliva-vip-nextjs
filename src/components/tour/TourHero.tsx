@@ -36,7 +36,7 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
           blurDataURL={BLUR_PLACEHOLDER}
           sizes="100vw"
           // Цял екран — по-високо качество от подразбиращото се 75; изрязването следва точката на фокус от админа
-          quality={85}
+          quality={70}
           className="object-cover"
           style={{ objectPosition: tour.imgPosition || '50% 50%' }}
           onError={() => setImgError(true)}

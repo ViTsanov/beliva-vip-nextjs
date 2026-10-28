@@ -105,7 +105,7 @@ export default function PoliIntro() {
               alt={PHOTO.alt}
               fill
               sizes="(min-width: 1536px) 600px, 40vw"
-              quality={80}
+              quality={75}
               className="object-cover"
               style={{ objectPosition: '85% 50%' }}
             />

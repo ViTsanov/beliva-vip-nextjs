@@ -159,6 +159,9 @@ export const STAGE_QUERY = '(min-width: 1024px) and (min-height: 640px)';
 const GLOBE_D = 'min(80svh, 62vw)';
 // Еднакви с HeroClassic.tsx — двата героса са в страницата едновременно и така свалят една и съща снимка.
 const PHOTO_SIZES = '130vw';
+// Качество на снимките в героса — 70%: на снимка разликата от 75 не се вижда, а файлът е по-малък. Еднакво в Hero.tsx и
+// HeroClassic.tsx, иначе двата героса теглят различни файлове.
+const PHOTO_QUALITY = 70;
 // На широк екран снимката е PHOTO_WIDE (или slide.wide) пъти по-широка от екрана и се измества така, че focus да застане на
 // FOCUS_AT от ширината — вляво от глобуса. Изместването е ограничено, за да покрива снимката целия екран.
 const PHOTO_WIDE = 1.3;
@@ -419,7 +422,7 @@ export default function Hero() {
         <div aria-hidden="true" className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
           {SLIDES.filter((_, i) => i !== current).map(s => (
             <div key={s.img} className="relative h-px w-px">
-              <Image src={s.img} alt="" fill sizes={PHOTO_SIZES} quality={75} />
+              <Image src={s.img} alt="" fill sizes={PHOTO_SIZES} quality={PHOTO_QUALITY} />
             </div>
           ))}
         </div>
@@ -659,7 +662,7 @@ function HeroPhoto({ slide, priority = false, children }: { slide: Slide; priori
         alt=""
         fill
         sizes={PHOTO_SIZES}
-        quality={75}
+        quality={PHOTO_QUALITY}
         priority={priority}
         fetchPriority={priority ? 'high' : 'auto'}
         draggable={false}

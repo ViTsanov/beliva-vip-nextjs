@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
     // also lets the App Hosting CDN serve them from the edge instead of re-optimizing on each instance.
     minimumCacheTTL: 2678400,
     // All quality values used across the app
-    qualities: [40, 75, 80, 85, 90],
+    qualities: [40, 70, 75],
     // Allow larger images for hero/gallery quality
     // 2560 — за големи/ретина екрани: оригиналите в библиотеката са до 2000px, а без тази стъпка те получаваха 1920
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2560],

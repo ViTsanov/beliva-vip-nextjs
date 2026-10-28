@@ -17,9 +17,9 @@ export const SHARE_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 // /og/default.jpg (началната страница и страниците без собствена снимка): първата голяма вляво, другите 2×2.
 // При смяна на hero снимките се сменя и този списък.
 export const HERO_SHARE_PHOTOS = [
-  '/hero/mexico.webp',
   '/hero/peru2.jpg',
   '/hero/china2.jpg',
+  '/hero/mexico.webp',
   '/hero/australia3.jpg',
   '/hero/thailand2.jpg',
 ];

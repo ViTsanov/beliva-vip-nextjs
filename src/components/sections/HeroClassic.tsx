@@ -40,20 +40,6 @@ const formatKm = (km: number) => `${Math.floor(km / 1000)} ${String(km % 1000).
 //   парче от нея. Отгоре небето ѝ продължава с цветовете sky (взети от горния ѝ край — отляво и отдясно).
 const SLIDES = [
   {
-    destination: 'Мексико',
-    subtitle: 'Пирамидите на маите и карибските плажове',
-    img: '/hero/mexico.webp',
-    cropX: 50,
-    filterHref: '/?country=meksiko#tours-grid',
-    em: 6.307,
-    lsb: 0.06,
-    color: '#2E6B3F',
-    city: 'Мексико Сити',
-    timeZone: 'America/Mexico_City',
-    lat: 19.4326,
-    lon: -99.1332,
-  },
-  {
     destination: 'Перу',
     subtitle: 'Мачу Пикчу и изгубените цивилизации',
     img: '/hero/peru2.jpg',
@@ -80,6 +66,20 @@ const SLIDES = [
     timeZone: 'Asia/Shanghai',
     lat: 39.9042,
     lon: 116.4074,
+  },
+  {
+    destination: 'Мексико',
+    subtitle: 'Пирамидите на маите и карибските плажове',
+    img: '/hero/mexico.webp',
+    cropX: 50,
+    filterHref: '/?country=meksiko#tours-grid',
+    em: 6.307,
+    lsb: 0.06,
+    color: '#2E6B3F',
+    city: 'Мексико Сити',
+    timeZone: 'America/Mexico_City',
+    lat: 19.4326,
+    lon: -99.1332,
   },
   {
     destination: 'Австралия',
@@ -122,6 +122,9 @@ const TIME_FORMATS = SLIDES.map(s => new Intl.DateTimeFormat('en-GB', {
 
 // Еднакви с Hero.tsx — двата героса са в страницата едновременно и така свалят една и съща снимка, не две.
 const PHOTO_SIZES = '130vw';
+// Качество на снимките в героса — 70%: на снимка разликата от 75 не се вижда, а файлът е по-малък. Еднакво в Hero.tsx и
+// HeroClassic.tsx, иначе двата героса теглят различни файлове.
+const PHOTO_QUALITY = 70;
 const SKY_FADE = 'linear-gradient(to bottom, transparent, #000 2.5rem)';
 
 // Колко стои всяка дестинация.
@@ -699,7 +702,7 @@ function HeroSlide({
               alt=""
               fill
               sizes={PHOTO_SIZES}
-              quality={75}
+              quality={PHOTO_QUALITY}
               priority={isFirst}
               loading="eager"
               fetchPriority={isFirst ? 'high' : 'auto'}
