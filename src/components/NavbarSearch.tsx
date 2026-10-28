@@ -9,7 +9,6 @@ import { useRouter, usePathname } from 'next/navigation'; // Трябва ни �
 import { startNavigationProgress } from '@/components/NavigationProgress';
 import { db } from '@/lib/firebase';
 import { collection, query, getDocs } from 'firebase/firestore';
-import { AnimatePresence, motion } from 'framer-motion';
 import { slugify } from '@/lib/admin-helpers'; // Провери дали точно така се казва експорта
 import { getActiveTours } from '@/services/tourService';
 import { displayTourDate } from '@/lib/tourDates';
@@ -202,23 +201,17 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
     <>
       {TriggerButton}
 
+      {/* Появяване с CSS (.dialog-backdrop-in / .dialog-in в globals.css), а не с framer-motion: framer пуска opacity
+          през Web Animations API и за един кадър прозорецът се виждаше в крайното си състояние — „примигваше“.
+          Без backdrop-blur: при 90% тъмен фон размазването почти не се вижда, а караше браузъра да размазва цялата
+          страница отдолу (глобуса, снимките) точно докато прозорецът се отваря. */}
       {mounted && isOpen && createPortal(
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[9999] bg-brand-dark/90 backdrop-blur-sm flex items-start justify-center pt-24 px-4"
+            <div
+              className="dialog-backdrop-in fixed inset-0 z-[9999] bg-brand-dark/90 flex items-start justify-center pt-24 px-4"
               onClick={(e) => e.target === e.currentTarget && handleClose()}
             >
-              <motion.div 
-                initial={{ y: -50, opacity: 0, scale: 0.95 }}
-                animate={{ y: 0, opacity: 1, scale: 1 }}
-                exit={{ y: -20, opacity: 0, scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden relative max-h-[80vh] flex flex-col"
+              <div
+                className="dialog-in bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden relative max-h-[80vh] flex flex-col"
               >
                 {/* HEADER */}
                 <div className="flex items-center gap-4 p-6 border-b border-gray-100 shrink-0">
@@ -424,10 +417,8 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
                     {queryText && <span>Общо {foundTours.length + foundPosts.length + foundPages.length + foundCountries.length + (foundMonth ? 1 : 0)} резултата</span>}
                 </div>
 
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>,
+              </div>
+            </div>,
         document.body
       )}
     </>

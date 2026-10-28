@@ -5,6 +5,8 @@ import { ArrowDown, ArrowRight } from 'lucide-react';
 import CountryFavButton from '@/components/destination/CountryFavButton';
 import { InquiryButton } from '@/components/destination/DestinationInquiry';
 import type { FavoriteCountry } from '@/lib/favoriteCountries';
+import { HERO_PHOTO_QUALITY, HERO_PHOTO_SIZES } from '@/lib/heroPhoto';
+import HeroReveal from '@/components/ui/HeroReveal';
 
 interface DestinationHeroProps {
   countryName: string;
@@ -41,8 +43,10 @@ export default function DestinationHero({
 
   return (
     <section aria-labelledby="dest-title" className="relative flex min-h-[780px] items-end overflow-hidden bg-[#0b1120]">
+      {/* След клик снимката и текстът се появяват заедно (HeroReveal); дотогава остава тъмният фон */}
+      <HeroReveal>
       <div className="dest-kb absolute inset-0">
-        <Image src={heroImg} alt={`Екскурзии до ${countryName}`} fill priority sizes="100vw" quality={70} className="object-cover object-[50%_40%]" />
+        <Image src={heroImg} alt={`Екскурзии до ${countryName}`} fill priority sizes={HERO_PHOTO_SIZES} quality={HERO_PHOTO_QUALITY} data-hero-photo className="object-cover object-[50%_40%]" />
       </div>
       <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,17,32,.62)_0%,rgba(11,17,32,.08)_26%,rgba(11,17,32,.28)_52%,rgba(11,17,32,.94)_100%)]" />
       <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(90deg,rgba(11,17,32,.55)_0%,rgba(11,17,32,0)_60%)]" />
@@ -134,6 +138,7 @@ export default function DestinationHero({
           </div>
         </div>
       </div>
+      </HeroReveal>
     </section>
   );
 }

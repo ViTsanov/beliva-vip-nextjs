@@ -92,56 +92,18 @@ export default function QuickFilters({
         </section>
       )}
 
-      {/* Континенти — визуален избор със снимки. На мобилно: фиксирана ширина + хоризонтален скрол/swipe;
-          от md — три равни колони без скрол. */}
+      {/* Континенти — визуален избор със снимки. На мобилно: редица, която се плъзга настрани, с тънка видима лента
+          за скрол (подсказва, че има още, и се влачи и с мишка); от md — три равни колони. */}
       {continents.length > 0 && (
         <section aria-labelledby="filters-continent-heading">
           <h3 id="filters-continent-heading" className={headingClass}>Къде</h3>
-          {/* p-1 / -m-1: място за рамката на избраната плочка, за да не се реже от overflow-x-auto */}
-          <div className="snap-carousel -m-1 flex gap-3 overflow-x-auto p-1 scrollbar-hide md:grid md:grid-cols-3 md:gap-4 md:overflow-visible">
-            {continents.map(c => {
-              const isSelected = activeContinent === c.slug;
-              const hasError = imgErrors[c.slug];
-              return (
-                <button
-                  key={c.slug}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => onSelectContinent(isSelected ? '' : c.slug)}
-                  className={`group relative h-[100px] w-[150px] shrink-0 overflow-hidden rounded-2xl transition-shadow duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark md:h-[140px] md:w-full ${
-                    isSelected ? 'ring-[3px] ring-brand-dark' : ''
-                  }`}
-                >
-                  {c.img && !hasError ? (
-                    <Image
-                      src={c.img}
-                      alt=""
-                      fill
-                      placeholder="blur"
-                      blurDataURL={BLUR_PLACEHOLDER}
-                      sizes="(max-width: 768px) 150px, 20vw"
-                      className="object-cover transition-transform duration-500 group-hover:scale-110"
-                      onError={() => setImgErrors(prev => ({ ...prev, [c.slug]: true }))}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-brand-dark" />
-                  )}
-                  <div className={`absolute inset-0 transition-colors ${isSelected ? 'bg-brand-dark/55' : 'bg-black/35 group-hover:bg-black/45'}`} />
-                  {isSelected && (
-                    <span className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-brand-gold text-brand-dark" aria-hidden="true">
-                      <Check size={14} strokeWidth={3} />
-                    </span>
-                  )}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
-                    <span className="font-serif text-base italic leading-tight text-white drop-shadow-md md:text-lg">{c.name}</span>
-                    <span className="mt-0.5 text-[11px] font-semibold text-white/85">
-                      {c.count} {c.count === 1 ? 'екскурзия' : 'екскурзии'}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          <ContinentRow
+            continents={continents}
+            activeContinent={activeContinent}
+            onSelectContinent={onSelectContinent}
+            imgErrors={imgErrors}
+            onImgError={slug => setImgErrors(prev => ({ ...prev, [slug]: true }))}
+          />
         </section>
       )}
 
@@ -170,6 +132,66 @@ export default function QuickFilters({
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+// Редицата с континенти. Снимката не се приближава при посочване: на телефон докосването също е „посочване“, а
+// приближената снимка в заоблената плочка (overflow-hidden) понякога се рисуваше върху името и го скриваше,
+// и при всяко докосване имаше половинсекундна анимация. Сега при посочване (само с мишка) затъмнението леко
+// изсветлява, а името е в отделен слой, винаги над снимката.
+function ContinentRow({ continents, activeContinent, onSelectContinent, imgErrors, onImgError }: {
+  continents: ContinentTile[];
+  activeContinent: string;
+  onSelectContinent: (slug: string) => void;
+  imgErrors: Record<string, boolean>;
+  onImgError: (slug: string) => void;
+}) {
+  return (
+    // p-1 / -m-1: място за рамката на избраната плочка, за да не се реже от overflow-x-auto; pb-3 — място за лентата
+    <div className="thin-scrollbar -m-1 flex snap-x snap-proximity gap-3 overflow-x-auto overscroll-x-contain p-1 pb-3 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:pb-1">
+        {continents.map(c => {
+          const isSelected = activeContinent === c.slug;
+          const hasError = imgErrors[c.slug];
+          return (
+            <button
+              key={c.slug}
+              type="button"
+              aria-pressed={isSelected}
+              onClick={() => onSelectContinent(isSelected ? '' : c.slug)}
+              className={`group relative isolate h-[100px] w-[150px] shrink-0 snap-start overflow-hidden rounded-2xl touch-manipulation transition-transform duration-150 ease-out active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark md:h-[140px] md:w-full ${
+                isSelected ? 'ring-[3px] ring-brand-dark' : ''
+              }`}
+            >
+              {c.img && !hasError ? (
+                <Image
+                  src={c.img}
+                  alt=""
+                  fill
+                  placeholder="blur"
+                  blurDataURL={BLUR_PLACEHOLDER}
+                  sizes="(max-width: 768px) 150px, 20vw"
+                  className="object-cover"
+                  onError={() => onImgError(c.slug)}
+                />
+              ) : (
+                <div className="absolute inset-0 bg-brand-dark" />
+              )}
+              <div className={`absolute inset-0 transition-colors duration-150 ${isSelected ? 'bg-brand-dark/55' : 'bg-black/40 [@media(hover:hover)]:group-hover:bg-black/30'}`} />
+              {isSelected && (
+                <span className="absolute right-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-brand-gold text-brand-dark" aria-hidden="true">
+                  <Check size={14} strokeWidth={3} />
+                </span>
+              )}
+              <div className="relative z-10 flex h-full flex-col items-center justify-center px-2 text-center">
+                <span className="font-serif text-base italic leading-tight text-white drop-shadow-md md:text-lg">{c.name}</span>
+                <span className="mt-0.5 text-[11px] font-semibold text-white/90">
+                  {c.count} {c.count === 1 ? 'екскурзия' : 'екскурзии'}
+                </span>
+              </div>
+            </button>
+          );
+        })}
     </div>
   );
 }

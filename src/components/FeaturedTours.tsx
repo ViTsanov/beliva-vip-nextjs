@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Clock, MapPin, AlertTriangle, Heart } from "lucide-react";
 import { ITour } from "@/types";
 import Badge from "@/components/ui/Badge";
+import { RevealGroup } from "@/components/ui/Reveal";
 import { formatPrice } from "@/lib/formatPrice";
 import { isOperatorHotlink } from "@/lib/operatorImageDomains";
 import { useFavoriteTours } from "@/lib/favoriteTours";
@@ -71,11 +72,13 @@ export default function FeaturedTours({ tours, todayStr }: FeaturedToursProps) {
   if (featured.length === 0) return null;
 
   return (
-    <section aria-labelledby="featured-heading" className="bg-white py-12 md:py-16">
+    // Появяване при скрол: заглавието, после трите карти една след друга, а снимките леко се отдалечават
+    // (.reveal / .reveal-zoom в globals.css; при намалено движение — само избледняване)
+    <RevealGroup as="section" aria-labelledby="featured-heading" className="bg-white py-12 md:py-16">
       <div className="container mx-auto px-4 sm:px-6">
 
         {/* Header */}
-        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end md:mb-10">
+        <div className="reveal mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end md:mb-10">
           <div>
             <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.3em] text-brand-goldDeep">
               Горещи предложения
@@ -100,13 +103,13 @@ export default function FeaturedTours({ tours, todayStr }: FeaturedToursProps) {
         {/* Плъзгащ се ред до lg; от lg — решетка с три равни колони. Отстъпът -mx/px пуска картите до ръба на екрана. */}
         <ul className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-4 [scrollbar-width:thin] sm:-mx-6 sm:scroll-px-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-visible lg:px-0 lg:pb-0">
           {featured.map((tour, i) => (
-            <li key={tour.id} className="w-[84%] shrink-0 snap-start sm:w-[46%] lg:w-auto">
+            <li key={tour.id} className="reveal w-[84%] shrink-0 snap-start sm:w-[46%] lg:w-auto" style={{ '--reveal-delay': `${0.12 + i * 0.08}s` } as CSSProperties}>
               <FeaturedCard tour={tour} isTopPick={i === 0} todayStr={todayStr} priority={i === 0} />
             </li>
           ))}
         </ul>
       </div>
-    </section>
+    </RevealGroup>
   );
 }
 
@@ -149,6 +152,7 @@ function FeaturedCard({ tour, isTopPick, todayStr, priority }: { tour: ITour; is
       {/* Снимка */}
       <div className="relative aspect-[16/10] shrink-0 overflow-hidden bg-slate-200">
         {img ? (
+          <div className="reveal-zoom absolute inset-0" style={{ '--reveal-delay': '0.12s' } as CSSProperties}>
           <Image
             src={img}
             alt=""
@@ -159,6 +163,7 @@ function FeaturedCard({ tour, isTopPick, todayStr, priority }: { tour: ITour; is
             style={{ transition: "transform 300ms ease, opacity 500ms ease", objectPosition: tour.imgPosition || "50% 50%" }}
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 46vw, 84vw"
           />
+          </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-brand-dark">
             <span className="font-serif text-6xl italic text-brand-gold/25" aria-hidden="true">

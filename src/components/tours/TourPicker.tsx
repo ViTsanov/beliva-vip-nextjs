@@ -39,6 +39,10 @@ interface TourPickerProps {
   // Филтър по месец на отпътуване — в админа (вкл. минали дати от historicalDates).
   showMonthFilter?: boolean;
   label?: string;
+  // Опростен вид за посетителите (запитването на сайта): само „общо запитване“ и държави, без списък с всички
+  // екскурзии на държавата и без търсене; избраната екскурзия (от страницата на тура) е без „Смени“.
+  // Твърде много информация наведнъж затрудняваше хората. Админът ползва пълния вид.
+  simple?: boolean;
 }
 
 const MONTHS = ['Яну', 'Фев', 'Мар', 'Апр', 'Май', 'Юни', 'Юли', 'Авг', 'Сеп', 'Окт', 'Ное', 'Дек'];
@@ -59,6 +63,7 @@ const datesOf = (t: PickerTour, includeHistorical: boolean) =>
 
 export default function TourPicker({
   tours, value, onChange, allowGeneral = true, allowDestination = true, showMonthFilter = false, label = 'Какво ви интересува?',
+  simple = false,
 }: TourPickerProps) {
   const [search, setSearch] = useState('');
   const [countryFilter, setCountryFilter] = useState(value.kind === 'destination' ? value.country : '');
@@ -129,13 +134,13 @@ export default function TourPicker({
               )}
             </p>
           </div>
-          <button
+          {!simple && <button
             type="button"
             onClick={() => setChanging(true)}
             className="shrink-0 rounded-full border border-slate-300 px-3 py-2 text-[13px] font-semibold text-brand-dark transition-colors hover:border-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark"
           >
             Смени
-          </button>
+          </button>}
         </div>
       </div>
     );
@@ -201,7 +206,8 @@ export default function TourPicker({
         </>
       )}
 
-      {/* Търсене + списък с екскурзии */}
+      {/* Търсене + списък с екскурзии — само в пълния вид */}
+      {!simple && <>
       <div className="relative mt-4">
         <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
         <input
@@ -289,9 +295,11 @@ export default function TourPicker({
         </div>
       )}
 
+      </>}
+
       {value.kind === 'destination' && (
         <p className="mt-3 rounded-xl bg-brand-mist px-3.5 py-2.5 text-[13px] text-slate-600">
-          Ще изпратите запитване за <span className="font-semibold text-brand-dark">{value.country}</span>. Можете да изберете и конкретна екскурзия от списъка.
+          Ще изпратите запитване за <span className="font-semibold text-brand-dark">{value.country}</span>.{!simple && ' Можете да изберете и конкретна екскурзия от списъка.'}
         </p>
       )}
     </div>

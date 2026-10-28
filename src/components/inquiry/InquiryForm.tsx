@@ -56,6 +56,7 @@ export default function InquiryForm({ source, defaultTourSlug, defaultCountry, a
 
   const [step, setStep] = useState<1 | 2>(1);
   const [tours, setTours] = useState<TourOption[]>([]);
+  const [toursLoaded, setToursLoaded] = useState(false);
   // Изборът в TourPicker: общо запитване, само дестинация или конкретна екскурзия (по желание с дата).
   const [choice, setChoice] = useState<TourChoice>(defaultCountry ? { kind: 'destination', country: defaultCountry } : { kind: 'general' });
   const [date, setDate] = useState('');
@@ -91,12 +92,16 @@ export default function InquiryForm({ source, defaultTourSlug, defaultCountry, a
           .filter(t => t.title)
           .sort((a, b) => a.title.localeCompare(b.title, 'bg'));
         setTours(list);
+        setToursLoaded(true);
         if (defaultTourSlug) {
           const match = list.find(t => t.slug === defaultTourSlug || t.tourId === defaultTourSlug || t.id === defaultTourSlug);
           if (match) setChoice(prev => (prev.kind !== 'tour' ? { kind: 'tour', tourId: match.id } : prev));
         }
       })
-      .catch(err => console.error('Грешка при зареждане на екскурзиите:', err));
+      .catch(err => {
+        console.error('Грешка при зареждане на екскурзиите:', err);
+        if (!cancelled) setToursLoaded(true);
+      });
     return () => { cancelled = true; };
   }, [defaultTourSlug]);
 
@@ -271,11 +276,18 @@ export default function InquiryForm({ source, defaultTourSlug, defaultCountry, a
         </div>
       ) : (
         <div className="space-y-5">
-          <TourPicker
-            tours={tours}
-            value={choice}
-            onChange={next => { setChoice(next); setDate(next.kind === 'tour' ? next.date ?? '' : ''); }}
-          />
+          {/* От страницата на тур: докато екскурзиите се заредят — кратък надпис, а не целият избор (иначе за миг
+              излизаха всички държави, преди да се покаже само този тур) */}
+          {defaultTourSlug && !toursLoaded ? (
+            <p className="rounded-2xl border border-slate-200 bg-white p-4 text-[14px] text-slate-500" role="status">Зареждане на екскурзията…</p>
+          ) : (
+            <TourPicker
+              simple
+              tours={tours}
+              value={choice}
+              onChange={next => { setChoice(next); setDate(next.kind === 'tour' ? next.date ?? '' : ''); }}
+            />
+          )}
 
           {selectedTour && (
             <div>

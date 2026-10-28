@@ -1,8 +1,10 @@
+import type { CSSProperties } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ITour } from '@/types';
 import { slugify } from '@/lib/admin-helpers';
 import CountryFilterLink from './CountryFilterLink';
+import { RevealGroup } from '@/components/ui/Reveal';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 import { fetchAllMedia, findCountryHeroImage } from '@/lib/media-helpers';
 
@@ -84,9 +86,12 @@ export default async function DestinationsSection({ tours, adminCountries = [], 
   }
 
   return (
-    <section aria-labelledby="dest-heading" className="bg-white py-20">
+    // Появяване при скрол: заглавието, после плочките една след друга, а снимките леко се отдалечават
+    // (.reveal / .reveal-zoom в globals.css; при намалено движение — само избледняване). Анимацията е на обвивка
+    // около плочката, не на самия линк — иначе крайният ѝ кадър би спрял повдигането му при посочване.
+    <RevealGroup as="section" aria-labelledby="dest-heading" className="bg-white py-20">
       <div className="container mx-auto px-6">
-        <div className="mb-9 flex flex-wrap items-end justify-between gap-4">
+        <div className="reveal mb-9 flex flex-wrap items-end justify-between gap-4">
           <div>
             <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[.3em] text-orange-700">
               Открий
@@ -113,8 +118,8 @@ export default async function DestinationsSection({ tours, adminCountries = [], 
               FALLBACK_COLORS[name] ?? DEFAULT_FALLBACK[i % DEFAULT_FALLBACK.length];
 
             return (
+              <div key={name} className="reveal" style={{ '--reveal-delay': `${0.1 + Math.min(i, 7) * 0.06}s` } as CSSProperties}>
               <CountryFilterLink
-                key={name}
                 // Филтрира каталога по-долу на същата страница (собственикът не иска тук да води към /destinations/…;
                 // към страниците на държавите води „Всички дестинации“ горе)
                 countrySlug={slugify(name)}
@@ -123,6 +128,7 @@ export default async function DestinationsSection({ tours, adminCountries = [], 
               >
                 {/* Снимка от базата */}
                 {img && (
+                  <div className="reveal-zoom absolute inset-0">
                   <Image
                     src={img}
                     alt={name}
@@ -130,6 +136,7 @@ export default async function DestinationsSection({ tours, adminCountries = [], 
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
+                  </div>
                 )}
 
                 {/* Затъмнение отдолу — върху снимка е по-силно, върху градиент е по-нежно */}
@@ -152,10 +159,11 @@ export default async function DestinationsSection({ tours, adminCountries = [], 
                   </p>
                 </div>
               </CountryFilterLink>
+              </div>
             );
           })}
         </div>
       </div>
-    </section>
+    </RevealGroup>
   );
 }

@@ -8,6 +8,8 @@ import Image from 'next/image';
 import Badge from '@/components/ui/Badge';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
+import { HERO_PHOTO_QUALITY, HERO_PHOTO_SIZES } from '@/lib/heroPhoto';
+import HeroReveal from '@/components/ui/HeroReveal';
 
 interface TourHeroProps {
   tour: ITour;
@@ -25,6 +27,8 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
 
   return (
     <div className="relative w-full bg-brand-dark overflow-hidden">
+      {/* След клик снимката и текстът се появяват заедно (HeroReveal); дотогава остава тъмният фон */}
+      <HeroReveal>
       <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent z-10 opacity-90"></div>
       {heroImg && !imgError ? (
         <Image 
@@ -34,10 +38,11 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
           priority 
           placeholder="blur"
           blurDataURL={BLUR_PLACEHOLDER}
-          sizes="100vw"
           // Цял екран — качество 70 като другите големи снимки (разликата не се вижда, файлът е по-малък);
-          // изрязването следва точката на фокус от админа
-          quality={70}
+          // същите sizes/quality ползва и HeroPreloader (lib/heroPhoto.ts). Изрязването следва точката на фокус от админа
+          sizes={HERO_PHOTO_SIZES}
+          quality={HERO_PHOTO_QUALITY}
+          data-hero-photo
           className="object-cover"
           style={{ objectPosition: tour.imgPosition || '50% 50%' }}
           onError={() => setImgError(true)}
@@ -120,6 +125,7 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
           </div>
         )}
       </div>
+      </HeroReveal>
     </div>
   );
 }

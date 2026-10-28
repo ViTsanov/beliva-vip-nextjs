@@ -466,3 +466,18 @@ html[data-dialog-open] [data-floating-button] { visibility: hidden; }
   .nav-progress { animation: none; transform: none; opacity: 0.85; }
   .nav-progress-done { animation: none; opacity: 0; }
 }
+
+/* HeroReveal: след вътрешен клик съдържанието на героя (снимка, затъмнения, текст) чака снимката и се появява заедно.
+   Обвивката е display: contents, затова се крие всяко пряко дете поотделно. */
+[data-hero-reveal] > * { transition: opacity 0.25s ease-out; }
+[data-hero-reveal][data-ready="false"] > * { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  [data-hero-reveal] > * { transition: none; }
+}
+
+/* Тънка видима лента за хоризонтален скрол (редицата с континенти във филтрите) — подсказва, че има още вдясно */
+.thin-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(15, 23, 42, 0.35) transparent; }
+.thin-scrollbar::-webkit-scrollbar { height: 6px; }
+.thin-scrollbar::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.35); border-radius: 9999px; }
+.thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
+

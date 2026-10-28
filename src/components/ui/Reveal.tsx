@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createElement, useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
 
 // Появяване при скрол с чист CSS (класовете .reveal / .revealed в globals.css), без framer-motion.
 // framer пуска opacity през Web Animations API и в края ѝ записва крайната стойност отделно — за един кадър
@@ -61,4 +61,14 @@ export default function Reveal({
       {children}
     </div>
   );
+}
+
+// Обвивка за група (секция, списък): щом влезе в екрана, получава .revealed и всички .reveal / .reveal-zoom вътре
+// тръгват — всеки със своето закъснение (--reveal-delay). Ползва се и от сървърни компоненти: закъснението се дава
+// направо в style={{ '--reveal-delay': '0.1s' }}, без revealVars (то е клиентска функция).
+export function RevealGroup({
+  as = 'div', className = '', children, ...rest
+}: { as?: 'div' | 'section' | 'ul'; className?: string; children: ReactNode } & HTMLAttributes<HTMLElement>) {
+  const [ref, revealed] = useRevealOnce<HTMLElement>();
+  return createElement(as, { ...rest, ref, className: `${className} ${revealed ? 'revealed' : ''}` }, children);
 }
