@@ -357,6 +357,13 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     return result;
   }, [preMonthTours, todayStr]);
 
+  // Месеци без нито едно заминаване не се показват — първото място беше „Октомври — Няма дати“. Избраният месец
+  // остава, дори да е празен (за да може да се махне). Маркерът за година се смята наново след махането.
+  const visibleMonths = useMemo(() => {
+    const shown = calendarMonths.filter(m => m.count > 0 || m.value === filterMonth);
+    return shown.map((m, i) => ({ ...m, isFirstOfYear: i === 0 || m.year !== shown[i - 1].year }));
+  }, [calendarMonths, filterMonth]);
+
   // Снимки за континентите в бързите филтри — вземаме реална снимка от първия намерен тур за този континент
   // (вместо генерични стокови снимки) — така винаги отразява реалното съдържание.
   // Свързан с товрсФацет (а не preMonthTours) — така ако е избран месец, остават само континентите,
@@ -619,13 +626,13 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
       {/* HEADER — тъмен текст — заглавието е в центъра на container-а, който винаги седи върху кремавото „плато“ на градиента,
           не върху тъмно синьото (то е видимо само в празните полета отстрани, извън контейнера). */}
       {!hideFilters &&
-        <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-6 mb-6 md:mb-12 relative z-20 border-b border-brand-gold/10 pb-6">
+        <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-6 mb-4 md:mb-8 relative z-20">
             <div ref={headingRef} className="text-center md:text-left w-full md:w-auto">
                 <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                     <Globe2 size={18} className="text-brand-gold"/>
                     <span className="text-brand-goldDeep text-xs font-black uppercase tracking-[0.2em]">Пътешествия</span>
                 </div>
-                <h2 className="text-4xl md:text-5xl font-serif text-brand-dark leading-tight">
+                <h2 className="text-3xl md:text-5xl font-serif text-brand-dark leading-tight">
                   {filterCountry ? (
                     <>Екскурзии в <span className="italic text-[#a37d0d]">{displayCountryName}</span></>
                   ) : filterContinent ? (
@@ -644,12 +651,6 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
                 )}
             </div>
 
-            <div className="flex items-center justify-center md:justify-end w-full md:w-auto mt-4 md:mt-0">
-                <div className="bg-gradient-to-br from-white to-brand-gold/5 border border-brand-gold/15 rounded-2xl px-6 py-3 text-center md:text-right shadow-sm">
-                    <p className="text-3xl font-bold text-brand-dark leading-none">{filteredTours.length}</p>
-                    <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Намерени</p>
-                </div>
-            </div>
         </div>
       }
 
@@ -720,7 +721,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
             )}
             <ChevronDown size={16} className={`transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
-          <p className="text-sm font-semibold text-brand-dark/60">
+          <p className="text-sm font-semibold text-brand-dark/60" aria-live="polite">
             {filteredTours.length} {filteredTours.length === 1 ? 'екскурзия' : 'екскурзии'}
           </p>
         </div>
@@ -738,18 +739,21 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
             role="dialog"
             aria-label="Филтри"
             inert={!filtersOpen}
-            style={{
-              top: 'calc(var(--nav-h, 60px) + (100svh - var(--nav-h, 60px)) / 2)',
-              maxHeight: 'calc(100svh - var(--nav-h, 60px) - 2rem)',
-            }}
-            // Бял панел върху затъмнената страница — същото бяло като страницата, без беж.
-            className={`fixed left-1/2 z-[50] w-[calc(100%-1.5rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-white px-5 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.45)] transition-[opacity,transform,visibility] duration-300 ease-out sm:px-7 ${
-              filtersOpen ? 'visible scale-100 opacity-100' : 'pointer-events-none invisible scale-95 opacity-0'
+            // Телефон: лист отдолу (bottom sheet) — опира в долния ръб, плъзга се нагоре, бутонът „Покажи“ е под палеца.
+            // От sm: центриран прозорец под менюто, както преди. Бял панел върху затъмнената страница.
+            className={`fixed inset-x-0 bottom-0 z-[50] max-h-[88svh] overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-5 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_40px_-12px_rgba(15,23,42,0.45)] transition-[opacity,transform,visibility] duration-300 ease-out sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-[calc(var(--nav-h,60px)_+_(100svh_-_var(--nav-h,60px))_/_2)] sm:max-h-[calc(100svh_-_var(--nav-h,60px)_-_2rem)] sm:w-[calc(100%-1.5rem)] sm:max-w-5xl sm:-translate-x-1/2 sm:rounded-3xl sm:px-7 sm:pb-0 sm:shadow-[0_24px_60px_-12px_rgba(15,23,42,0.45)] ${
+              filtersOpen
+                ? 'visible translate-y-0 opacity-100 sm:-translate-y-1/2 sm:scale-100'
+                : 'pointer-events-none invisible translate-y-full opacity-100 sm:-translate-y-1/2 sm:scale-95 sm:opacity-0'
             }`}
           >
+            {/* Дръжка — показва, че това е лист, който е излязъл отдолу (само на телефон) */}
+            <div aria-hidden="true" className="sticky top-0 z-40 -mx-5 flex justify-center bg-white pb-1 pt-2.5 sm:hidden">
+              <span className="h-1.5 w-10 rounded-full bg-slate-300" />
+            </div>
             {/* Заглавие + затваряне — лепкаво най-горе в панела. Панелът няма padding-top: sticky се измерва от съдържанието
                 (вътре в padding-а), което иначе би избутало заглавието 24px надолу и би го наложило върху календара. */}
-            <div className="sticky top-0 z-30 -mx-5 mb-6 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4 sm:-mx-7 sm:px-7">
+            <div className="sticky top-5 z-30 -mx-5 mb-6 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4 sm:top-0 sm:-mx-7 sm:px-7">
               <div>
                 <h2 className="font-serif text-2xl italic leading-tight text-brand-dark">Филтри</h2>
                 <p className="mt-0.5 text-[13px] text-slate-500">
@@ -769,7 +773,7 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
             {mounted && filtersEverOpened && (
               <>
                 <div className="space-y-8 pb-2">
-                <DeparturesCalendar months={calendarMonths} activeMonth={filterMonth} onSelectMonth={handleSelectMonth} />
+                <DeparturesCalendar months={visibleMonths} activeMonth={filterMonth} onSelectMonth={handleSelectMonth} />
                 <QuickFilters
                   categories={availableCategories}
                   activeCategory={filterCategory}

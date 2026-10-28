@@ -414,6 +414,7 @@ export default function BlogClient({ post }: { post: any }) {
         hasPrev={galleryImages.length > 1}
         currentIndex={selectedImageIndex !== null ? selectedImageIndex : 0}
         totalCount={galleryImages.length}
+        images={galleryImages}
       />
 
     </main>

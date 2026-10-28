@@ -8,6 +8,7 @@ import { ArrowRight, Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, Ch
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '@/lib/formatPrice';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
+import { preloadLightboxPhoto } from '@/lib/lightboxPhoto';
 
 interface TourTabsProps {
   tour: ITour;
@@ -504,6 +505,9 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
                   key={index}
                   className={`aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer relative group ${isHiddenOnMobile ? 'hidden md:block' : 'block'}`}
                   onClick={() => onImageClick(index)}
+                  // Голямата снимка тръгва още при посочване/докосване — галерията се отваря направо с нея
+                  onPointerEnter={() => preloadLightboxPhoto(url)}
+                  onPointerDown={() => preloadLightboxPhoto(url)}
                 >
                   <Image
                     src={url}

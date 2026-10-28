@@ -481,3 +481,6 @@ html[data-dialog-open] [data-floating-button] { visibility: hidden; }
 .thin-scrollbar::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.35); border-radius: 9999px; }
 .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
 
+/* Галерия (ImageModal): новата снимка се появява с кратко избледняване, щом е готова */
+.lightbox-photo-in { animation: reveal-fade 0.18s ease-out both; }
+
