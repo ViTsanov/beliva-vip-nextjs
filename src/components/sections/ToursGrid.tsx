@@ -2,7 +2,7 @@
 
 import React, { Suspense, useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Filter, Globe2, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { CATEGORY_OPTIONS, ALL_MONTHS } from '@/components/FiltersBar';
@@ -81,7 +81,6 @@ function SearchParamsSync({ onChange }: { onChange: (query: string) => void }) {
 }
 
 export default function ToursGrid({ initialTours = [], hideFilters = false, todayStr }: ToursGridProps) {
-  const router = useRouter();
   const [query, setQuery] = useState('');
   const searchParams = useMemo(() => new URLSearchParams(query), [query]);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -442,11 +441,22 @@ export default function ToursGrid({ initialTours = [], hideFilters = false, toda
     // което се биеше със плавния scrollToResults() по-долу и правеше видимото „долу-горе“ подскачане.
     // Докато панелът с филтри е отворен, смяната на филтър ЗАМЕСТВА записа в историята (replace), вместо да добавя
     // нов — иначе бутонът Назад би връщал филтъра, вместо да затвори панела.
-    if (filtersOpen) router.replace(`/?${params.toString()}`, { scroll: false });
-    else router.push(`/?${params.toString()}`, { scroll: false });
+    setUrlQuery(params.toString(), filtersOpen ? 'replace' : 'push');
   };
 
-  const clearFilters = () => router.replace('/#tours-grid', { scroll: false });
+  const clearFilters = () => setUrlQuery('', 'replace', '#tours-grid');
+
+  // Филтрите сменят само адреса (history API), без router.push/replace: те теглеха наново цялата начална страница
+  // от сървъра (~100 KB) и чипът светваше едва след отговора — на телефон с мобилни данни бутоните изглеждаха
+  // „мъртви“ по няколко секунди. setQuery прилага филтъра веднага, а Next следи pushState/replaceState и сам
+  // обновява useSearchParams (и Назад/Напред). null вместо history.state: Next копира своите данни в записа, а
+  // записът на useBackToClose отпада — както при router.replace досега (затварянето на панела не връща филтъра).
+  const setUrlQuery = (next: string, mode: 'push' | 'replace', hash = '') => {
+    setQuery(next);
+    const url = `/${next ? `?${next}` : ''}${hash}`;
+    if (mode === 'replace') window.history.replaceState(null, '', url);
+    else window.history.pushState(null, '', url);
+  };
 
   // Скролва до заглавието на секцията („Оферти за …“ / „Екскурзии в …“), така че да е точно под менюто — клиентът
   // вижда кой филтър е приложен и под него идват резултатите. Ако заглавието го няма (hideFilters) — до резултатите.

@@ -10,7 +10,6 @@ import { AnimatePresence, animate, motion, useMotionValue, type MotionValue, typ
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { glideToElement } from '@/lib/smoothScroll';
-import { afterPageLoad } from '@/lib/afterPageLoad';
 import HeroRing from './HeroRing';
 import { useVisitorEngaged } from '@/lib/hooks/useVisitorEngaged';
 import Link from 'next/link';
@@ -254,15 +253,16 @@ export default function HeroClassic() {
   }), [dragX]);
 
   useEffect(() => {
-    // Съседните и останалите снимки — чак след като страницата се зареди (иначе на бавен телефон се бутат с
-    // първия екран за мрежата и процесора)
-    const cancelNeighbors = afterPageLoad(() => setNeighborsReady(true), 2000);
-    const cancelAll = afterPageLoad(() => setAllReady(true), 4500);
+    // Без да чакаме събитието load: на телефон то идва късно (всички снимки по страницата) и при плъзгане
+    // следващата снимка още не беше дошла. Първото докосване/скрол монтира съседите веднага (виж neighborsShown).
+    const t1 = setTimeout(() => setNeighborsReady(true), 2000);
+    const t2 = setTimeout(() => setAllReady(true), 4500);
     return () => {
-      cancelNeighbors();
-      cancelAll();
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
   }, []);
+  const neighborsShown = neighborsReady || engaged;
 
   useEffect(() => {
     const onVis = () => setTabHidden(document.hidden);
@@ -423,7 +423,7 @@ export default function HeroClassic() {
     if (jump && i === jump.target) return jump.dir;
     const off = ringOffset(i, current, SLIDES.length);
     if (jump && off === jump.dir) return off * 2;
-    if (Math.abs(off) === 1) return neighborsReady ? off : null;
+    if (Math.abs(off) === 1) return neighborsShown ? off : null;
     return allReady ? off : null;
   };
 
