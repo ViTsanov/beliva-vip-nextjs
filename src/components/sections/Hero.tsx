@@ -14,7 +14,11 @@ import HeroRing from './HeroRing';
 import { useVisitorEngaged } from '@/lib/hooks/useVisitorEngaged';
 
 // Глобусът (globe.gl / three.js) се зарежда отделно и само на широк екран — не тежи на първото зареждане.
-const HeroGlobe = dynamic(() => import('./HeroGlobe'), { ssr: false });
+const loadHeroGlobe = () => import('./HeroGlobe');
+const HeroGlobe = dynamic(loadHeroGlobe, { ssr: false });
+// Текстурите на глобуса — тегли ги браузърът още с HTML-а (само на екрани с глобус — media={STAGE_QUERY}).
+// THREE.TextureLoader ги иска с crossOrigin="anonymous", затова и предварителното теглене е така — иначе се теглят два пъти.
+const GLOBE_TEXTURES = ['/globe/earth-blue-marble.webp', '/globe/earth-topology.webp', '/globe/earth-water.webp'];
 
 const SOFIA = { lat: 42.6977, lon: 23.3219 };
 
@@ -246,6 +250,9 @@ export default function Hero() {
     // Останалите снимки — 2 s след първия кадър (LCP снимката вече е дошла), без да чакаме събитието load: то идва
     // късно и при смяна следващата снимка не беше готова. Първото действие на посетителя ги тегли веднага.
     const t1 = setTimeout(() => setPreload(true), 2000);
+    // Кодът на глобуса (three.js + globe.gl) тръгва веднага, а не чак при монтирането след GLOBE_DELAY —
+    // иначе глобусът се появяваше след ~5 s и изглеждаше, че го „събужда“ първият скрол
+    if (window.matchMedia(STAGE_QUERY).matches) void loadHeroGlobe();
     const t2 = setTimeout(() => setGlobeMounted(true), GLOBE_DELAY);
     return () => {
       clearTimeout(t1);
@@ -368,6 +375,10 @@ export default function Hero() {
     : 'lg:[@media(min-height:640px)]:hidden lg:[@media(max-height:720px)]:hidden';
 
   return (
+    <>
+    {GLOBE_TEXTURES.map(href => (
+      <link key={href} rel="preload" as="image" href={href} crossOrigin="anonymous" media={STAGE_QUERY} fetchPriority="low" />
+    ))}
     <section
       ref={sectionRef}
       aria-roledescription="carousel"
@@ -599,6 +610,7 @@ export default function Hero() {
         {slide.destination}: {slide.blurb}
       </p>
     </section>
+    </>
   );
 }
 

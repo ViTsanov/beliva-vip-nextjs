@@ -442,3 +442,27 @@ html[data-dialog-open] [data-floating-button] { visibility: hidden; }
   .dest-kb { animation: reveal-fade 0.9s ease-out both; }
   .dest-rise, .dest-list-in { animation-name: reveal-fade; }
 }
+
+/* Лентата за зареждане на страница (NavigationProgress.tsx): бързо до 30%, после бавно към 90%, докато дойде
+   страницата; накрая се допълва и избледнява. Само transform/opacity — движи я видеокартата. */
+@keyframes nav-progress-grow {
+  0% { transform: scaleX(0); }
+  20% { transform: scaleX(0.3); }
+  100% { transform: scaleX(0.9); }
+}
+@keyframes nav-progress-out {
+  from { transform: scaleX(1); opacity: 1; }
+  to { transform: scaleX(1); opacity: 0; }
+}
+.nav-progress {
+  transform-origin: left center;
+  animation: nav-progress-grow 8s cubic-bezier(0.1, 0.8, 0.3, 1) both;
+}
+.nav-progress-done {
+  animation: nav-progress-out 0.35s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Без движение: лентата е цяла и само показва, че нещо се зарежда */
+  .nav-progress { animation: none; transform: none; opacity: 0.85; }
+  .nav-progress-done { animation: none; opacity: 0; }
+}

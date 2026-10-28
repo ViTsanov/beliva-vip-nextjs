@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, MapPin, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { startNavigationProgress } from '@/components/NavigationProgress';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { slugify } from '@/lib/admin-helpers';
@@ -72,6 +73,7 @@ export default function TopDestinations({ initialDestinations = [], counts: init
   }, [initialDestinations.length]);
 
   const handleSelect = (country: string) => {
+    startNavigationProgress('/');
     router.push(`/?country=${slugify(country)}#tours-grid`, { scroll: false });
     setTimeout(() => {
       const grid = document.getElementById('tours-grid');

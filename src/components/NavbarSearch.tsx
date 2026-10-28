@@ -6,6 +6,7 @@ import { Search, X, MapPin, FileText, Globe, ArrowRight, ChevronRight, Layout, F
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation'; // Трябва ни за навигацията към филтъра
+import { startNavigationProgress } from '@/components/NavigationProgress';
 import { db } from '@/lib/firebase';
 import { collection, query, getDocs } from 'firebase/firestore';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -159,6 +160,7 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
           // Вече сме на началната страница: ToursGrid е монтиран и "дълбокият линк" скрол там се изпълнява само
           // при първоначално зареждане, а Next.js по подразбиране връща страницата най-горе при смяна на URL-а.
           // Затова спираме автоматичния скрол и скролваме ръчно до грида (-100px заради менюто).
+          startNavigationProgress(url);
           router.push(url, { scroll: false });
           setTimeout(() => {
               const grid = document.getElementById('tours-grid');
@@ -169,6 +171,7 @@ export default function NavbarSearch({ isScrolled, isMobile, iconOnly, onClosePa
           }, 100);
       } else {
           // От друга страница: началната се монтира наново и самата тя скролва до грида заради ?country=
+          startNavigationProgress(url);
           router.push(`${url}#tours-grid`);
       }
   };

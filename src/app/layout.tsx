@@ -3,6 +3,7 @@ import { Inter, Playfair_Display, Unbounded } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import ConditionalAnalytics from '@/components/ConditionalAnalytics';
+import NavigationProgress from '@/components/NavigationProgress';
 import { LazyAIChatWidget } from '@/components/LazyClient';
 import { COMPANY_INFO } from '@/lib/companyInfo';
 import { SHARE_IMAGE_SIZE, defaultShareImage } from '@/lib/shareMeta';
@@ -144,6 +145,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
 
+        <NavigationProgress />
         <LayoutWrapper>
           {children}
           <LazyAIChatWidget />
