@@ -5,9 +5,9 @@ import { revealVars, useRevealOnce } from '@/components/ui/Reveal';
 import { QUOTE_PHOTO } from '@/app/about-us/aboutContent';
 
 const WORDS: { t: string; gold?: boolean; br?: boolean }[] = [
-  { t: '"Не' }, { t: 'търсете' }, { t: 'най-евтината' }, { t: 'екскурзия.', br: true },
-  { t: 'Търсете' }, { t: 'тази,' }, { t: 'за' }, { t: 'която' }, { t: 'ще' },
-  { t: 'разказвате', gold: true }, { t: 'истории', gold: true }, { t: 'години' }, { t: 'наред."' },
+  { t: '„Всяко' }, { t: 'пътуване' }, { t: 'е' }, { t: 'много' }, { t: 'повече' }, { t: 'от' }, { t: 'маршрут.', br: true },
+  { t: 'То' }, { t: 'е' }, { t: 'преживяване,' }, { t: 'среща' }, { t: 'със' }, { t: 'света' }, { t: 'и' }, { t: 'понякога' }, { t: '-' },
+  { t: 'среща', gold: true }, { t: 'със', gold: true }, { t: 'самите', gold: true }, { t: 'нас.“', gold: true },
 ];
 
 // Цитатът на Поли върху снимка от пътуванията ѝ. Думите изплуват една след друга (CSS, .reveal),
@@ -16,7 +16,7 @@ export default function QuoteBand() {
   const [ref, revealed] = useRevealOnce<HTMLElement>({ threshold: 0.35, rootMargin: '0px' });
 
   return (
-    <section ref={ref} className={`relative h-[70svh] max-h-[640px] min-h-[440px] w-full overflow-hidden bg-brand-dark ${revealed ? 'revealed' : ''}`}>
+    <section ref={ref} className={`relative h-[calc(var(--hero-h,100svh)*0.7)] max-h-[640px] min-h-[440px] w-full overflow-hidden bg-brand-dark ${revealed ? 'revealed' : ''}`}>
       <div className="reveal-zoom absolute inset-0">
         <Image src={QUOTE_PHOTO.src} alt={QUOTE_PHOTO.alt} fill className="object-cover" style={{ objectPosition: QUOTE_PHOTO.pos }} sizes="100vw" />
       </div>

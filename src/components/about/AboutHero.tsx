@@ -8,7 +8,7 @@ import { revealVars, useRevealOnce } from '@/components/ui/Reveal';
 import { HERO, STATS } from '@/app/about-us/aboutContent';
 
 const TITLE: { t: string; gold?: boolean; br?: boolean }[] = [
-  { t: 'Здравейте,', br: true }, { t: 'аз' }, { t: 'съм' }, { t: 'Поли', gold: true },
+  { t: 'Аз' }, { t: 'съм' }, { t: 'Поли', gold: true },
 ];
 
 // Героят на „За нас“: снимката (или видеото) на цял екран, заглавието изплува дума по дума.
@@ -52,7 +52,7 @@ export default function AboutHero() {
 
   return (
     <>
-      <section aria-labelledby="about-title" className="relative h-[88svh] min-h-[560px] w-full overflow-hidden bg-brand-dark">
+      <section aria-labelledby="about-title" className="relative h-[calc(var(--hero-h,100svh)*0.88)] min-h-[560px] w-full overflow-hidden bg-brand-dark">
         <div ref={mediaRef} className="absolute inset-0 will-change-transform" style={{ transform: 'scale(1.06)' }}>
           <Image
             src={HERO.photo.src}
@@ -102,11 +102,18 @@ export default function AboutHero() {
               </span>
             ))}
           </h1>
+          {/* Втората половина на заглавието — по-малка, за да остане „Поли“ най-голямото на екрана */}
+          <p
+            className="reveal mt-3 font-serif italic leading-tight text-white/90"
+            style={{ ...revealVars({ y: 14, delay: 0.5 }), fontSize: 'clamp(1.5rem, 3.6vw, 2.75rem)' }}
+          >
+            А светът е моето вдъхновение!
+          </p>
           <p
             className="reveal mt-6 max-w-xl text-base font-light leading-relaxed text-white/75 md:text-lg"
-            style={revealVars({ y: 14, delay: 0.6 })}
+            style={revealVars({ y: 14, delay: 0.65 })}
           >
-            Основател на Beliva VIP Tour и водач на групи от над 15 години. Всяка екскурзия, която намерите тук, е лично проверена и одобрена от мен.
+            13 години из целия свят, над 80 посетени страни и една голяма любов - пътешествията. Водя с усмивка, спокойствие и познание, но най-вече с интуиция и сърце.
           </p>
           <a
             href="#istoriyata"

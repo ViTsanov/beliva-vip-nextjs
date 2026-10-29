@@ -25,12 +25,13 @@ export default function AboutUsClient() {
             {/* Атмосферен gradient в отделен слой — aurora-mesh задава background shorthand и би затрил bg-brand-dark */}
             <div className="aurora-mesh absolute inset-0" />
             <div className="relative z-10">
-              <h2 className="mb-4 font-serif text-3xl italic text-white md:text-4xl">
-                Готови ли сте за следващото пътуване?
+              <h2 className="mx-auto mb-4 max-w-2xl font-serif text-3xl italic leading-tight text-white [text-wrap:balance] md:text-4xl">
+                Ще се радвам да споделим следващото приключение
               </h2>
-              <p className="mx-auto mb-10 max-w-md text-white/60">
-                Свържете се с Поли или Ива — и заедно ще планираме вашето мечтано приключение.
+              <p className="mx-auto mb-3 max-w-lg text-white/75 md:text-lg">
+                С отворени очи, свободен дух и сърце, готово да открива.
               </p>
+              <p className="mb-10 font-serif text-xl italic text-brand-gold">— Поли</p>
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Link
                   href="/#tours-grid"

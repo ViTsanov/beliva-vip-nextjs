@@ -75,7 +75,7 @@ export default function Footer() {
                 <ShieldCheck size={12} /> {COMPANY_INFO.legalName}
               </p>
               <p className="text-gray-400 text-sm leading-relaxed">
-                Препродаваме турове на водещи оператори — проверени, надеждни и на добри цени.
+                Препродаваме турове на водещи оператори - проверени, надеждни и на добри цени.
                 Работим с личен подход и грижа за всеки клиент.
               </p>
               <p className="text-gray-500 text-[10px] uppercase tracking-tighter italic">

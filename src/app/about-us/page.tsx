@@ -6,13 +6,13 @@ import { COMPANY_INFO } from '@/lib/companyInfo';
 const { socials } = COMPANY_INFO;
 
 export const metadata: Metadata = {
-  title: { absolute: 'За Нас — Поли | Beliva VIP Tour' },
-  description: 'Запознайте се с Поли — човекът зад Beliva VIP Tour. Над 15 години опит, над 60 дестинации и над 150 лично водени групи.',
+  title: { absolute: 'За Нас - Поли | Beliva VIP Tour' },
+  description: 'Аз съм Поли - 13 години из целия свят, над 80 посетени страни и една голяма любов: пътешествията. Водя с усмивка, спокойствие и сърце.',
   alternates: { canonical: 'https://belivavip.bg/about-us' },
   ...shareMetadata({
     path: '/about-us',
-    title: 'За Нас — Поли | Beliva VIP Tour',
-    description: 'Запознайте се с Поли — човекът зад Beliva VIP Tour. Над 15 години опит, над 60 дестинации и над 150 лично водени групи.',
+    title: 'За Нас - Поли | Beliva VIP Tour',
+    description: 'Аз съм Поли - 13 години из целия свят, над 80 посетени страни и една голяма любов: пътешествията. Водя с усмивка, спокойствие и сърце.',
   }),
 };
 
@@ -30,7 +30,7 @@ const schemaData = {
       ...(socials.tiktok ? { sameAs: [socials.tiktok] } : {}),
     },
     sameAs: [socials.facebook, socials.instagram].filter(Boolean),
-    description: "Лицензирана туристическа агенция с лично отношение и над 15 години опит.",
+    description: "Лицензирана туристическа агенция с лично отношение. Поли води групи по света от 13 години и е посетила над 80 страни.",
     url: "https://belivavip.bg",
   },
 };

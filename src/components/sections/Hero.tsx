@@ -59,7 +59,7 @@ const SLIDES = [
   },
   {
     destination: 'Китай',
-    blurb: 'Великата стена, Забраненият град и Теракотената армия — пет хиляди години история до най-модерните градове на света.',
+    blurb: 'Великата стена, Забраненият град и Теракотената армия - пет хиляди години история до най-модерните градове на света.',
     img: '/hero/china2.jpg',
     focus: 0.48,
     focusY: 40,
@@ -89,7 +89,7 @@ const SLIDES = [
   },
   {
     destination: 'Австралия',
-    blurb: 'Операта в Сидни, Големият бариерен риф и червената пустиня около Улуру — природа, каквато няма другаде.',
+    blurb: 'Операта в Сидни, Големият бариерен риф и червената пустиня около Улуру - природа, каквато няма другаде.',
     img: '/hero/australia3.jpg',
     focus: 0.6,
     focusY: 45,
@@ -142,7 +142,7 @@ const MORPH = 1.1;
 const EASE_IN_OUT: [number, number, number, number] = [0.77, 0, 0.175, 1];
 const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
 // Таван за височината на името — късите (Перу) иначе биха заели половин екран.
-const WORD_MAX = '24svh';
+const WORD_MAX = 'calc(var(--hero-h,100svh) * 0.24)'; // --hero-h: неподвижна височина на екрана (layout.tsx)
 // Плъзгане с пръст/мишка: снимката следва ръката 1:1 и, ако жестът (с проектирания momentum) отнесе поне
 // SWIPE_RATIO от ширината, довършва пътя до края, а съседната влиза на мястото ѝ.
 const SWIPE_RATIO = 0.25;
@@ -159,7 +159,7 @@ type ChangeMode = 'morph' | 'slide';
 export const STAGE_QUERY = '(min-width: 1024px) and (min-height: 640px)';
 // Диаметърът на сферата; 20% от нея остава извън екрана вдясно и долу. Над нея (под менюто) остава ивица
 // за текста на дестинацията — затова не е по-голям от 80% от височината.
-const GLOBE_D = 'min(80svh, 62vw)';
+const GLOBE_D = 'min(calc(var(--hero-h,100svh) * 0.8), 62vw)';
 // Еднакви с HeroClassic.tsx — двата героса са в страницата едновременно и така свалят една и съща снимка.
 const PHOTO_SIZES = '130vw';
 // Качество на снимките в героса — 70%: на снимка разликата от 75 не се вижда, а файлът е по-малък. Еднакво в Hero.tsx и
@@ -383,7 +383,7 @@ export default function Hero() {
       ref={sectionRef}
       aria-roledescription="carousel"
       aria-label="Дестинации на Beliva VIP Tour"
-      className="relative isolate h-[100svh] min-h-[36rem] overflow-hidden bg-brand-dark text-white"
+      className="relative isolate h-[var(--hero-h,100svh)] min-h-[36rem] overflow-hidden bg-brand-dark text-white"
       onFocus={e => { if (e.target.matches(':focus-visible')) setFocusPaused(true); }}
       onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocusPaused(false); }}
     >

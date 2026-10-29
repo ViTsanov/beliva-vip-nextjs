@@ -140,7 +140,7 @@ const PEEK_TOTAL = PEEK_SHOW + PEEK_OUT;
 // Минимална част от ширината, която жестът трябва да „отнесе“ (с проектиран momentum), за да смени слайда.
 const COMMIT_RATIO = 0.3;
 // Таван за височината на надписа — късите имена (Перу) иначе биха заели половин екран.
-const WORD_MAX = '27svh';
+const WORD_MAX = 'calc(var(--hero-h,100svh) * 0.27)'; // --hero-h: неподвижна височина на екрана (layout.tsx)
 // Отстъп над съдържанието в цветното поле: долната половина на най-голямото възможно име + въздух.
 const BAND_PAD = `calc(min(${WORD_MAX}, (100vw - 3rem) / 3.25) * 0.43 + 0.75rem)`;
 // Плътност на цветното поле (върху снимка, притъмнена с 40% черно). Под 0.78 белият текст губи контраст.
@@ -432,7 +432,7 @@ export default function HeroClassic() {
       ref={sectionRef}
       aria-roledescription="carousel"
       aria-label="Дестинации на Beliva VIP Tour"
-      className="relative isolate h-[100svh] min-h-[34rem] overflow-hidden bg-brand-dark text-white [--band:15.5rem] sm:[--band:36%] lg:[--band:34%] lg:[@media(min-height:820px)]:[--band:31%]"
+      className="relative isolate h-[var(--hero-h,100svh)] min-h-[34rem] overflow-hidden bg-brand-dark text-white [--band:15.5rem] sm:[--band:36%] lg:[--band:34%] lg:[@media(min-height:820px)]:[--band:31%]"
       onFocus={e => { if (e.target.matches(':focus-visible')) setFocusPaused(true); }}
       onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocusPaused(false); }}
     >

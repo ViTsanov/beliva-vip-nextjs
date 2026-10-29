@@ -70,7 +70,7 @@ export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroP
           />
       </button>
 
-      <div className="relative z-20 flex flex-col items-center justify-center text-center px-6 pt-28 pb-12 min-h-[80vh]">
+      <div className="relative z-20 flex flex-col items-center justify-center text-center px-6 pt-28 pb-12 min-h-[calc(var(--hero-h,100svh)*0.8)]">
         
         <div className="mb-6 flex flex-wrap items-center justify-center gap-3 animate-in slide-in-from-bottom duration-700 fade-in">
           

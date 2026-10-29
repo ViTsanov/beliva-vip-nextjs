@@ -13,28 +13,45 @@ const P = 'text-[17px] md:text-[18px] font-light leading-relaxed text-slate-600'
 // Текстът на всяка глава (по id от CHAPTERS) — JSX, защото има удебелявания, буквица и бутони.
 const BODY: Record<string, ReactNode> = {
   puteshestvenichkata: (
-    <p className={P}>
-      <span className="float-left mr-3 mt-1 font-serif italic leading-[0.8] text-brand-goldDeep" style={{ fontSize: '5rem' }} aria-hidden="true">П</span>
-      <span className="sr-only">П</span>оли е сърцето на Beliva VIP Tour. С над 15 години в туризма и над 150 лично водени групи, тя не познава дестинациите от каталог — а от преживяване. Всяка страна, която предлага, е страна, която е посетила лично, проверила е хотелите и е избрала маршрута внимателно.
-    </p>
+    <>
+      <p className={P}>
+        Казвам се <strong className="font-semibold text-brand-dark">Паулина Алексиева</strong>, но мнозина ме познават просто като Поли.
+      </p>
+      <p className={`${P} mt-5`}>
+        <span className="float-left mr-3 mt-1 font-serif italic leading-[0.8] text-brand-goldDeep" style={{ fontSize: '5rem' }} aria-hidden="true">В</span>
+        <span className="sr-only">В</span>ече 13 години светът е моето работно място, вдъхновение и неизчерпаем източник на срещи, емоции и истории. Като туристически водач и екскурзовод съм имала щастието да прекося граници, да опознавам култури и да откривам красотата на повече от 80 страни по света. Всяка от тях ми е оставила нещо ценно - спомен, урок, приятелство или нов поглед към живота.
+      </p>
+      <p className={`${P} mt-5`}>
+        Но с времето разбрах, че истинското пътешествие не е просто да посетиш ново място. То е да усетиш духа му, да се докоснеш до хората, да се оставиш на момента и да позволиш на света да те изненада.
+      </p>
+    </>
   ),
   beliva: (
     <>
       <p className={P}>
-        Работи като туристически агент към <strong className="font-semibold text-brand-dark">2МКО</strong> — един от водещите туроператори в България. Чрез Beliva VIP Tour тя предлага същите турове, но с нещо, което никой каталог не може да даде: лично присъствие, грижа и познаване на пътуващите си по име.
+        Аз съм усмихната, ведра и спокойна. Вярвам, че хората са сърцето на всяко пътуване, а споделените преживявания са онова, което превръща групата в общност, а непознатите - в приятели.
       </p>
-      <p className="mt-6 inline-flex items-center gap-2.5 rounded-full border border-brand-dark/10 px-4 py-2 text-[13px] font-semibold text-brand-dark">
-        <ShieldCheck size={16} className="text-brand-goldDeep" aria-hidden="true" />
-        Лицензирана туристическа агенция · {COMPANY_INFO.license}
+      <p className={`${P} mt-5`}>
+        Обичам да създавам тази невидима връзка между хората, да нося лекота и добро настроение и да се грижа{' '}
+        <strong className="font-semibold text-brand-dark">всеки да се чувства на мястото си</strong>.
       </p>
     </>
   ),
   priyateli: (
     <>
       <p className={P}>
-        Нейните пътуващи не са клиенти — те са приятели. Затова много от тях се връщат на пето, шесто, седмо пътуване с Поли.
+        Познаването на дестинациите е важно - историите, културата и любопитните детайли правят всяко пътешествие по-богато. Но има нещо друго, което винаги ме води: моят вътрешен глас. Доверявам се на усещанията си, на интуицията и на онзи тих вътрешен компас, който понякога ни отвежда точно там, където трябва да бъдем.
       </p>
-      <p className="mb-4 mt-8 text-[10px] font-black uppercase tracking-[0.3em] text-brand-dark/50">Била е лично в</p>
+      <p className={`${P} mt-5`}>
+        Вярвам в доброто. Обичам хората и се старая да оставям след себе си повече усмивки, топлина и малки добрини. Защото най-красивите неща в живота не се измерват в километри, а в{' '}
+        <strong className="font-semibold text-brand-dark">емоции, споделени мигове и следите, които оставяме в сърцата си</strong>{' '}
+        един на друг.
+      </p>
+      <p className="mt-6 inline-flex items-center gap-2.5 rounded-full border border-brand-dark/10 px-4 py-2 text-[13px] font-semibold text-brand-dark">
+        <ShieldCheck size={16} className="text-brand-goldDeep" aria-hidden="true" />
+        Лицензирана туристическа агенция · {COMPANY_INFO.license}
+      </p>
+      <p className="mb-4 mt-8 text-[10px] font-black uppercase tracking-[0.3em] text-brand-dark/50">Била съм лично в</p>
       <ul className="mb-10 flex flex-wrap gap-2">
         {VISITED.map(dest => (
           <li key={dest} className="inline-flex items-center gap-1.5 rounded-full border border-brand-gold/30 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-brand-dark">
@@ -46,7 +63,7 @@ const BODY: Record<string, ReactNode> = {
         href="/?cat=vodena-ot-poli#tours-grid"
         className="group inline-flex h-12 items-center gap-2 rounded-full bg-brand-dark px-7 text-[10px] font-black uppercase tracking-widest text-white transition-[background-color,color,transform] duration-150 hover:bg-brand-gold hover:text-brand-dark active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark"
       >
-        Турове с Поли
+        Пътувай с мен
         <ArrowRight size={14} aria-hidden="true" className="transition-transform group-hover:translate-x-1" />
       </Link>
     </>
@@ -90,7 +107,7 @@ export default function StoryChapters() {
         <div className="lg:grid lg:grid-cols-12 lg:gap-16">
           {/* Закрепената снимка — само от lg */}
           <div className="hidden lg:col-span-5 lg:block">
-            <div className="sticky top-28 h-[calc(100svh-9rem)] max-h-[720px] overflow-hidden rounded-[2rem] bg-brand-dark shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)]">
+            <div className="sticky top-28 h-[calc(var(--hero-h,100svh)-9rem)] max-h-[720px] overflow-hidden rounded-[2rem] bg-brand-dark shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)]">
               {CHAPTERS.map((c, i) => (
                 <div
                   key={c.id}
@@ -129,7 +146,7 @@ export default function StoryChapters() {
                 ref={el => { refs.current[i] = el; }}
                 data-index={i}
                 aria-labelledby={`glava-${c.id}`}
-                className="flex flex-col justify-center py-8 lg:min-h-[78svh] lg:py-16"
+                className="flex flex-col justify-center py-8 lg:min-h-[calc(var(--hero-h,100svh)*0.78)] lg:py-16"
               >
                 {/* Снимката на главата — само под lg */}
                 <Reveal className="mb-8 lg:hidden">

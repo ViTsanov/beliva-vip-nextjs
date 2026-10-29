@@ -204,7 +204,7 @@ export default async function SitemapPage() {
         {/* ── Дестинации: континент → падащи държави ── */}
         <section aria-labelledby="dest-title">
           <h2 id="dest-title" className="px-1 font-serif text-[clamp(30px,3.4vw,40px)] italic leading-tight">Дестинации и екскурзии</h2>
-          <p className="mb-6 mt-2 px-1 text-[17px] text-slate-700">Натиснете държава — отдолу ще се покажат всичките ѝ екскурзии.</p>
+          <p className="mb-6 mt-2 px-1 text-[17px] text-slate-700">Натиснете държава - отдолу ще се покажат всичките ѝ екскурзии.</p>
           {continents.length > 1 && (
             <div className="mb-10">
               <ContinentLinks continents={continents.map((c) => ({ id: c.id, name: c.name, countries: c.countries.length, bg: c.bg, ink: c.ink, shape: c.shape }))} />

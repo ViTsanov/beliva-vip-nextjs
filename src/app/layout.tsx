@@ -34,7 +34,7 @@ const unbounded = Unbounded({
 const SITE_URL = "https://belivavip.bg"; // Твоят домейн
 const SITE_NAME = "Beliva VIP Tour";
 const PHONE_NUMBER = "+359887616100"; // Смени с реалния
-const ADDRESS = "В момента нямаме физически офис"; // Смени с реалния
+const ADDRESS = "БЪЛГАРИЯ, гр. Мездра (3100), Любен Каравелов, 23"; // Смени с реалния
 
 // 3. JSON-LD (Schema.org за Google Maps и Local SEO)
 const jsonLd = {
@@ -137,7 +137,20 @@ export default function RootLayout({
   return (
     // 👇 ПРЕМАХНАХ КОМЕНТАРА ОТ ТУК, ЗА ДА НЕ ЧУПИ ХИДРАТАЦИЯТА
     // data-scroll-behavior: Next изключва плавното скролиране при смяна на страница — новата страница се отваря направо горе
-    <html lang="bg" className="scroll-smooth" data-scroll-behavior="smooth">
+    // suppressHydrationWarning: скриптът по-долу слага --hero-h в style на <html> преди React да хидратира
+    <html lang="bg" className="scroll-smooth" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <head>
+        {/* Неподвижна височина на екрана за hero секциите (--hero-h). Във Facebook/Instagram браузъра (и в някои
+            Android WebView) лентите се скриват и показват при скрол и всеки път променят височината на страницата —
+            100svh/vh се менят с тях, героят расте и се свива, всичко под него подскача, а снимките се мащабират.
+            Затова височината се мери веднъж преди първия кадър и се мени само при нова ширина (завъртане на
+            телефона), не при скриване на лентите. Без JavaScript CSS-ът ползва 100svh. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var d=document.documentElement,w=-1;function s(){var h=window.innerHeight;if(h>200&&window.innerWidth!==w){w=window.innerWidth;d.style.setProperty('--hero-h',h+'px')}}s();window.addEventListener('resize',s);window.addEventListener('orientationchange',function(){setTimeout(function(){w=-1;s()},300)})})();`,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} ${playfair.variable} ${unbounded.variable} font-sans antialiased min-h-screen flex flex-col`}>
         
         {/* JSON-LD Script */}

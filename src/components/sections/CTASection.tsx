@@ -24,7 +24,7 @@ export default function CTASection() {
         </h2>
 
         <p className="mx-auto mb-9 max-w-[48ch] text-[.9375rem] leading-relaxed text-brand-dark/60">
-          Изпратете запитване и ние ще се свържем с вас в рамките на 24 часа —
+          Изпратете запитване и ние ще се свържем с вас в рамките на 24 часа -
           за да планираме заедно пътуването, за което сте мечтали.
         </p>
 

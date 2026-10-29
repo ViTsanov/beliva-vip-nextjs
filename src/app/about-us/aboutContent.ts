@@ -18,10 +18,10 @@ export const HERO = {
 };
 
 export const STATS = [
-  { value: 15, prefix: '', suffix: '+', label: 'Години опит' },
-  { value: 60, prefix: '', suffix: '+', label: 'Дестинации' },
-  { value: 150, prefix: '', suffix: '+', label: 'Водени групи' },
-  { value: 4.9, prefix: '★ ', suffix: '', label: 'Средна оценка', decimals: 1 },
+  { value: 13, prefix: '', suffix: '', label: 'Години по света' },
+  { value: 80, prefix: '', suffix: '+', label: 'Посетени страни' },
+  { value: 100, prefix: '', suffix: '+', label: 'Водени групи' },
+  { value: 800, prefix: '', suffix: '+', label: 'Туристи'},
 ];
 
 // ── ГЛАВИТЕ НА ИСТОРИЯТА ── всяка глава има своя снимка; на широк екран снимката стои закрепена вляво
@@ -30,19 +30,19 @@ export const CHAPTERS: { id: string; kicker: string; title: string; photo: About
   {
     id: 'puteshestvenichkata',
     kicker: 'Пътешественичката',
-    title: 'Паулина Алексиева, позната като Поли',
+    title: 'Светът е моето работно място',
     photo: { src: '/guides/poly.jpg', alt: 'Паулина Алексиева — основател на Beliva VIP Tour, на Мачу Пикчу', place: 'Мачу Пикчу, Перу', pos: '62% 40%' },
   },
   {
     id: 'beliva',
-    kicker: 'Beliva VIP Tour',
-    title: 'Същите турове, но с лично присъствие',
+    kicker: 'Хората',
+    title: 'Хората са сърцето на всяко пътуване',
     photo: { src: '/guides/poly-5.jpg', alt: 'Поли пред Тадж Махал, Индия', place: 'Тадж Махал, Индия', pos: '65% 55%' },
   },
   {
     id: 'priyateli',
-    kicker: 'Пътуващите',
-    title: 'Приятели, не клиенти',
+    kicker: 'Вътрешният компас',
+    title: 'Водя с интуиция и сърце',
     photo: { src: '/guides/poly-1.jpg', alt: 'Поли с колело в солената пустиня Уюни, Боливия, по залез', place: 'Салар де Уюни, Боливия', pos: 'center 45%' },
   },
 ];

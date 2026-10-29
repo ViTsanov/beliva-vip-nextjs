@@ -12,9 +12,9 @@ interface StatItem {
 
 const STATS: StatItem[] = [
   { prefix: 'Над', value: '60', label: 'Дестинации', delay: 0 },
-  { prefix: 'Над', value: '150', label: 'Водени групи', delay: 0.1 },
-  { value: '15+', label: 'Години опит', delay: 0.2 },
-  { value: '★ 4.9', label: 'Средна оценка', delay: 0.3 },
+  { prefix: 'Над', value: '100', label: 'Водени групи', delay: 0.1 },
+  { value: '13+', label: 'Години опит', delay: 0.2 },
+  { value: '800+', label: 'Туристи', delay: 0.3 },
 ];
 
 function Stat({ prefix, value, label, delay }: StatItem) {

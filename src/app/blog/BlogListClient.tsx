@@ -225,7 +225,7 @@ export default function BlogListClient({ posts, destinations }: { posts: BlogPos
               Пътеводителят
             </h1>
             <p className="dest-rise mt-6 max-w-[560px] text-lg leading-relaxed text-slate-600 [text-wrap:pretty]" style={rise(0.35)}>
-              Статии, съвети и истории от пътуванията ни — написани от хора, които са били там.
+              Статии, съвети и истории от пътуванията ни - написани от хора, които са били там.
             </p>
           </div>
           {posts.length > 0 && (
@@ -254,7 +254,7 @@ export default function BlogListClient({ posts, destinations }: { posts: BlogPos
               <div>
                 <h2 id="empty-title" className="font-serif text-[clamp(26px,3vw,36px)] font-medium italic leading-tight">Първите истории се пишат</h2>
                 <p className="mt-2 max-w-[640px] text-[16px] leading-relaxed text-slate-600">
-                  Скоро тук ще има пътеводители и разкази от пътуванията. Дотогава — опознайте дестинациите: всяка има кратък разказ за историята, природата и любопитните ѝ факти.
+                  Скоро тук ще има пътеводители и разкази от пътуванията. Дотогава - опознайте дестинациите: всяка има кратък разказ за историята, природата и любопитните ѝ факти.
                 </p>
               </div>
             </div>

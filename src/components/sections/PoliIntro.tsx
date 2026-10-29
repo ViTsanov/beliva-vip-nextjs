@@ -73,7 +73,7 @@ export default function PoliIntro() {
               id="poli-intro-title"
               className="text-[17px] font-semibold leading-[1.3] tracking-[-0.01em] text-brand-dark [text-wrap:pretty] sm:text-[22px]"
             >
-              Здравейте! Аз съм Паулина Алексиева, основател на Beliva и водач на групи от над 15 години. Всяка екскурзия, която намерите тук е лично проверена и одобрена от мен.
+              Здравейте! Аз съм Паулина Алексиева, основател на Beliva и водач на групи от над 13 години. Всяка екскурзия, която намерите тук е лично проверена и одобрена от мен.
             </p>
             <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:mt-2.5">
               <div className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-3">
