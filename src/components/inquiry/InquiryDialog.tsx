@@ -87,11 +87,19 @@ export default function InquiryDialog({ open, onClose, defaultTourSlug, defaultC
   };
 
   return (
+    <>
+    {/* Затъмнението покрива ЦЕЛИЯ екран (100lvh) и не следи клавиатурата — докато тя излиза, рамката по-долу
+        наваксва с някой кадър закъснение, а иначе в процепа се виждаше сайтът. Клик върху него затваря. */}
     <div
-      className="dialog-backdrop-in fixed inset-x-0 top-0 z-[300] flex h-[100dvh] items-end justify-center bg-brand-dark/60 sm:items-center sm:p-4"
-      // На телефон: точно видимото над клавиатурата (виж visibleArea); иначе цял екран
+      aria-hidden="true"
+      className="dialog-backdrop-in fixed inset-x-0 top-0 z-[300] h-[100lvh] bg-brand-dark/60"
+      onMouseDown={onClose}
+    />
+    {/* Рамката, в която стои листът: на телефон точно видимото над клавиатурата (visibleArea), иначе цял екран.
+        Тя е „прозрачна“ за кликове — минават до затъмнението; кликва се само самият лист. */}
+    <div
+      className="pointer-events-none fixed inset-x-0 top-0 z-[301] flex h-[100dvh] items-end justify-center sm:items-center sm:p-4"
       style={visibleArea ? { height: visibleArea.height, top: visibleArea.top } : undefined}
-      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         ref={panelRef}
@@ -100,8 +108,8 @@ export default function InquiryDialog({ open, onClose, defaultTourSlug, defaultC
         aria-labelledby="inquiry-dialog-title"
         tabIndex={-1}
         onKeyDown={handleKeyDown}
-        // max-h спрямо затъмнението (то следи клавиатурата), не спрямо екрана
-        className="dialog-in flex max-h-[92%] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_24px_60px_-12px_rgba(15,23,42,0.5)] outline-none sm:max-h-[92dvh] sm:max-w-xl sm:rounded-3xl"
+        // max-h спрямо рамката (тя следи клавиатурата), не спрямо екрана
+        className="dialog-in pointer-events-auto flex max-h-[92%] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_24px_60px_-12px_rgba(15,23,42,0.5)] outline-none sm:max-h-[92dvh] sm:max-w-xl sm:rounded-3xl"
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
           <div>
@@ -130,5 +138,6 @@ export default function InquiryDialog({ open, onClose, defaultTourSlug, defaultC
         </div>
       </div>
     </div>
+    </>
   );
 }

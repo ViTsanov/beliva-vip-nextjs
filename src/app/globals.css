@@ -45,6 +45,14 @@ html[data-dialog-open] [data-floating-button] { visibility: hidden; }
   background: #0f172a; /* Твоето тъмносиньо */
 }
 
+/* Полетата за писане на телефон — поне 16px. Под 16px Safari на iPhone (и браузърът във Facebook) приближава цялата
+   страница при докосване на полето: прозорецът изглежда, че се свива, страницата може да се мести и отзад се вижда сайтът. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select {
+    font-size: 16px !important;
+  }
+}
+
 .inquiry-input {
   width: 100%;
   padding: 1rem 1.2rem;
@@ -320,6 +328,11 @@ html[data-dialog-open] [data-floating-button] { visibility: hidden; }
 @keyframes dialog-in {
   from { opacity: 0; transform: translateY(16px) scale(0.98); }
   to { opacity: 1; transform: none; }
+}
+/* На телефон затъмнението е веднага (без избледняване): иначе за части от секундата се виждаше страницата —
+   особено при отваряне от менюто, което в същия момент се затваря. Самият прозорец пак изплува. */
+@media (pointer: coarse) {
+  .dialog-backdrop-in { animation: none; }
 }
 /* Видео плейърът на „За нас“: израства от картата (transform-origin се задава от JS) и се прибира обратно в нея
    по същия път. Затварянето е огледално на отварянето. */

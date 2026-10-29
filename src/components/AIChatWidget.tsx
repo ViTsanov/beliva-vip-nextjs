@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendMessageToAI } from '@/lib/aiService';
 import { useBackToClose } from '@/lib/hooks/useBackToClose';
+import { useScrollLock } from '@/lib/hooks/useScrollLock';
 
 // „Рисуване“ на отговора: показваме текста постепенно, но никога не режем по средата на Markdown линк,
 // удебелен текст или код — иначе за миг се виждат суровите [..](https://..) и **. Ако краят попадне вътре
@@ -125,20 +126,12 @@ export default function AIChatWidget() {
   // и се възприема като отделен "екран"; на десктоп е малък плаващ прозорец.
   useBackToClose(isOpen, () => setIsOpen(false), { mobileOnly: true });
 
-  // На телефон чатът е на цял екран. Страницата отзад се заключва с position: fixed (само overflow: hidden не
-  // спира скрола на iPhone), а при затваряне се връща точно където е била. Ефектът е СЛЕД useBackToClose: записът
-  // в историята трябва да се добави, преди страницата да се заключи — иначе браузърът запомня позиция 0 и при
-  // затваряне (history.back) връща страницата най-горе.
-  useEffect(() => {
-    if (!isOpen || window.innerWidth >= 768) return;
-    const scrollY = window.scrollY;
-    const body = document.body.style;
-    Object.assign(body, { position: 'fixed', top: `-${scrollY}px`, left: '0', right: '0', overflow: 'hidden' });
-    return () => {
-      Object.assign(body, { position: '', top: '', left: '', right: '', overflow: '' });
-      window.scrollTo({ top: scrollY, behavior: 'instant' });
-    };
-  }, [isOpen]);
+  // На телефон чатът е на цял екран и страницата отзад се заключва (общото useScrollLock: position: fixed, защото
+  // само overflow: hidden не спира скрола на iPhone; при затваряне се връща точно където е била). Извиква се СЛЕД
+  // useBackToClose: записът в историята трябва да се добави, преди страницата да се заключи — иначе браузърът
+  // запомня позиция 0 и при затваряне (history.back) връща страницата най-горе.
+  const [isPhone] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  useScrollLock(isOpen && isPhone);
 
   // Клавиатурата на телефона намалява видимата част на екрана, а 100dvh не се намалява с нея — браузърът
   // избутва страницата нагоре и отдолу прозира сайтът. Затова прозорецът следи visualViewport: точно с
@@ -200,11 +193,15 @@ export default function AIChatWidget() {
         </button>
       </div>
 
-      {/* ЧАТ ПРОЗОРЕЦ */}
+      {/* Бял фон на целия екран зад чата (само телефон). Докато клавиатурата излиза, прозорецът наваксва с размера
+          на видимото с някой кадър закъснение — без този фон в процепа се виждаше сайтът. */}
+      {isOpen && <div aria-hidden="true" className="fixed inset-x-0 top-0 z-[9998] h-[100lvh] bg-[#fcfaf7] md:hidden" />}
+
+      {/* ЧАТ ПРОЗОРЕЦ — dialog-in: меко изплуване при отваряне (при намалено движение — само избледняване) */}
       {isOpen && (
         <div
           className="
-            fixed z-[9999] bg-white flex flex-col overflow-hidden overscroll-contain border-brand-gold/10 shadow-2xl
+            dialog-in fixed z-[9999] bg-white flex flex-col overflow-hidden overscroll-contain border-brand-gold/10 shadow-2xl
             inset-0 w-full h-[100dvh] rounded-none
             md:fixed md:inset-auto md:bottom-24 md:right-8 md:w-[400px] md:h-[600px] md:rounded-[2.5rem] md:border
           "
