@@ -112,6 +112,27 @@ function headingBucket(p: string): Bucket | null {
 const OPERATOR_LINE = /2\s*м\s*-?\s*ко|2\s*m\s*-?\s*ko|iban|\bbic\s*:|e-?mail|@|настоящата\s+програма\s+представлява/i;
 const clean = (p: string) => p.replace(/https?:\/\/\S+/g, '').replace(/\s+[-–]\s*$/, '').replace(/\s{2,}/g, ' ').trim();
 
+// Шапката на документа (адрес, телефон, факс, сайт, социални мрежи) и банките под „БАНКОВИ СМЕТКИ“
+const HEADER_LINE = /^\d{4}\s+софия|^тел\s*[:.]|fax|web\s+страница|instagram|facebook|^банка\s|банка$/i;
+
+/**
+ * Целият текст на Word файла за AI пренаписването: програмата, допълнителните екскурзии с цените, условията.
+ * Без данните на 2МКО (шапка, банкови сметки, имейли) и без общия правен текст под линията „-----“.
+ */
+export function twoMkoDocxText(docx: Uint8Array): string {
+  const lines: string[] = [];
+  let inBanks = false;
+  for (const raw of docxParagraphs(docx)) {
+    if (/^-{5,}/.test(raw)) break;
+    if (/банкови\s+сметки/i.test(raw)) { inBanks = true; continue; }
+    if (inBanks && /^необходими\s+документи/i.test(raw)) inBanks = false;
+    if (inBanks || OPERATOR_LINE.test(raw) || HEADER_LINE.test(raw)) continue;
+    const line = clean(raw);
+    if (line) lines.push(line);
+  }
+  return lines.join('\n');
+}
+
 /**
  * Разделите след програмата: какво включва / не включва, полети, хотели, кораб, забележки, документи.
  * Страницата на 2МКО има горе-долу същия текст, но без ясни заглавия (хотелите се смесваха с „Цената включва“),

@@ -42,6 +42,8 @@ const C = {
   line: '#e2e8f0',
   green: '#059669',
   rose: '#e11d48',
+  sakura: '#fce7ef',
+  sakuraDeep: '#be185d',
 };
 
 const s = StyleSheet.create({
@@ -73,7 +75,6 @@ const s = StyleSheet.create({
   factBorder: { borderLeftWidth: 1, borderLeftColor: C.line },
   factLabel: { fontSize: 7, fontWeight: 700, color: C.muted, letterSpacing: 1.2, textTransform: 'uppercase' },
   factValue: { fontSize: 11, fontWeight: 700, color: C.dark, marginTop: 3, lineHeight: 1.3 },
-  factOld: { fontSize: 8.5, color: C.muted, textDecoration: 'line-through' },
 
   datesRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 },
   dateChip: { fontSize: 8.5, fontWeight: 600, color: C.dark, backgroundColor: C.cream, borderRadius: 4, paddingVertical: 3, paddingHorizontal: 7, marginRight: 5, marginBottom: 5 },
@@ -84,16 +85,41 @@ const s = StyleSheet.create({
   sectionLabel: { fontSize: 7, fontWeight: 700, color: C.goldDeep, letterSpacing: 1.6, textTransform: 'uppercase' },
   sectionTitle: { fontFamily: 'Playfair', fontStyle: 'italic', fontWeight: 400, fontSize: 18, color: C.dark, marginTop: 2, marginBottom: 10, lineHeight: 1.2 },
 
-  // Ден: ред „ДЕН 3 · заглавие“ и текстът под него, с тънка златна линия вляво. Без колони един до друг —
-  // така дългите дни се пренасят на следващата страница по редове, без празни места.
-  day: { marginBottom: 12, borderLeftWidth: 2, borderLeftColor: C.gold, paddingLeft: 12 },
-  dayBadgeText: { fontSize: 8, fontWeight: 700, color: C.goldDeep, letterSpacing: 1.2, textTransform: 'uppercase' },
-  dayTitle: { fontSize: 10.5, fontWeight: 700, color: C.dark, lineHeight: 1.35, marginBottom: 3 },
   // Без marginBottom: долен отстъп на последния абзац пречи на @react-pdf да раздели деня между две страници
   // (целият ден отиваше на следващата). Разстоянието между абзаците е отгоре (paraNext).
   para: { fontSize: 9.5, color: C.text, lineHeight: 1.55 },
   paraNext: { marginTop: 4 },
   infoHeading: { fontWeight: 700, color: C.dark, marginTop: 10 },
+
+  // Цените горе: промо (розово), основна (кремаво), единична стая и депозит
+  prices: { flexDirection: 'row', marginTop: 10 },
+  priceBox: { flex: 1, backgroundColor: '#f8fafc', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 11, marginRight: 6 },
+  priceBoxMain: { backgroundColor: C.cream },
+  priceBoxPromo: { backgroundColor: C.sakura },
+  priceValue: { fontFamily: 'Playfair', fontWeight: 700, fontSize: 17, color: C.dark, marginTop: 3, lineHeight: 1.2 },
+  priceNote: { fontSize: 7.5, color: C.muted, marginTop: 2, lineHeight: 1.35 },
+
+  // Ден: тъмносиньо каре с номера и кремава лента със заглавието (цял ред), после текстът по абзаци
+  dayHead: { flexDirection: 'row', marginTop: 12, marginBottom: 6 },
+  dayNum: { width: 44, backgroundColor: C.dark, borderTopLeftRadius: 6, borderBottomLeftRadius: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 5 },
+  dayNumLabel: { fontSize: 6, fontWeight: 700, color: C.gold, letterSpacing: 1.2, lineHeight: 1.2 },
+  dayNumValue: { fontFamily: 'Playfair', fontWeight: 700, fontSize: 16, color: '#ffffff', lineHeight: 1.1 },
+  dayBar: { flex: 1, backgroundColor: C.cream, borderTopRightRadius: 6, borderBottomRightRadius: 6, paddingHorizontal: 12, justifyContent: 'center' },
+  dayBarTitle: { fontFamily: 'Playfair', fontStyle: 'italic', fontSize: 12.5, color: C.dark, lineHeight: 1.3 },
+  // „По желание“ под текста на деня
+  extraLine: { flexDirection: 'row', marginTop: 4, paddingLeft: 2 },
+  extraDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: C.sakuraDeep, marginTop: 4.5, marginRight: 7 },
+  extraText: { flex: 1, fontSize: 9, lineHeight: 1.45, color: C.text },
+
+  table: { borderTopWidth: 1, borderTopColor: C.line },
+  tableHead: { flexDirection: 'row', backgroundColor: C.dark, paddingVertical: 6, paddingHorizontal: 8 },
+  tableHeadText: { fontSize: 7, fontWeight: 700, color: '#ffffff', letterSpacing: 1, textTransform: 'uppercase', paddingRight: 6 },
+  tableRow: { flexDirection: 'row', paddingVertical: 6, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: C.line },
+  tableRowAlt: { backgroundColor: '#fafaf7' },
+  tableRowTotal: { backgroundColor: C.cream },
+  tableText: { fontSize: 9, lineHeight: 1.4, color: C.text, paddingRight: 6 },
+  tableCaption: { fontSize: 10, fontWeight: 700, color: C.dark, marginBottom: 6 },
+  note: { fontSize: 8, color: C.muted, lineHeight: 1.45, marginTop: 6 },
 
   flights: { backgroundColor: C.cream, borderRadius: 10, padding: 14 },
   flightLine: { flexDirection: 'row', marginBottom: 5 },
@@ -122,9 +148,17 @@ export interface PdfTourData {
   duration: string;            // „14 дни / 13 нощувки“
   price: string;               // „5 002 €“ или „По запитване“
   oldPrice?: string;           // при промоция — старата цена
+  promoUntil?: string;         // при промоция — до коя дата важи („15.11.2026“)
+  singleSupplement: string;    // доплащане за единична стая
+  deposit: string;
+  remainder: string;           // цената минус депозита, ако и двете са точни суми в евро
   dates: string[];             // вече форматирани „05.02.2027“
   intro: string;
-  days: { day: number; title: string; paragraphs: string[] }[];
+  days: { day: number; title: string; paragraphs: string[]; extras: { name: string; price: string; onsite: boolean }[] }[];
+  extrasAdvance: PdfExtraRow[];  // заявяват се предварително
+  extrasOnsite: PdfExtraRow[];   // плащат се на място
+  extrasTotal: string;           // сумата на предварителните, ако всички са в евро
+  costExample: { price: string; extras: string; total: string } | null;
   flights: string[];
   included: string[];
   excluded: string[];
@@ -136,13 +170,58 @@ export interface PdfTourData {
   generatedOn: string;         // „21.10.2026“
 }
 
+export interface PdfExtraRow { day: string; name: string; info: string; price: string }
+
 const SITE = 'belivavip.bg';
+
+// Каре с цена горе: етикет, сума, бележка
+function PriceBox({ label, value, note, tone = 'plain' }: { label: string; value: string; note?: string; tone?: 'promo' | 'main' | 'plain' }) {
+  return (
+    <View style={[s.priceBox, tone === 'promo' ? s.priceBoxPromo : tone === 'main' ? s.priceBoxMain : {}]}>
+      <Text style={s.factLabel}>{label}</Text>
+      <Text style={[s.priceValue, tone === 'promo' ? { color: C.sakuraDeep } : {}]}>{value}</Text>
+      {note ? <Text style={s.priceNote}>{note}</Text> : null}
+    </View>
+  );
+}
+
+// Таблица: тъмносин заглавен ред и редове с тънки линии. Всеки ред е цял (wrap={false}), таблицата се разделя по редове.
+// Клетката е текст или { title, sub } — удебелено име и по-дребно описание под него.
+type Cell = string | { title: string; sub?: string };
+
+function Table({ head, widths, rows, align = [], totalRow }: { head: string[]; widths: number[]; rows: Cell[][]; align?: ('left' | 'right' | 'center')[]; totalRow?: number }) {
+  const cell = (i: number) => ({ flex: widths[i], textAlign: align[i] || 'left' as const });
+  return (
+    <View style={s.table}>
+      <View style={s.tableHead} wrap={false} minPresenceAhead={40}>
+        {head.map((h, i) => <Text key={i} style={[s.tableHeadText, cell(i)]}>{h}</Text>)}
+      </View>
+      {rows.map((row, r) => (
+        <View key={r} style={[s.tableRow, r % 2 ? s.tableRowAlt : {}, r === totalRow ? s.tableRowTotal : {}]} wrap={false}>
+          {row.map((v, i) => (typeof v === 'string'
+            ? <Text key={i} style={[s.tableText, cell(i), r === totalRow ? { fontWeight: 700, color: C.dark } : {}]}>{v}</Text>
+            // Името е с нормална дебелина: в Inter SemiBold/Bold някои латински имена губят първата буква в PDF-а
+            // („Tokyo digital museum“ → „okyo …“) — грешка при вграждането на шрифта, с кирилица не се случва
+            : (
+              <Text key={i} style={[s.tableText, cell(i)]}>
+                <Text style={{ fontSize: 9.5, color: C.dark }}>{v.title}</Text>
+                {v.sub ? <Text style={{ fontSize: 8, color: C.muted }}>{`\n${v.sub}`}</Text> : null}
+              </Text>
+            )))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const extraTableRows = (rows: PdfExtraRow[]): Cell[][] =>
+  rows.map(e => [e.day, { title: e.name, sub: e.info }, e.price]);
 
 function Section({ label, title, children, breakBefore = false }: { label: string; title: string; children: React.ReactNode; breakBefore?: boolean }) {
   return (
     <View style={s.section} break={breakBefore}>
-      {/* minPresenceAhead: заглавието не остава само в дъното на страницата */}
-      <View minPresenceAhead={60}>
+      {/* minPresenceAhead: заглавието не остава само в дъното на страницата; wrap={false} — етикетът и заглавието заедно */}
+      <View wrap={false} minPresenceAhead={90}>
         <Text style={s.sectionLabel}>{label}</Text>
         <Text style={s.sectionTitle}>{title}</Text>
       </View>
@@ -201,17 +280,26 @@ export function TourProgramPdf({ tour }: { tour: PdfTourData }) {
               <Text style={s.factLabel}>Продължителност</Text>
               <Text style={s.factValue}>{tour.duration || '—'}</Text>
             </View>
-            <View style={[s.fact, s.factBorder]}>
-              <Text style={s.factLabel}>Цена на човек</Text>
-              <Text style={s.factValue}>{tour.price}</Text>
-              {tour.oldPrice ? <Text style={s.factOld}>{tour.oldPrice}</Text> : null}
-            </View>
             {tour.route ? (
-              <View style={[s.fact, s.factBorder, { flex: 1.6 }]}>
+              <View style={[s.fact, s.factBorder, { flex: 2.6 }]}>
                 <Text style={s.factLabel}>Маршрут</Text>
                 <Text style={[s.factValue, { fontSize: 9, fontWeight: 600 }]}>{tour.route}</Text>
               </View>
             ) : null}
+          </View>
+
+          {/* Цените: при промоция — промо цената и до кога важи, до нея редовната */}
+          <View style={s.prices} wrap={false}>
+            {tour.oldPrice ? (
+              <>
+                <PriceBox tone="promo" label="Промо цена" value={tour.price} note={tour.promoUntil ? `важи при записване до ${tour.promoUntil}` : 'на човек в двойна стая'} />
+                <PriceBox tone="main" label="Стандартна цена" value={tour.oldPrice} note={tour.promoUntil ? `след ${tour.promoUntil}` : 'на човек в двойна стая'} />
+              </>
+            ) : (
+              <PriceBox tone="main" label="Цена на човек" value={tour.price} note="при настаняване в двойна стая" />
+            )}
+            {tour.singleSupplement ? <PriceBox label="Единична стая" value={`+ ${tour.singleSupplement}`} note="доплащане" /> : null}
+            {tour.deposit ? <PriceBox label="Депозит" value={tour.deposit} note="при записване" /> : null}
           </View>
 
           {tour.dates.length > 0 && (
@@ -227,14 +315,32 @@ export function TourProgramPdf({ tour }: { tour: PdfTourData }) {
 
           {tour.days.length > 0 && (
             <Section label="Ден по ден" title="Програма">
+              {/* Заглавният ред на деня и първият абзац са цели (wrap={false}) — така заглавието не остава само в
+                  дъното на страницата (minPresenceAhead не помагаше). Останалите абзаци се пренасят свободно. */}
               {tour.days.map(d => (
-                <View key={d.day} style={s.day}>
-                  {/* Един Text (не ред от два елемента): ред с flexDirection: row не се разделя между страници и
-                      целият ден отиваше на следващата, като оставяше празно място под заглавието „Програма“ */}
-                  <Text style={s.dayTitle}>
-                    <Text style={s.dayBadgeText}>Ден {d.day}{d.title ? '   ' : ''}</Text>{d.title}
-                  </Text>
-                  {d.paragraphs.map((p, i) => <Text key={i} style={i ? [s.para, s.paraNext] : s.para}>{p}</Text>)}
+                <View key={d.day}>
+                  <View wrap={false}>
+                    <View style={s.dayHead}>
+                      <View style={s.dayNum}>
+                        <Text style={s.dayNumLabel}>ДЕН</Text>
+                        <Text style={s.dayNumValue}>{d.day}</Text>
+                      </View>
+                      <View style={s.dayBar}>
+                        <Text style={s.dayBarTitle}>{d.title || `Ден ${d.day}`}</Text>
+                      </View>
+                    </View>
+                    {d.paragraphs[0] ? <Text style={s.para}>{d.paragraphs[0]}</Text> : null}
+                  </View>
+                  {d.paragraphs.slice(1).map((p, i) => <Text key={i} style={[s.para, s.paraNext]}>{p}</Text>)}
+                  {d.extras.map((e, i) => (
+                    <View key={i} style={s.extraLine} wrap={false}>
+                      <View style={s.extraDot} />
+                      <Text style={s.extraText}>
+                        <Text style={{ fontWeight: 700, color: C.sakuraDeep }}>По желание: </Text>{e.name}
+                        <Text style={{ fontWeight: 700, color: C.dark }}> — {e.price}{e.onsite ? ', на място' : ''}</Text>
+                      </Text>
+                    </View>
+                  ))}
                 </View>
               ))}
             </Section>
@@ -264,6 +370,60 @@ export function TourProgramPdf({ tour }: { tour: PdfTourData }) {
               <Bullets items={tour.excluded} color={C.rose} />
             </Section>
           )}
+
+          {(tour.extrasAdvance.length > 0 || tour.extrasOnsite.length > 0) && (
+            <Section label="Подробни цени" title="Допълнителни екскурзии">
+              {tour.extrasAdvance.length > 0 && (
+                <View>
+                  <Text style={s.tableCaption}>Заявяват се предварително</Text>
+                  <Table
+                    head={['Ден', 'Екскурзия', 'Цена']}
+                    widths={[0.7, 6, 1.6]}
+                    align={['center', 'left', 'right']}
+                    rows={[...extraTableRows(tour.extrasAdvance), ...(tour.extrasTotal ? [['', 'Всички заедно', tour.extrasTotal]] : [])]}
+                    totalRow={tour.extrasTotal ? tour.extrasAdvance.length : undefined}
+                  />
+                  <Text style={s.note}>Заявяват се при записване и се плащат с последната вноска. На място, ако има свободни места, цената може да е по-висока.</Text>
+                </View>
+              )}
+              {tour.extrasOnsite.length > 0 && (
+                <View style={{ marginTop: tour.extrasAdvance.length ? 14 : 0 }}>
+                  <Text style={s.tableCaption}>Плащат се на място</Text>
+                  <Table head={['Ден', 'Вход', 'Ориентировъчна цена']} widths={[0.7, 5.3, 2.3]} align={['center', 'left', 'right']} rows={extraTableRows(tour.extrasOnsite)} />
+                </View>
+              )}
+            </Section>
+          )}
+
+          {tour.costExample && (
+            <Section label="Сметката" title="Колко струва всичко — пример">
+              <Text style={[s.para, { marginBottom: 6 }]}>Един човек в двойна стая, с всички предварителни екскурзии:</Text>
+              <Table
+                head={['', 'Сума']}
+                widths={[6, 2]}
+                align={['left', 'right']}
+                rows={[['Цена на пътуването', tour.costExample.price], ['Всички предварителни екскурзии', tour.costExample.extras], ['Общо', tour.costExample.total]]}
+                totalRow={2}
+              />
+              <Text style={s.note}>
+                {tour.singleSupplement ? `В единична стая прибавете ${tour.singleSupplement}. ` : ''}Застраховката, входовете на място и джобните пари са отделно.
+              </Text>
+            </Section>
+          )}
+
+          {tour.deposit ? (
+            <Section label="Записване" title="Плащане">
+              <Table
+                head={['Стъпка', 'Сума']}
+                widths={[6, 2]}
+                align={['left', 'right']}
+                rows={[
+                  ['Депозит при подписване на договора', tour.deposit],
+                  ...(tour.remainder ? [['Остатък до пълната цена — преди заминаване, в срока от договора', tour.remainder]] : []),
+                ]}
+              />
+            </Section>
+          ) : null}
 
           {tour.documents.length > 0 && (
             <Section label="Преди пътуването" title="Необходими документи">

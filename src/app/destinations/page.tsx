@@ -10,6 +10,7 @@ import { formatPrice } from '@/lib/formatPrice';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 import { fetchAllMedia, findCountryHeroImage } from '@/lib/media-helpers';
 import { normalizeTourDates } from '@/lib/tourDates';
+import { currentPrice } from '@/lib/promo';
 import type { ITour } from '@/types';
 import JsonLd from '@/components/JsonLd';
 import ContinentLinks from '@/components/destination/ContinentLinks';
@@ -59,7 +60,7 @@ const tourCountries = (tour: ITour): string[] =>
       ? tour.country.split(',').map((c) => c.trim()).filter(Boolean)
       : [];
 
-const priceOf = (tour: ITour) => String(tour.discountPrice || tour.price || '');
+const priceOf = (tour: ITour) => currentPrice(tour);
 const priceNumber = (raw: string): number => {
   const n = parseFloat(raw.replace(/[^\d.]/g, ''));
   return Number.isFinite(n) ? n : Infinity;

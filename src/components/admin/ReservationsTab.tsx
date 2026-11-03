@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, getDocs, getDoc, updateDoc, doc, deleteDoc, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, getDoc, updateDoc, doc, deleteDoc, where, addDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import emailjs from '@emailjs/browser';
+import { currentPrice, hasActivePromo } from '@/lib/promo';
 import {
   Search, Trash2, Calendar, Phone, Mail, Edit, X, FileText, CheckCircle, AlertTriangle,
   DollarSign, Tag, Link2, Users, Send, Copy, Clock, MessageSquare, Percent, Building2, RefreshCw
@@ -19,6 +20,55 @@ const CLIENT_TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_CLIENT_TEMPLATE_ID ||
 // и CLIENT_TEMPLATE_ID — затова операторските имейли преизползват СЪЩИЯ template, не отделен — той вече е
 // достатъчно генеричен ({{to_email}}/{{subject}}/{{{message}}}), за да обслужи и двете цели.
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "";
+
+const STATUS_LABELS: Record<string, string> = { new: 'Ново', processing: 'В процес', paid: 'Платено', cancelled: 'Отказано' };
+
+// Дата от Firestore Timestamp, ISO текст или число (ms) — в записите се срещат и трите.
+const toDate = (value: any): Date | null => {
+  if (!value) return null;
+  const d = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+// „03.11.2026 г., 14:32“ — дата и час, не само дата.
+const formatDateTime = (value: any): string => {
+  const d = toDate(value);
+  return d ? d.toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+};
+
+// Нов ред в историята на запитването. Пази се в масив activityLog — serverTimestamp() не може да стои в масив,
+// затова часът е от браузъра на админа.
+const activityEntry = (type: string, text: string) => ({ type, text, at: new Date().toISOString() });
+
+// Цялата история на запитването, най-новото отгоре: получаване, изпратени имейли, действията от activityLog.
+// Записите отпреди activityLog нямат история, затова за тях часовете се взимат от старите полета.
+const buildTimeline = (inq: any): { at: Date; text: string }[] => {
+  const events: { at: Date; text: string }[] = [];
+  const add = (value: any, text: string) => {
+    const at = toDate(value);
+    if (at) events.push({ at, text });
+  };
+  const log: any[] = Array.isArray(inq.activityLog) ? inq.activityLog : [];
+  const logged = (type: string) => log.some(e => e.type === type);
+
+  add(inq.createdAt, 'Получено запитване');
+  (inq.emailLog || []).forEach((e: any) => {
+    const text = e.kind === 'checkout_link' ? 'Изпратен линк за данните на пътниците (имейл)'
+      : e.kind === 'correction' ? 'Поискана корекция на данните (имейл)'
+      : `Изпратен имейл: „${e.subject || 'без тема'}“`;
+    add(e.sentAt, text);
+  });
+  log.forEach(e => add(e.at, e.text));
+
+  if (!logged('checkout')) {
+    if (inq.lastCorrectionAt) add(inq.lastCorrectionAt, 'Клиентът изпрати коригирани данни');
+    else add(inq.checkoutCompletedAt, 'Клиентът попълни данните на пътниците');
+  }
+  if (!logged('operator')) add(inq.operatorDataSentAt, 'Данните на пътниците са изпратени на турооператора');
+  if (!logged('contract')) add(inq.contractSentAt, 'Договорът е отбелязан като изпратен');
+
+  return events.sort((a, b) => b.at.getTime() - a.at.getTime());
+};
 
 interface ReservationsTabProps {
   allTours: any[];
@@ -42,11 +92,15 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
   const [viewingTravelers, setViewingTravelers] = useState<{ inquiry: any; travelers: any[] | null } | null>(null);
 
   // Модал за писане/изпращане на имейл (кореспонденция) — журнал, не двупосочна нишка.
-  const [emailModalData, setEmailModalData] = useState<{ inquiry: any; subject: string; body: string } | null>(null);
+  // kind отбелязва в журнала специалните имейли (напр. 'correction'), за да се четат ясно в историята.
+  const [emailModalData, setEmailModalData] = useState<{ inquiry: any; subject: string; body: string; kind?: string } | null>(null);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   // Модал за преглед на журнала с изпратени имейли за конкретно запитване.
   const [viewingEmailLog, setViewingEmailLog] = useState<any | null>(null);
+
+  // Модал с цялата история (кога какво е станало) за конкретно запитване.
+  const [viewingHistory, setViewingHistory] = useState<any | null>(null);
 
   // Списъкът с турооператори (име+имейл) — за да знаем къде да изпратим данните на пътниците.
   const [operators, setOperators] = useState<{ name: string; email: string }[]>([]);
@@ -165,7 +219,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
   const getDiscountInfo = (inq: any) => {
     const { matchedCustomer } = getContactContext(inq);
     const tour = allTours.find(t => t.id === inq.tourId);
-    const regularPrice = parsePrice(tour?.discountPrice || tour?.price);
+    const regularPrice = parsePrice(tour ? currentPrice(tour) : '');
     const discountPercentage = matchedCustomer?.discountFlag ? Number(matchedCustomer.discountPercentage || 0) : 0;
     const finalPrice = discountPercentage > 0
       ? Math.round(regularPrice * (1 - discountPercentage / 100))
@@ -222,7 +276,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
           basePrice: regularPrice,
           // И двете цени на тура — редовната и промо цената (ако турът има такава), за да се виждат едновременно.
           listPrice: parsePrice(tour?.price),
-          tourPromoPrice: parsePrice(tour?.discountPrice),
+          tourPromoPrice: hasActivePromo(tour) ? parsePrice(tour?.discountPrice) : 0,
           notes: getOwnNotes(inq)
         });
       } catch (error) {
@@ -230,8 +284,9 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       }
     } else {
       try {
-        await updateDoc(doc(db, "inquiries", inq.id), { status: newStatus });
-        setInquiries(prev => prev.map(item => item.id === inq.id ? { ...item, status: newStatus } : item));
+        const entry = activityEntry('status', `Статус: ${STATUS_LABELS[newStatus] || newStatus}`);
+        await updateDoc(doc(db, "inquiries", inq.id), { status: newStatus, activityLog: arrayUnion(entry) });
+        setInquiries(prev => prev.map(item => item.id === inq.id ? { ...item, status: newStatus, activityLog: [...(item.activityLog || []), entry] } : item));
       } catch (e) { console.error(e); }
     }
   };
@@ -378,8 +433,9 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
 
       // Статусът „Платено“ се записва ЧАК СЕГА — след като клиентският профил е записан. Преди това ставаше
       // първо, така че при грешка по-нататък запитването оставаше „Платено“ без клиент и не можеше да се опита пак.
-      await updateDoc(doc(db, "inquiries", inquiry.id), { status: 'paid', notes });
-      setInquiries(prev => prev.map(item => item.id === inquiry.id ? { ...item, status: 'paid', notes } : item));
+      const paidEntry = activityEntry('status', `Статус: Платено (${Number(paidPrice)} €)`);
+      await updateDoc(doc(db, "inquiries", inquiry.id), { status: 'paid', notes, activityLog: arrayUnion(paidEntry) });
+      setInquiries(prev => prev.map(item => item.id === inquiry.id ? { ...item, status: 'paid', notes, activityLog: [...(item.activityLog || []), paidEntry] } : item));
 
       setPaymentModalData(null);
       const customerName = existingCustomer ? (existingCustomer.name || `${existingCustomer.firstName || ''} ${existingCustomer.lastName || ''}`.trim() || 'клиента') : (inquiry.clientName || 'клиента');
@@ -419,17 +475,23 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
     const expiryMs = Date.now() + 14 * 24 * 60 * 60 * 1000; // 14 дни
 
     try {
+      // По имейл историята се води от emailLog (по-долу); при копиране — тук, защото имейл няма.
+      const copyEntry = method === 'copy' ? activityEntry('checkout_link', 'Създаден линк за данните на пътниците (копиран за Viber/WhatsApp)') : null;
       await updateDoc(doc(db, "inquiries", inq.id), {
         checkoutToken: token,
         checkoutTokenExpiry: expiryMs,
         checkoutCompletedAt: null,
+        ...(copyEntry ? { activityLog: arrayUnion(copyEntry) } : {}),
       });
 
       const link = `${window.location.origin}/checkout/${token}`;
       const subject = 'Относно вашето запитване';
       const body = `Здравейте ${inq.clientName || ''},\n\nЗа да завършим резервацията Ви за "${inq.tourTitle}", моля попълнете данните на пътниците на следния линк:\n\n${link}\n\nЛинкът е валиден 14 дни.\n`;
 
-      let updatedInq = { ...inq, checkoutToken: token, checkoutTokenExpiry: expiryMs, checkoutCompletedAt: null };
+      let updatedInq = {
+        ...inq, checkoutToken: token, checkoutTokenExpiry: expiryMs, checkoutCompletedAt: null,
+        ...(copyEntry ? { activityLog: [...(inq.activityLog || []), copyEntry] } : {}),
+      };
 
       if (method === 'email') {
         if (!inq.clientEmail) {
@@ -445,7 +507,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
           message: body.replace(/\n/g, '<br>'),
         }, PUBLIC_KEY);
 
-        const logEntry = { subject, body, sentAt: new Date().toISOString() };
+        const logEntry = { subject, body, kind: 'checkout_link', sentAt: new Date().toISOString() };
         const updatedLog = [...(inq.emailLog || []), logEntry];
         await updateDoc(doc(db, "inquiries", inq.id), { emailLog: updatedLog });
         updatedInq = { ...updatedInq, emailLog: updatedLog };
@@ -470,12 +532,18 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
     const token = crypto.randomUUID();
     const expiryMs = Date.now() + 14 * 24 * 60 * 60 * 1000;
     try {
+      // По имейл историята се записва, когато имейлът реално тръгне (kind 'correction' в emailLog).
+      const copyEntry = method === 'copy' ? activityEntry('correction', 'Поискана корекция на данните (линкът е копиран за Viber/WhatsApp)') : null;
       await updateDoc(doc(db, "inquiries", inq.id), {
         checkoutToken: token,
         checkoutTokenExpiry: expiryMs,
         checkoutReopened: true,
+        ...(copyEntry ? { activityLog: arrayUnion(copyEntry) } : {}),
       });
-      const updatedInq = { ...inq, checkoutToken: token, checkoutTokenExpiry: expiryMs, checkoutReopened: true };
+      const updatedInq = {
+        ...inq, checkoutToken: token, checkoutTokenExpiry: expiryMs, checkoutReopened: true,
+        ...(copyEntry ? { activityLog: [...(inq.activityLog || []), copyEntry] } : {}),
+      };
       setInquiries(prev => prev.map(item => item.id === inq.id ? updatedInq : item));
 
       const link = `${window.location.origin}/checkout/${token}`;
@@ -491,6 +559,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       // Отваряме готовия имейл за преглед — админът може да допише какво точно да се поправи, преди да го изпрати.
       setEmailModalData({
         inquiry: updatedInq,
+        kind: 'correction',
         subject: 'Корекция на данните за вашата резервация',
         body: `Здравейте ${inq.clientName || ''},\n\nПри проверка на данните за "${inq.tourTitle}" се оказа, че е нужно да ги попълните отново (например поради неточност или нечетлива снимка на паспорта).\n\nМоля, попълнете ги през този линк:\n${link}\n\nЛинкът е валиден 14 дни.\n\nБлагодарим Ви!\nBeliva VIP Tour`,
       });
@@ -540,7 +609,11 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
         message: emailModalData.body.replace(/\n/g, '<br>'),
       }, PUBLIC_KEY);
 
-      const logEntry = { subject: emailModalData.subject, body: emailModalData.body, sentAt: new Date().toISOString() };
+      const logEntry = {
+        subject: emailModalData.subject, body: emailModalData.body,
+        ...(emailModalData.kind ? { kind: emailModalData.kind } : {}),
+        sentAt: new Date().toISOString(),
+      };
       const updatedLog = [...(emailModalData.inquiry.emailLog || []), logEntry];
       await updateDoc(doc(db, "inquiries", emailModalData.inquiry.id), { emailLog: updatedLog });
       setInquiries(prev => prev.map(item => item.id === emailModalData.inquiry.id ? { ...item, emailLog: updatedLog } : item));
@@ -622,17 +695,19 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
         message: operatorSendModalData.message,
       }, PUBLIC_KEY);
 
-      const sentAt = new Date().toISOString();
+      const operatorEntry = activityEntry('operator', `Данните на пътниците са изпратени на ${operatorSendModalData.operatorName} (${operatorSendModalData.operatorEmail})`);
+      const sentAt = operatorEntry.at;
       for (const inq of operatorSendModalData.inquiries) {
         await updateDoc(doc(db, "inquiries", inq.id), {
           operatorDataSentAt: sentAt,
           operatorViewToken: operatorSendModalData.token,
           operatorViewTokenExpiry: operatorSendModalData.expiryMs,
+          activityLog: arrayUnion(operatorEntry),
         });
       }
       setInquiries(prev => prev.map(item =>
         operatorSendModalData.inquiries.some(i => i.id === item.id)
-          ? { ...item, operatorDataSentAt: sentAt, operatorViewToken: operatorSendModalData.token, operatorViewTokenExpiry: operatorSendModalData.expiryMs }
+          ? { ...item, operatorDataSentAt: sentAt, operatorViewToken: operatorSendModalData.token, operatorViewTokenExpiry: operatorSendModalData.expiryMs, activityLog: [...(item.activityLog || []), operatorEntry] }
           : item
       ));
 
@@ -650,10 +725,11 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
   // Прост ръчен превключвател — договорът се генерира и изпраща от турооператора извън системата —
   // тук само маркираме в CRM-а че статусът е актуален.
   const handleToggleContractSent = async (inq: any) => {
-    const newValue = inq.contractSentAt ? null : new Date().toISOString();
+    const entry = activityEntry('contract', inq.contractSentAt ? 'Премахната отметка „Договор изпратен“' : 'Договорът е отбелязан като изпратен');
+    const newValue = inq.contractSentAt ? null : entry.at;
     try {
-      await updateDoc(doc(db, "inquiries", inq.id), { contractSentAt: newValue });
-      setInquiries(prev => prev.map(item => item.id === inq.id ? { ...item, contractSentAt: newValue } : item));
+      await updateDoc(doc(db, "inquiries", inq.id), { contractSentAt: newValue, activityLog: arrayUnion(entry) });
+      setInquiries(prev => prev.map(item => item.id === inq.id ? { ...item, contractSentAt: newValue, activityLog: [...(item.activityLog || []), entry] } : item));
     } catch (e) { console.error(e); }
   };
 
@@ -684,10 +760,20 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       return;
     }
     const payload = { ...editForm, clientEmail };
+    // В историята влиза само какво е сменено, не самите стойности.
+    const changed = [
+      payload.tourId !== (editingInq.tourId || '') && 'екскурзия',
+      payload.tourDate !== (editingInq.tourDate || 'Не е потвърдена') && 'дата',
+      payload.clientEmail !== (editingInq.clientEmail || '') && 'имейл',
+      payload.notes !== getOwnNotes(editingInq) && 'бележки',
+    ].filter(Boolean);
+    const entry = changed.length > 0 ? activityEntry('edit', `Редакция: ${changed.join(', ')}`) : null;
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, "inquiries", editingInq.id), payload);
-      setInquiries(prev => prev.map(item => item.id === editingInq.id ? { ...item, ...payload } : item));
+      await updateDoc(doc(db, "inquiries", editingInq.id), { ...payload, ...(entry ? { activityLog: arrayUnion(entry) } : {}) });
+      setInquiries(prev => prev.map(item => item.id === editingInq.id
+        ? { ...item, ...payload, ...(entry ? { activityLog: [...(item.activityLog || []), entry] } : {}) }
+        : item));
       setEditingInq(null);
     } catch (error) { console.error(error); } finally { setIsSaving(false); }
   };
@@ -782,6 +868,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
               {activeItems.map(inq => {
                 const { matchedCustomer, otherInquiries } = getContactContext(inq);
                 const { hasDiscount, regularPrice, finalPrice, discountPercentage } = getDiscountInfo(inq);
+                const timeline = buildTimeline(inq);
                 return (
                   <tr key={inq.id} className="hover:bg-gray-50/50 transition-colors">
                     {subTab === 'reservations' && (
@@ -799,6 +886,12 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                     )}
                     <td className="p-5">
                       <div className="font-bold text-gray-800">{inq.clientName || 'Непознат'}</div>
+                      {inq.createdAt && (
+                        <div className="text-[11px] text-gray-600 font-semibold mt-1 flex items-center gap-1"><Clock size={12}/> Получено: {formatDateTime(inq.createdAt)}</div>
+                      )}
+                      {subTab === 'reservations' && inq.checkoutCompletedAt && (
+                        <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1"><Users size={12}/> Данни попълнени: {formatDateTime(inq.checkoutCompletedAt)}</div>
+                      )}
                       <div className="text-xs text-gray-400 mt-1 flex items-center gap-1"><Phone size={12}/> {inq.clientPhone}</div>
                       <div className="text-xs text-gray-400 flex items-center gap-1"><Mail size={12}/> {inq.clientEmail}</div>
                       {matchedCustomer && (
@@ -876,13 +969,26 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                         {(subTab === 'reservations' || inq.status === 'paid') && <option value="paid">✅ Платено</option>}
                         <option value="cancelled">❌ Отказано</option>
                       </select>
+                      {/* Последното действие с дата и час; цялата история — в отделния прозорец. */}
+                      {timeline.length > 0 && (
+                        <div className="mt-2 max-w-[200px]">
+                          <p className="text-[11px] leading-snug text-gray-600 font-semibold">{timeline[0].text}</p>
+                          <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5"><Clock size={10}/> {formatDateTime(timeline[0].at)}</p>
+                          <button
+                            onClick={() => setViewingHistory(inq)}
+                            className="mt-1 text-[10px] font-bold text-brand-dark underline underline-offset-2 hover:text-brand-gold transition-colors"
+                          >
+                            История ({timeline.length})
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="p-5 text-right">
                       <div className="flex justify-end gap-2">
                         {subTab === 'reservations' && inq.status === 'paid' && (
                           <button
                             onClick={() => handleOpenOperatorSend([inq])}
-                            title={inq.operatorDataSentAt ? `Данните са изпратени на ${new Date(inq.operatorDataSentAt).toLocaleDateString('bg-BG')} — натисни за повторно изпращане` : "Изпрати данните на турооператора"}
+                            title={inq.operatorDataSentAt ? `Данните са изпратени на ${formatDateTime(inq.operatorDataSentAt)} — натисни за повторно изпращане` : "Изпрати данните на турооператора"}
                             className={`p-2.5 rounded-xl transition-all ${inq.operatorDataSentAt ? 'text-emerald-500 hover:text-white hover:bg-emerald-500' : 'text-blue-400 hover:text-white hover:bg-blue-500'}`}
                           >
                             <Building2 size={18} />
@@ -891,7 +997,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                         {subTab === 'reservations' && inq.status === 'paid' && (
                           <button
                             onClick={() => handleToggleContractSent(inq)}
-                            title={inq.contractSentAt ? `Договор изпратен на ${new Date(inq.contractSentAt).toLocaleDateString('bg-BG')} — натисни за да върнеш статуса` : "Маркирай договор изпратен"}
+                            title={inq.contractSentAt ? `Договор изпратен на ${formatDateTime(inq.contractSentAt)} — натисни за да върнеш статуса` : "Маркирай договор изпратен"}
                             className={`p-2.5 rounded-xl transition-all ${inq.contractSentAt ? 'text-emerald-500 hover:text-white hover:bg-emerald-500' : 'text-gray-300 hover:text-white hover:bg-gray-400'}`}
                           >
                             <FileText size={18} />
@@ -1276,12 +1382,37 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                 <div key={idx} className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-bold text-brand-dark text-sm">{entry.subject}</p>
-                    <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock size={10}/> {new Date(entry.sentAt).toLocaleString('bg-BG')}</span>
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1 shrink-0"><Clock size={10}/> {formatDateTime(entry.sentAt)}</span>
                   </div>
                   <p className="text-xs text-gray-500 whitespace-pre-wrap">{entry.body}</p>
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* МОДАЛ: ИСТОРИЯ НА ЗАПИТВАНЕТО — кога какво е направено */}
+      {viewingHistory && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-brand-dark/90 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[85vh] flex flex-col">
+            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
+              <div>
+                <h3 className="font-serif italic text-xl text-brand-dark">История</h3>
+                <p className="text-xs text-gray-400 mt-1">{viewingHistory.clientName} · {viewingHistory.tourTitle || 'Общо запитване'}</p>
+              </div>
+              <button onClick={() => setViewingHistory(null)} aria-label="Затвори" className="p-2 text-gray-300 hover:text-red-500"><X size={24} /></button>
+            </div>
+            <ol className="p-8 overflow-y-auto">
+              {buildTimeline(viewingHistory).map((event, idx, all) => (
+                <li key={idx} className="relative pl-6 pb-5 last:pb-0">
+                  {idx < all.length - 1 && <span className="absolute left-[5px] top-3 bottom-0 w-px bg-gray-200" aria-hidden="true" />}
+                  <span className={`absolute left-0 top-1.5 h-[11px] w-[11px] rounded-full border-2 ${idx === 0 ? 'border-brand-gold bg-brand-gold' : 'border-gray-300 bg-white'}`} aria-hidden="true" />
+                  <p className="text-[11px] font-bold text-gray-400 flex items-center gap-1"><Clock size={10}/> {formatDateTime(event.at)}</p>
+                  <p className="text-sm text-brand-dark mt-0.5">{event.text}</p>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
       )}

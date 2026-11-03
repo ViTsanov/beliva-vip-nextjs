@@ -8,6 +8,7 @@ import { ITour } from "@/types";
 import Badge from "@/components/ui/Badge";
 import { RevealGroup } from "@/components/ui/Reveal";
 import { formatPrice } from "@/lib/formatPrice";
+import { hasActivePromo } from "@/lib/promo";
 import { isOperatorHotlink } from "@/lib/operatorImageDomains";
 import { useFavoriteTours } from "@/lib/favoriteTours";
 import { PalmSilhouette } from "@/components/decor/TravelDecor";
@@ -161,11 +162,8 @@ function FeaturedCard({ tour, isTopPick, todayStr, priority }: { tour: ITour; is
   const duration = durationLabel(tour);
   const img = tour.img && !isOperatorHotlink(tour.img) ? tour.img : null;
 
-  // Промоция — същото правило като в TourCard: с кампания важи само в периода ѝ.
-  let isPromoActive = !!(tour.isPromo && tour.discountPrice);
-  if (tour.campaignId && tour.promoStart && tour.promoEnd) {
-    isPromoActive = todayStr >= tour.promoStart.slice(0, 10) && todayStr <= tour.promoEnd.slice(0, 10);
-  }
+  // Промоция — важи само в периода на кампанията (src/lib/promo.ts)
+  const isPromoActive = hasActivePromo(tour);
 
   // relative: картата е опорен блок за sr-only етикетите в цената. Без него те се позиционират спрямо страницата,
   // излизат извън плъзгащия се ред и на телефон правят страницата по-широка от екрана (празно място вдясно).

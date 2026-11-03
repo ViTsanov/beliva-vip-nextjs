@@ -823,6 +823,10 @@ export default function AdminDashboardClient() {
       documents: joinArr(finalTour.docs),
       generalInfo: joinArr(finalTour.info),
       flightInfo: scrapedData.flightInfo || '', // за PDF-а и сайта; не е минавало през AI
+      // Само при 2МКО (от Word файла): допълнителните екскурзии с цените — [*N] в текста на дните сочи към тях
+      extras: finalTour.extras || [],
+      singleSupplement: finalTour.singleSupplement || '',
+      deposit: finalTour.deposit || '',
       img: finalTour.img || '',
       galleryWithCaptions: finalTour.galleryWithCaptions || [],
       images: finalTour.images || '',

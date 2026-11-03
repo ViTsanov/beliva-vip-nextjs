@@ -80,6 +80,12 @@ export async function submitCheckoutData(token: string, travelers: TravelerInput
       // Корекцията е приключила — линкът пак се затваря. Запитването си остава в „Резервации“.
       checkoutReopened: false,
       ...(isCorrection ? { checkoutRevisions: FieldValue.increment(1), lastCorrectionAt: FieldValue.serverTimestamp() } : {}),
+      // Ред в историята на запитването в CRM-а (serverTimestamp не може да стои в масив, затова ISO час).
+      activityLog: FieldValue.arrayUnion({
+        type: 'checkout',
+        text: isCorrection ? 'Клиентът изпрати коригирани данни' : 'Клиентът попълни данните на пътниците',
+        at: new Date().toISOString(),
+      }),
     });
 
     // Старите снимки, които вече не се ползват (заменени или премахнати пътници), се изтриват — да не стоят

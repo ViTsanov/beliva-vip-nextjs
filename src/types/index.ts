@@ -63,11 +63,25 @@ export interface ITour {
   documents?: string | string[]; // 👈 Добавено
   // Полетите — по един ред (ден/дата, номер на полет, часове, багаж). От скрейпъра, редактира се в админ панела.
   flightInfo?: string;
+  // Допълнителните екскурзии „по желание“ с цените им. В текста на деня се отбелязват с [*<id>] — на сайта това е
+  // звездичка с цената при посочване, а в PDF-а са редове „По желание“ под деня (src/lib/tourExtras.ts)
+  extras?: ITourExtra[];
+  singleSupplement?: string; // доплащане за единична стая, напр. „1 079 €“
+  deposit?: string;          // депозит при записване, напр. „2 133 €“
   pdfUrl?: string; // ръчно качен PDF; ако липсва, сайтът генерира програмата сам (/tour/<id>/programa.pdf)
   notes?: string;
   categories?: string[];
   slug?: string;
   updatedAt?: string | null;
+}
+
+export interface ITourExtra {
+  id: string;                     // номерът в [*<id>] — не се преномерира, когато се трие или добавя
+  day?: number;                   // в кой ден е; без ден — важи за цялото пътуване
+  name: string;                   // „Чайна церемония „Садо““
+  info?: string;                  // едно-две изречения какво включва
+  price: string;                  // „32 €“ или „около 600 ¥ (≈ 4 €)“
+  payment: 'advance' | 'onsite';  // заявява се предварително / плаща се на място
 }
 
 export interface IPost {

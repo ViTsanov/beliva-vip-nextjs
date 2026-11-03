@@ -7,6 +7,7 @@ import { ITour, IPost } from "@/types";
 import { CheckCircle2, ScrollText, FileText, Flame, ChevronLeft, ChevronRight } from 'lucide-react';
 import ShareButtons from '@/components/ShareButtons';
 import { formatPrice } from '@/lib/formatPrice';
+import { hasActivePromo } from '@/lib/promo';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
 interface TourSidebarProps {
@@ -18,7 +19,7 @@ interface TourSidebarProps {
 }
 
 export default function TourSidebar({ tour, relatedPosts, onOpenInquiry, onOpenInclusions, onOpenDocuments}: TourSidebarProps) {
-  const isPromoActive = tour.isPromo && tour.discountPrice;
+  const isPromoActive = hasActivePromo(tour);
 
   // PDF програмата: ръчно качен файл, ако има; иначе генерираната от сайта (/tour/<id>/programa.pdf).
   // ?v= е датата на последната редакция — след промяна в админ панела линкът е нов и кешът не връща стария PDF.

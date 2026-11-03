@@ -9,6 +9,9 @@ import { WORLD_COUNTRIES, canonicalCountries } from '@/lib/constants';
 import { normalizeTourDates, displayTourDate } from '@/lib/tourDates';
 import CountryMultiSelect from '@/components/admin/CountryMultiSelect';
 import HeroFocalPicker from '@/components/admin/HeroFocalPicker';
+import TourExtrasEditor from '@/components/admin/TourExtrasEditor';
+import { normalizeExtras } from '@/lib/tourExtras';
+import type { ITourExtra } from '@/types';
 
 
 // ПОМОЩЕН КОМПОНЕНТ ЗА СПИСЪЦИ (Тагове)
@@ -87,8 +90,13 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     discountPrice: '', 
     promoLabel: 'ПРОМОЦИЯ',
     promoBgColor: '#dc2626', 
-    promoTextColor: '#ffffff', 
-    
+    promoTextColor: '#ffffff',
+
+    // Допълнителни екскурзии и цени за PDF-а (при 2МКО ги попълва AI от Word файла)
+    extras: [] as ITourExtra[],
+    singleSupplement: '',
+    deposit: '',
+
     ...initialData,
     // Датите винаги в ISO и без повторения — стари турове имат една и съща дата в два формата
     // („2026-11-27“ и „27.11.2026“), които иначе излизат като два отделни чипа
@@ -201,6 +209,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
             date: mainDateFormatted, 
             dates: sortedDates, 
             itinerary,
+            extras: normalizeExtras(form.extras),
             galleryWithCaptions,
             // Keep legacy images field for backward compat with any other consumers
             images: galleryWithCaptions.map(g => g.url).join(', '),
@@ -480,6 +489,11 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                 <div className="flex items-center gap-3 mb-6 text-brand-gold"><Tag size={20}/> <h3 className="font-bold uppercase tracking-widest text-sm">Цена и Статус</h3></div>
                 <div className="space-y-6">
                     <div><label className={labelStyle}>Редовна Цена *</label><input className={`${inputStyle} text-xl font-black text-brand-gold`} value={form.price} onChange={e => setForm({...form, price: e.target.value})} required /></div>
+                    {/* За PDF-а: карета с цените горе и график на плащанията */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div><label className={labelStyle}>Единична стая (доплащане)</label><input className={inputStyle} placeholder="пр. 1 079 €" value={form.singleSupplement || ''} onChange={e => setForm({...form, singleSupplement: e.target.value})} /></div>
+                        <div><label className={labelStyle}>Депозит при записване</label><input className={inputStyle} placeholder="пр. 2 133 €" value={form.deposit || ''} onChange={e => setForm({...form, deposit: e.target.value})} /></div>
+                    </div>
                     <div><label className={labelStyle}>Група</label><select className={inputStyle} value={form.groupStatus} onChange={e => setForm({...form, groupStatus: e.target.value})}><option value="active">🟢 Оформяща се</option><option value="confirmed">🔵 Потвърдена</option><option value="last-places">🟠 Последни места</option><option value="sold-out">🔴 Изчерпана</option></select></div>
 
                     {/* Брой оставащи места — вижда само при Статус "Последни места" */}
@@ -592,6 +606,12 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                 <p className="text-[10px] text-gray-400 mt-1 ml-2">Ботът я попълва от страницата на туроператора. Показва се на страницата на тура и в PDF програмата.</p>
             </div>
         </div>
+
+        <TourExtrasEditor
+            extras={form.extras || []}
+            onChange={extras => setForm((prev: any) => ({ ...prev, extras }))}
+            dayTexts={itinerary.map(d => d.content || '')}
+        />
 
         {/* СЕКЦИЯ 3.5: PDF ПРОГРАМА */}
         <div className="bg-brand-dark p-8 rounded-[2.5rem] shadow-sm text-white flex flex-col md:flex-row md:items-center justify-between gap-6">

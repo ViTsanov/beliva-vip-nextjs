@@ -4,11 +4,14 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ITour } from "@/types";
-import { ArrowRight, Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronLeft, ChevronRight, Plane } from 'lucide-react';
+import { ArrowRight, Calendar, Clock, Globe, Euro, CalendarDays, ChevronDown, ChevronUp, Image as ImageIcon, ChevronLeft, ChevronRight, Plane, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '@/lib/formatPrice';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import { preloadLightboxPhoto } from '@/lib/lightboxPhoto';
+import { normalizeExtras, splitByExtras, stripExtraMarkers, markedExtraIds, extrasForDay, advanceExtrasTotal, formatEuro, paymentLabel } from '@/lib/tourExtras';
+import ExtraStar from './ExtraStar';
+import { hasActivePromo } from '@/lib/promo';
 
 interface TourTabsProps {
   tour: ITour;
@@ -94,7 +97,9 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
 
   const hasMultipleDates = allDatesISO.length > 1;
   const programData = tour.itinerary || tour.program || [];
-  const isPromoActive = tour.isPromo && tour.discountPrice;
+  const extras = normalizeExtras(tour.extras);
+  const extrasTotal = advanceExtrasTotal(extras);
+  const isPromoActive = hasActivePromo(tour);
 
   const goToDay = (index: number) => {
     setDirection(index > activeDay ? 1 : -1);
@@ -402,8 +407,21 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
                         </h3>
                         <div className="h-px bg-brand-gold/20 mb-5" />
                         <p className="text-gray-600 leading-8 text-[16px] font-light whitespace-pre-line">
-                          {content}
+                          {/* [*N] в текста → звездичка с цената на допълнителната екскурзия */}
+                          {splitByExtras(content, extras).map((part, i) =>
+                            'extra' in part ? <ExtraStar key={i} extra={part.extra} /> : <span key={i}>{part.text}</span>
+                          )}
                         </p>
+                        {/* Екскурзиите на деня без звездичка в текста — под него */}
+                        {(() => {
+                          const marked = markedExtraIds(content);
+                          const rest = extrasForDay(extras, dayNum).filter(e => !marked.has(e.id));
+                          return rest.length > 0 && (
+                            <div className="mt-5 flex flex-wrap gap-2">
+                              {rest.map(e => <ExtraStar key={e.id} extra={e} withLabel />)}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -422,7 +440,7 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
               return (
                 <div key={i}>
                   <h3>Ден {dayNum}{day.title ? `: ${day.title}` : ''}</h3>
-                  <p>{content}</p>
+                  <p>{stripExtraMarkers(content)}</p>
                 </div>
               );
             })}
@@ -461,6 +479,40 @@ export default function TourTabs({ tour, galleryImages, galleryCaptions, onImage
               <ChevronRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ─── ДОПЪЛНИТЕЛНИ ЕКСКУРЗИИ ─── (поле extras: при 2МКО от Word файла, редактира се в админ панела) */}
+      {extras.length > 0 && (
+        <div className="bg-white p-6 sm:p-8 md:p-10 rounded-[3rem] shadow-xl border border-gray-100">
+          <h2 className="text-3xl md:text-4xl font-serif italic mb-3 text-brand-dark pl-4 border-l-4 border-brand-gold">Допълнителни екскурзии</h2>
+          <p className="text-[15px] text-gray-500 mb-6 pl-5">
+            По желание, срещу допълнително заплащане. В програмата са отбелязани със звездичка
+            <Star size={15} className="inline-block mx-1 -mt-1 fill-brand-gold text-brand-goldDeep" aria-hidden="true" />.
+          </p>
+          <ul className="divide-y divide-gray-100">
+            {extras.map(e => (
+              <li key={e.id} className="py-4 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-6">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[16px] font-bold text-brand-dark">
+                    {e.day ? <span className="mr-2 inline-block rounded-full bg-brand-cream px-2.5 py-0.5 text-[12px] font-black text-brand-goldDeep align-[0.1em]">Ден {e.day}</span> : null}
+                    {e.name}
+                  </p>
+                  {e.info && <p className="mt-1 text-[15px] leading-relaxed text-gray-600">{e.info}</p>}
+                </div>
+                <div className="sm:text-right shrink-0">
+                  <p className="text-[17px] font-black text-brand-goldDeep">{e.price || 'по запитване'}</p>
+                  <p className="text-[12px] text-gray-500">{paymentLabel(e.payment)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {extrasTotal !== null && (
+            <p className="mt-4 pt-4 border-t border-gray-100 text-[15px] text-gray-600 flex justify-between gap-4">
+              <span>Всички, които се заявяват предварително</span>
+              <strong className="text-brand-dark">{formatEuro(extrasTotal)}</strong>
+            </p>
+          )}
         </div>
       )}
 

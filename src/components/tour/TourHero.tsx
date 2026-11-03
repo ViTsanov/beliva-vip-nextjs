@@ -10,6 +10,7 @@ import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 import { HERO_PHOTO_QUALITY, HERO_PHOTO_SIZES } from '@/lib/heroPhoto';
 import HeroReveal from '@/components/ui/HeroReveal';
+import { hasActivePromo } from '@/lib/promo';
 
 interface TourHeroProps {
   tour: ITour;
@@ -19,7 +20,7 @@ interface TourHeroProps {
 
 export default function TourHero({ tour, isFavorite, toggleFavorite }: TourHeroProps) {
   const router = useRouter();
-  const isPromoActive = tour.isPromo && tour.discountPrice;
+  const isPromoActive = hasActivePromo(tour);
   const [imgError, setImgError] = useState(false);
   // Снимка от чужд туроператорски сайт — не я рендираме директно като hero
   // (юридически риск + може да се счупи всеки момент, ако операторът я премести/изтрие).

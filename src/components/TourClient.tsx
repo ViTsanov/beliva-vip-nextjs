@@ -18,6 +18,7 @@ import TourSidebar from './tour/TourSidebar';
 import SimilarTours from './tour/SimilarTours';
 import InquiryDialog from './inquiry/InquiryDialog';
 import { splitListText } from '@/lib/listItems';
+import { hasActivePromo } from '@/lib/promo';
 import { formatPrice } from '@/lib/formatPrice';
 
 interface TourClientProps {
@@ -265,7 +266,7 @@ export default function TourClient({ tourData, relatedPostsData, id, similarTour
 
           {/* Price block */}
           <div className="flex flex-col min-w-0 flex-shrink-0">
-            {tourData.isPromo && tourData.discountPrice ? (
+            {hasActivePromo(tourData) ? (
               <>
                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none mb-0.5">Промо цена</span>
                 <div className="flex items-baseline gap-1.5">

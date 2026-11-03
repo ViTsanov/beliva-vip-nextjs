@@ -7,6 +7,7 @@ import { countryShareImage, shareMetadata } from "@/lib/shareMeta";
 import { formatPrice } from "@/lib/formatPrice";
 import { isOperatorHotlink } from "@/lib/operatorImageDomains";
 import { normalizeTourDates } from "@/lib/tourDates";
+import { currentPrice, hasActivePromo } from "@/lib/promo";
 import { getCountryGuide } from "@/lib/countryGuide";
 import { COMPANY_INFO } from "@/lib/companyInfo";
 import type { ITour } from "@/types";
@@ -43,7 +44,7 @@ const POLI_PHOTO = { src: '/guides/poly-10.jpg', alt: 'Поли пред Анг�
 
 const MONTHS = ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'];
 
-const priceOf = (tour: ITour) => String(tour.discountPrice || tour.price || '');
+const priceOf = (tour: ITour) => currentPrice(tour);
 const priceNumber = (raw: string) => {
   const n = parseFloat(raw.replace(/[^\d.]/g, ''));
   return Number.isFinite(n) ? n : Infinity;
@@ -141,7 +142,7 @@ export default async function DestinationPage({ params }: Props) {
       poli: !!tour.categories?.includes(POLI),
       best: !!cheapest && cheapest.id === tour.id && priceNumber(price) !== Infinity,
       price: priceNumber(price) !== Infinity ? formatPrice(price) : null,
-      oldPrice: tour.discountPrice && tour.price && tour.discountPrice !== tour.price ? formatPrice(String(tour.price)) : null,
+      oldPrice: hasActivePromo(tour) && tour.price && tour.discountPrice !== tour.price ? formatPrice(String(tour.price)) : null,
       date: next ? { day: String(Number(d)), month: MONTHS[Number(m) - 1], year: y } : null,
       moreDates: Math.max(0, future.length - 1),
       status: statusOf(tour),

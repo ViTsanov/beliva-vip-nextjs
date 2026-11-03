@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ITour } from "@/types";
 import { useMounted } from "@/lib/hooks/useMounted";
 import { formatPrice } from "@/lib/formatPrice";
+import { hasActivePromo, currentPrice } from "@/lib/promo";
 import {
   Calendar, MapPin, ChevronLeft, ChevronRight,
   Flame, CheckCircle2, Clock, AlertCircle
@@ -204,10 +205,10 @@ export default function UpcomingDepartures({ tours }: UpcomingDeparturesProps) {
                     </div>
                   </div>
 
-                  {(tour.discountPrice || tour.price) && (
+                  {currentPrice(tour) && (
                     <div className="mt-2 flex items-baseline gap-1.5">
                       <span className="text-[10px] text-white/30 font-medium">от</span>
-                      {tour.discountPrice ? (
+                      {hasActivePromo(tour) ? (
                         <>
                           <span className="text-white/30 text-xs line-through">{formatPrice(tour.price)}</span>
                           <span className="text-red-400 text-sm font-black">{formatPrice(tour.discountPrice)}</span>

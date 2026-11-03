@@ -8,6 +8,7 @@ import { ITour } from '@/types';
 import { Heart, Users, X, MapPin, Calendar, ArrowRight, AlertTriangle } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { formatPrice } from '@/lib/formatPrice';
+import { hasActivePromo } from '@/lib/promo';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 
 interface TourCardProps {
@@ -86,11 +87,8 @@ export default function TourCard({ tour, isFav, toggleFavorite, isLedByPoli, pri
 
   const badgeStyle = "text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest shadow-sm flex items-center gap-1 border border-white/20 transition-all";
 
-  let isPromoActive = !!(tour.isPromo && tour.discountPrice);
-  if (tour.campaignId && tour.promoStart && tour.promoEnd) {
-    const now = new Date().toISOString();
-    isPromoActive = now >= tour.promoStart && now <= tour.promoEnd;
-  }
+  // Промоцията важи само в периода на кампанията, включително последния ден (src/lib/promo.ts)
+  const isPromoActive = hasActivePromo(tour);
 
   const isTurkeyVacation = tour.categories?.includes('Почивка в Турция');
   const tourHref = `/tour/${tour.slug || tour.tourId || tour.id}`;

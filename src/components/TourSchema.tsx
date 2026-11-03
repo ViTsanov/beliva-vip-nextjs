@@ -2,6 +2,7 @@ import { ITour } from "@/types";
 import JsonLd from "@/components/JsonLd";
 import { tourShareImage, tourShareSources } from "@/lib/shareMeta";
 import { normalizeTourDates, toISODate } from "@/lib/tourDates";
+import { hasActivePromo, currentPrice } from "@/lib/promo";
 
 interface TourReview {
   rating: number;
@@ -20,12 +21,13 @@ const AVAILABILITY: Record<string, string> = {
 export default function TourSchema({ tour, reviews = [] }: { tour: ITour; reviews?: TourReview[] }) {
   const country = Array.isArray(tour.country) ? tour.country.join(", ") : tour.country;
   // Промо цената е тази, която клиентът реално плаща. Само цифрите: „5 661 €“ → „5661“.
-  const numericPrice = String(tour.discountPrice || tour.price || "").replace(/[^0-9]/g, "") || "0";
+  const promoActive = hasActivePromo(tour);
+  const numericPrice = currentPrice(tour).replace(/[^0-9]/g, "") || "0";
 
   // Цената важи до последната предстояща дата (или до края на промоцията, ако е по-рано)
   const today = new Date().toISOString().split("T")[0];
   const lastDate = normalizeTourDates([...(tour.dates || []), tour.date]).filter(d => d >= today).pop();
-  const promoEnd = tour.discountPrice ? toISODate(tour.promoEnd) : null;
+  const promoEnd = promoActive ? toISODate(tour.promoEnd) : null;
   const priceValidUntil = [lastDate, promoEnd].filter((d): d is string => !!d).sort()[0];
 
   // Снимка само от нашия сайт/хранилище — чужди сайтове на туроператори не се ползват за Google. Първо JPEG-ът

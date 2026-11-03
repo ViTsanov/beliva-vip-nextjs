@@ -8,9 +8,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 import { renderToBuffer } from '@react-pdf/renderer';
-import type { ITour } from '@/types';
+import type { ITour, ITourExtra } from '@/types';
+import { normalizeExtras, stripExtraMarkers, extrasForDay, advanceExtrasTotal, euroAmount, formatEuro } from '@/lib/tourExtras';
 import { splitListText } from '@/lib/listItems';
 import { formatPrice } from '@/lib/formatPrice';
+import { hasActivePromo } from '@/lib/promo';
 import { normalizeTourDates, displayTourDate } from '@/lib/tourDates';
 import { isOperatorHotlink } from '@/lib/operatorImageDomains';
 import { TourProgramPdf, type PdfTourData } from './TourProgramPdf';
@@ -79,9 +81,17 @@ async function loadLogo(): Promise<Buffer | null> {
 
 // Само тези полета на тура се ползват за PDF-а — формата в админ панела подава същите.
 export type PdfSourceTour = Pick<ITour,
-  'title' | 'country' | 'route' | 'durationDays' | 'nights' | 'price' | 'isPromo' | 'discountPrice' | 'dates' | 'date' |
-  'intro' | 'itinerary' | 'included' | 'notIncluded' | 'excluded' | 'documents' | 'generalInfo' | 'flightInfo' | 'img'
+  'title' | 'country' | 'route' | 'durationDays' | 'nights' | 'price' | 'isPromo' | 'discountPrice' | 'promoStart' | 'promoEnd' | 'dates' | 'date' |
+  'intro' | 'itinerary' | 'included' | 'notIncluded' | 'excluded' | 'documents' | 'generalInfo' | 'flightInfo' | 'img' |
+  'extras' | 'singleSupplement' | 'deposit'
 > & { tourId?: string; slug?: string; id?: string };
+
+const euroOrNull = (price: string) => euroAmount(price.replace(/^от\s+/i, ''));
+// „4265 €“ → „4 265 €“; цена в друг вид остава както е
+const groupedEuro = (price: string) => {
+  const value = euroAmount(price);
+  return value === null ? price : formatEuro(value);
+};
 
 export function toPdfData(tour: PdfSourceTour, todayIso = new Date().toISOString().slice(0, 10)): Omit<PdfTourData, 'photo' | 'logo'> {
   const countries = Array.isArray(tour.country) ? tour.country : String(tour.country || '').split(',');
@@ -89,7 +99,7 @@ export function toPdfData(tour: PdfSourceTour, todayIso = new Date().toISOString
   const nights = Number(String(tour.nights ?? '').replace(/[^\d]/g, '')) || 0;
 
   const basePrice = formatPrice(tour.price);
-  const promo = !!(tour.isPromo && tour.discountPrice);
+  const promo = hasActivePromo(tour);
   const priceLabel = (p: string) => (!p || /запитване/i.test(p) ? 'По запитване' : p);
 
   // Само предстоящите дати — минали дати в документа за записване само объркват
@@ -99,24 +109,47 @@ export function toPdfData(tour: PdfSourceTour, todayIso = new Date().toISOString
 
   const slug = tour.slug || tour.tourId || tour.id || '';
 
+  // Допълнителни екскурзии: под деня си и в таблици; сметката и плащанията — само при точни суми в евро
+  const extras = normalizeExtras(tour.extras);
+  const price = promo ? formatPrice(tour.discountPrice) : basePrice;
+  const priceValue = euroOrNull(price);
+  const extrasTotal = advanceExtrasTotal(extras);
+  const depositValue = euroOrNull(String(tour.deposit || ''));
+  const promoUntil = promo && tour.promoEnd && /^\d{4}-\d{2}-\d{2}/.test(tour.promoEnd) ? displayTourDate(tour.promoEnd.slice(0, 10)) : '';
+  const extraRow = (e: ITourExtra) => ({ day: e.day ? String(e.day) : '', name: e.name, info: e.info || '', price: e.price || 'по запитване' });
+
   return {
     title: plainText(tour.title),
     kicker: countries.map(c => c.trim()).filter(Boolean).join(' · '),
     route: plainText(tour.route),
     duration: [days ? `${days} ${days === 1 ? 'ден' : 'дни'}` : '', nights ? `${nights} ${nights === 1 ? 'нощувка' : 'нощувки'}` : ''].filter(Boolean).join(' / '),
-    price: priceLabel(promo ? formatPrice(tour.discountPrice) : basePrice),
-    oldPrice: promo && basePrice ? basePrice : undefined,
+    price: priceLabel(groupedEuro(price)),
+    oldPrice: promo && basePrice ? groupedEuro(basePrice) : undefined,
+    promoUntil,
+    singleSupplement: plainText(tour.singleSupplement),
+    deposit: plainText(tour.deposit),
     dates,
     intro: plainText(tour.intro),
     days: (tour.itinerary || []).map((d, i) => {
       const title = plainText(d.title);
+      const day = Number(d.day) || i + 1;
       return {
-        day: Number(d.day) || i + 1,
+        day,
         // „Ден 3“ без друго е само номерът, който PDF-ът вече показва
         title: /^ден\s*\d+$/i.test(title) ? '' : title,
-        paragraphs: paragraphs(d.content || d.desc).map((p, idx) => (idx === 0 ? p.replace(DAY_PREFIX, '') : p)).filter(Boolean),
+        // Звездичките [*N] са за сайта; в PDF-а екскурзиите на деня са изброени под текста му
+        paragraphs: paragraphs(stripExtraMarkers(d.content || d.desc || '')).map((p, idx) => (idx === 0 ? p.replace(DAY_PREFIX, '') : p)).filter(Boolean),
+        extras: extrasForDay(extras, day).map(e => ({ name: e.name, price: e.price || 'по запитване', onsite: e.payment === 'onsite' })),
       };
     }).filter(d => d.title || d.paragraphs.length),
+    extrasAdvance: extras.filter(e => e.payment === 'advance').map(extraRow),
+    extrasOnsite: extras.filter(e => e.payment === 'onsite').map(extraRow),
+    extrasTotal: extrasTotal !== null ? formatEuro(extrasTotal) : '',
+    // Пример: цената плюс всички предварителни екскурзии
+    costExample: priceValue !== null && extrasTotal !== null
+      ? { price: formatEuro(priceValue), extras: formatEuro(extrasTotal), total: formatEuro(priceValue + extrasTotal) }
+      : null,
+    remainder: priceValue !== null && depositValue !== null && depositValue < priceValue ? formatEuro(priceValue - depositValue) : '',
     flights: paragraphs(tour.flightInfo),
     included: splitListText(tour.included),
     excluded: splitListText(tour.notIncluded || tour.excluded),

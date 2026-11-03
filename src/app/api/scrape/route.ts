@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/adminAuth';
 import { DARI_HOSTNAMES, parseDariTour } from '@/lib/scrapers/dariTour';
 import { parseTwoMkoTour } from '@/lib/scrapers/twoMko';
-import { fetchTwoMkoDocx, parseTwoMkoDocx } from '@/lib/scrapers/twoMkoDocx';
+import { fetchTwoMkoDocx, parseTwoMkoDocx, twoMkoDocxText } from '@/lib/scrapers/twoMkoDocx';
 import { flightsFromProgram } from '@/lib/scrapers/flightSchedule';
 
 // Разрешени са САМО домейните на туроператорите, с които работим — предпазва от SSRF към вътрешни мрежи/метаданни
@@ -55,8 +55,11 @@ export async function POST(req: Request) {
         // „включва / не включва“, документите и допълнителната информация (условия, хотели, кораб, забележки), а
         // и полетите, които на страницата обикновено ги няма. Празен раздел в Word файла не заменя страницата.
         const docx = await fetchTwoMkoDocx(html);
+        let docxText = '';
         if (docx) {
             try {
+                // Целият документ — от него AI взима допълнителните екскурзии с цените, единичната стая и депозита
+                docxText = twoMkoDocxText(docx);
                 const sections = parseTwoMkoDocx(docx);
                 if (sections.included) tour.included = sections.included;
                 if (sections.notIncluded) tour.notIncluded = sections.notIncluded;
@@ -72,6 +75,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             success: true, operator: '2mko', ...tour,
+            ...(docxText && { docxText }),
             // Дебъг данни само в development — не излагаме вътрешна логика в production
             ...(process.env.NODE_ENV !== 'production' && { debug }),
         });
