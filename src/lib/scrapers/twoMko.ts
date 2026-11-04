@@ -118,7 +118,8 @@ export function parseTwoMkoTour(html: string) {
       }
       end = start + earliestEnd;
     }
-    const segment = cleanFullText.slice(start, end).replace(/\s+/g, ' ').trim();
+    // „Вижте цялата програма тук“ е бутон на страницата на 2МКО, не текст от програмата
+    const segment = cleanFullText.slice(start, end).replace(/вижте\s+цялата\s+програма\s+тук\.?/gi, ' ').replace(/\s+/g, ' ').trim();
     program.push({ day: dayMarkers[i].day, title: `Ден ${dayMarkers[i].day}`, description: segment });
   }
 

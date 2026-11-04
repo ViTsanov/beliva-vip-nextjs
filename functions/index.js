@@ -1,6 +1,7 @@
 const { onCall, HttpsError, onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { OpenAI } = require("openai");
+const { MODEL, MAX_MESSAGE_CHARS, sanitizeHistory, buildSystemPrompt } = require("./chatPrompt");
 
 // Инициализираме Firebase Admin
 if (admin.apps.length === 0) {
@@ -21,18 +22,21 @@ exports.chatWithAI = onCall({
         apiKey: process.env.OPENAI_API_KEY, 
     });
 
-    const { message, history, context: tourContext } = request.data;
+    const { history, context: tourContext } = request.data;
+    // Дълъг текст се реже — чатът е за кратки въпроси, а всеки символ се плаща
+    const message = typeof request.data.message === "string" ? request.data.message.trim().slice(0, MAX_MESSAGE_CHARS) : "";
+    if (!message) {
+        throw new HttpsError("invalid-argument", "Празно съобщение.");
+    }
 
     // Логваме въпроса за статистиката "най-често задавани въпроси" в admin панела — fire-and-forget,
     // не блокираме/чупиме чата, ако логването гръмне по някаква причина.
-    if (message && typeof message === "string" && message.trim()) {
-        db.collection("chatQuestions").add({
-            message: message.trim(),
-            normalized: message.trim().toLowerCase(),
-            tourTitle: tourContext?.title || null,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        }).catch((err) => console.error("[chatQuestions log]", err));
-    }
+    db.collection("chatQuestions").add({
+        message,
+        normalized: message.toLowerCase(),
+        tourTitle: tourContext?.title || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }).catch((err) => console.error("[chatQuestions log]", err));
 
     try {
         // 1. Извличане на информация за компанията
@@ -104,50 +108,20 @@ exports.chatWithAI = onCall({
             : "";
 
         // 3. Промпт
-        const systemPrompt = `
-Ти си Beliva VIP Assistant – експерт по луксозни пътешествия.
-
-ИНФОРМАЦИЯ ЗА КОМПАНИЯТА:
-${companyInfo}
-
-НАШИЯТ КАТАЛОГ С ЕКСКУРЗИИ:
-${toursList}
-
-${matchingSection}
-
-${tourContext ? `ВАЖНО: Потребителят разглежда в момента: "${tourContext.title}".` : "Потребителят е на началната страница или разглежда общия списък."}
-
-ИНСТРУКЦИИ ЗА ПОВЕДЕНИЕ:
-1. Отговаряй винаги на БЪЛГАРСКИ език. Тонът ти трябва да е любезен, интригуващ и вдъхновяващ.
-2. Използвай Markdown: **bold** за акценти и списъци за прегледност.
-3. Когато предлагаш дестинация, споменавай цената и защо е специална.
-4. Ако потребителят се интересува от конкретна оферта, дай му детайли за нея.
-5. Завършвай с покана за връзка (Email/WhatsApp), ако усетиш, че клиентът е готов за резервация.
-6. Ако усетиш, че потребителят иска да следи офертите ни дългосрочно, предложи му да се запише за нашия "VIP Бюлетин" в най-долната част на страницата.
-7. ЛИНКОВЕ — ЗАДЪЛЖИТЕЛНО: Всеки път, когато споменаваш или препоръчваш конкретна екскурзия от каталога, дай линк към нея
-   като Markdown линк със заглавието на тура и ТОЧНИЯ адрес от полето „Линк“ в каталога, например:
-   [Омагьосващата Япония: Токио, Киото и Осака](${SITE_URL}/tour/...)
-   Текстът на линка е ВИНАГИ заглавието на тура — никога „тук“, „научете повече“ или самия адрес.
-   Никога не измисляй адрес и не съкращавай линка. Ако тур няма в каталога, не го предлагай.
-8. Когато потребителят пита за пътувания в държава, регион или континент: ако по-горе има „ТУРОВЕ ЗА ДЕСТИНАЦИЯТА
-   ОТ ВЪПРОСА“, ползвай само тях. Иначе намери подходящите турове в каталога САМО по полето „Държави“ (тур за
-   друга държава не е подходящ). Изброй до 4 — всеки на отделен ред: линк със заглавието, цена и ВСИЧКИ дати от каталога.
-   Първо подреди тези с ПРОМОЦИЯ, ПОТВЪРДЕНА ГРУПА, ПОСЛЕДНИ МЕСТА или ВОДЕНА ОТ ПОЛИ и кажи защо са специални.
-   Ако има повече от 4, кажи колко още има и дай линк към всички: ${SITE_URL}/#tours-grid
-9. Ако няма тур за исканата дестинация, кажи го честно и предложи запитване: ${SITE_URL}/contacts
-`;
+        const systemPrompt = buildSystemPrompt({ companyInfo, toursList, matchingSection, tourContext, siteUrl: SITE_URL });
 
         // 4. Заявка към OpenAI
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini", 
+            model: MODEL,
             messages: [
                 { role: "system", content: systemPrompt },
-                ...(history || []),
+                ...sanitizeHistory(history),
                 { role: "user", content: message }
             ],
             temperature: 0.7,
+            reasoning_effort: "none",
             // Отговорите вече съдържат линкове (дълги адреси) — 500 токена отрязваха списъка с турове.
-            max_tokens: 900
+            max_completion_tokens: 900
         });
 
         return {

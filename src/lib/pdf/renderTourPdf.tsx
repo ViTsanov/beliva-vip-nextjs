@@ -116,6 +116,9 @@ export function toPdfData(tour: PdfSourceTour, todayIso = new Date().toISOString
   const extrasTotal = advanceExtrasTotal(extras);
   const depositValue = euroOrNull(String(tour.deposit || ''));
   const promoUntil = promo && tour.promoEnd && /^\d{4}-\d{2}-\d{2}/.test(tour.promoEnd) ? displayTourDate(tour.promoEnd.slice(0, 10)) : '';
+  // „980 € (вътрешна каюта)“ → сумата в карето, видът под нея
+  const single = plainText(tour.singleSupplement);
+  const singleParts = single.match(/^([^()]+?)\s*\(([^)]*)\)\s*$/);
   const extraRow = (e: ITourExtra) => ({ day: e.day ? String(e.day) : '', name: e.name, info: e.info || '', price: e.price || 'по запитване' });
 
   return {
@@ -126,7 +129,9 @@ export function toPdfData(tour: PdfSourceTour, todayIso = new Date().toISOString
     price: priceLabel(groupedEuro(price)),
     oldPrice: promo && basePrice ? groupedEuro(basePrice) : undefined,
     promoUntil,
-    singleSupplement: plainText(tour.singleSupplement),
+    singleSupplement: singleParts ? singleParts[1] : single,
+    singleSupplementNote: singleParts ? singleParts[2] : '',
+    singleWord: /кают/i.test(`${single} ${tour.notIncluded || ''}`) ? 'каюта' : 'стая',
     deposit: plainText(tour.deposit),
     dates,
     intro: plainText(tour.intro),

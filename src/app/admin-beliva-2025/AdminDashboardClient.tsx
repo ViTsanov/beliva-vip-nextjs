@@ -24,6 +24,7 @@ import { performAutoMaintenance, slugify, normalizeUrl } from '@/lib/admin-helpe
 import { formatPrice } from '@/lib/formatPrice';
 import { normalizeTourDates, datesMatchQuery, displayTourDate, tourMatchesSearch } from '@/lib/tourDates';
 import { canonicalCountries } from '@/lib/constants';
+import { splitListText } from '@/lib/listItems';
 import { IClient } from '@/types';
 
 import ClientsTab from '@/components/admin/ClientsTab';
@@ -818,9 +819,10 @@ export default function AdminDashboardClient() {
           content
         };
       }),
-      included: joinArr(finalTour.includes),
-      notIncluded: joinArr(finalTour.excludes),
-      documents: joinArr(finalTour.docs),
+      // По една точка на елемент — така излизат и в полетата на админ формата
+      included: splitListText(finalTour.includes),
+      notIncluded: splitListText(finalTour.excludes),
+      documents: splitListText(finalTour.docs),
       generalInfo: joinArr(finalTour.info),
       flightInfo: scrapedData.flightInfo || '', // за PDF-а и сайта; не е минавало през AI
       // Само при 2МКО (от Word файла): допълнителните екскурзии с цените — [*N] в текста на дните сочи към тях

@@ -149,7 +149,9 @@ export interface PdfTourData {
   price: string;               // „5 002 €“ или „По запитване“
   oldPrice?: string;           // при промоция — старата цена
   promoUntil?: string;         // при промоция — до коя дата важи („15.11.2026“)
-  singleSupplement: string;    // доплащане за единична стая
+  singleSupplement: string;    // доплащане за единична стая или каюта
+  singleSupplementNote: string; // за какво важи („вътрешна каюта“)
+  singleWord: 'стая' | 'каюта';
   deposit: string;
   remainder: string;           // цената минус депозита, ако и двете са точни суми в евро
   dates: string[];             // вече форматирани „05.02.2027“
@@ -298,7 +300,7 @@ export function TourProgramPdf({ tour }: { tour: PdfTourData }) {
             ) : (
               <PriceBox tone="main" label="Цена на човек" value={tour.price} note="при настаняване в двойна стая" />
             )}
-            {tour.singleSupplement ? <PriceBox label="Единична стая" value={`+ ${tour.singleSupplement}`} note="доплащане" /> : null}
+            {tour.singleSupplement ? <PriceBox label={`Единична ${tour.singleWord}`} value={`+ ${tour.singleSupplement.replace(/ /g, ' ')}`} note={tour.singleSupplementNote || 'доплащане'} /> : null}
             {tour.deposit ? <PriceBox label="Депозит" value={tour.deposit} note="при записване" /> : null}
           </View>
 
@@ -406,7 +408,7 @@ export function TourProgramPdf({ tour }: { tour: PdfTourData }) {
                 totalRow={2}
               />
               <Text style={s.note}>
-                {tour.singleSupplement ? `В единична стая прибавете ${tour.singleSupplement}. ` : ''}Застраховката, входовете на място и джобните пари са отделно.
+                {tour.singleSupplement ? `В единична ${tour.singleWord} прибавете ${tour.singleSupplement}. ` : ''}Застраховката, входовете на място и джобните пари са отделно.
               </Text>
             </Section>
           )}

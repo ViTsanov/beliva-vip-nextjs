@@ -26,7 +26,7 @@ export interface CountryGuide {
 }
 
 const MAX_WORDS = COUNTRY_GUIDE_MAX_WORDS;
-const MODEL = 'gpt-4o';
+const MODEL = 'gpt-6-luna';
 const COLLECTION = 'countryGuides';
 
 const SYSTEM_PROMPT = `Ти си редактор в българска туристическа агенция „Beliva VIP Tour“ и пишеш кратко представяне на държава за страницата ѝ в сайта.
@@ -56,7 +56,8 @@ async function askAI(country: string, feedback?: string): Promise<Omit<CountryGu
     body: JSON.stringify({
       model: MODEL,
       response_format: { type: 'json_object' },
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
+      reasoning_effort: 'none',
       temperature: 0.5,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },

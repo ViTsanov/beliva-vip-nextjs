@@ -77,7 +77,7 @@ export function docxParagraphs(docx: Uint8Array): string[] {
     .slice(1)
     .map((p) => decodeXml(
       [...p.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>|<w:(?:tab|br)\b[^>]*\/>/g)].map((m) => m[1] ?? ' ').join(''),
-    ).replace(/\s+/g, ' ').trim())
+    ).replace(/[-]/g, '').replace(/\s+/g, ' ').trim()) // U+F0B7 и др.: булети от символен шрифт на Word
     .filter(Boolean);
 }
 
@@ -87,24 +87,29 @@ export interface TwoMkoDocxSections {
   documents: string;
   generalInfo: string; // условия + „Хотели:“ + „Информация за кораба:“ + „Забележки:“
   flightInfo: string;
+  extrasSource: string; // само каквото AI търси за допълнителните екскурзии, единичната стая и депозита
 }
 
-type Bucket = 'skip' | 'info' | 'included' | 'notIncluded' | 'flights' | 'hotels' | 'ship' | 'notes' | 'docs';
+type Bucket = 'skip' | 'info' | 'included' | 'notIncluded' | 'extras' | 'flights' | 'hotels' | 'ship' | 'notes' | 'docs';
 
 // Заглавията на разделите в Word файла на 2МКО, в реда, в който се срещат след програмата по дни
 function headingBucket(p: string): Bucket | null {
-  if (p.length > 120) return null;
   // Само в началото на абзаца: изречение като „…виж раздел „В цената не се включени“…“ над програмата не е заглавие
   const l = p.toLowerCase().replace(/^\d+\.\s*/, '').replace(/^в\s+/, '').replace(/^пакетната\s+/, '');
+  // Тези три понякога продължават с текста на същия ред („НЕОБХОДИМИ ДОКУМЕНТИ: - Задграничен паспорт…“), затова са
+  // преди проверката за дължина. „Допълнителните мероприятия… се заявяват“ е бележка, а не заглавие — затова не „-ите“.
+  if (/^\*?\s*забележк/.test(l)) return 'notes';
+  if (/^необходими\s+документи/.test(l)) return 'docs';
+  if (/^(?:допълнит(?:е|ел)ни\s+)*(?:екскурзии|посещения|мероприятия)\s.*(?:заявяват|заплащат|плащат)/.test(l)) return 'extras';
+  if (p.length > 120) return null;
+  if (/^описание\s+на\s+допълнителни/.test(l)) return 'extras';
   if (/^пояснения\s+по\s+програма/.test(l)) return 'info';
-  if (/^цена(?:та)?\s+не\s+(?:са\s+|се\s+)?включ|^не\s+са\s+включени/.test(l)) return 'notIncluded';
+  if (/^цена(?:та)?\s+не\s+(?:са\s+|се\s+)?включ|^не\s+са\s+включени|^допълнително\s+се\s+заплаща/.test(l)) return 'notIncluded';
   if (/^цена(?:та)?\s+(?:са\s+|се\s+)?включ|^включени\s+в\s+цената|^обиколки\s+и\s+посещения/.test(l)) return 'included';
   if (FLIGHTS_HEADING.test(p)) return 'flights';
   if (/^хотели\s*:?\s*$|^изисквания\s+при\s+настаняване/.test(l)) return 'hotels';
-  if (/^информация\s+за\s+(?:круизния\s+)?кораб/.test(l)) return 'ship';
-  if (/^\*?\s*забележк/.test(l)) return 'notes';
+  if (/^информация\s+за\s+(?:круизния\s+)?кораб|^техническа\s+информация|^за\s+кораба\s*:?\s*$/.test(l)) return 'ship';
   if (/банкови\s+сметки/.test(l)) return 'skip';
-  if (/^необходими\s+документи/.test(l)) return 'docs';
   return null;
 }
 
@@ -112,68 +117,131 @@ function headingBucket(p: string): Bucket | null {
 const OPERATOR_LINE = /2\s*м\s*-?\s*ко|2\s*m\s*-?\s*ko|iban|\bbic\s*:|e-?mail|@|настоящата\s+програма\s+представлява/i;
 const clean = (p: string) => p.replace(/https?:\/\/\S+/g, '').replace(/\s+[-–]\s*$/, '').replace(/\s{2,}/g, ' ').trim();
 
-// Шапката на документа (адрес, телефон, факс, сайт, социални мрежи) и банките под „БАНКОВИ СМЕТКИ“
-const HEADER_LINE = /^\d{4}\s+софия|^тел\s*[:.]|fax|web\s+страница|instagram|facebook|^банка\s|банка$/i;
+// Шапката на документа (адрес, телефон, факс, сайт, социални мрежи)
+const HEADER_LINE = /^\d{4}\s+софия|^тел\s*[:.]|fax|web\s+страница|instagram|facebook/i;
+// Изречение от програмата, което споменава нещо извън цената
+const OPTIONAL_SENTENCE = /\*|по\s+желание|заплаща|плаща\s+се\s+на\s+място/i;
+// Абзац, прекъснат по средата на изречението („… пране и гладене,“ + „румсървиз“)
+const UNFINISHED_LINE = /(?:,|\s(?:от|на|в|и|за|с|към|до))$/i;
+
+const lineKey = (line: string) =>
+  `${line.toLowerCase().match(/[а-яa-z]+/g)?.slice(0, 3).join(' ')}|${line.match(/\d[\d\s]*/g)?.join('').replace(/\s/g, '')}`;
 
 /**
- * Целият текст на Word файла за AI пренаписването: програмата, допълнителните екскурзии с цените, условията.
- * Без данните на 2МКО (шапка, банкови сметки, имейли) и без общия правен текст под линията „-----“.
- */
-export function twoMkoDocxText(docx: Uint8Array): string {
-  const lines: string[] = [];
-  let inBanks = false;
-  for (const raw of docxParagraphs(docx)) {
-    if (/^-{5,}/.test(raw)) break;
-    if (/банкови\s+сметки/i.test(raw)) { inBanks = true; continue; }
-    if (inBanks && /^необходими\s+документи/i.test(raw)) inBanks = false;
-    if (inBanks || OPERATOR_LINE.test(raw) || HEADER_LINE.test(raw)) continue;
-    const line = clean(raw);
-    if (line) lines.push(line);
-  }
-  return lines.join('\n');
-}
-
-/**
- * Разделите след програмата: какво включва / не включва, полети, хотели, кораб, забележки, документи.
- * Страницата на 2МКО има горе-долу същия текст, но без ясни заглавия (хотелите се смесваха с „Цената включва“),
- * а във Word файла всеки раздел е със заглавие. Текстът под линията „-----“ е общ правен текст — спираме там.
+ * Разделите след програмата: какво включва / не включва, допълнителни екскурзии, полети, хотели, кораб, забележки,
+ * документи. Страницата на 2МКО има горе-долу същия текст, но без ясни заглавия (хотелите се смесваха с „Цената
+ * включва“), а във Word файла всеки раздел е със заглавие. Текстът под линията „-----“ е общ правен текст — спираме там.
  */
 export function parseTwoMkoDocx(docx: Uint8Array): TwoMkoDocxSections {
   const paragraphs = docxParagraphs(docx);
-  const buckets: Record<Bucket, string[]> = { skip: [], info: [], included: [], notIncluded: [], flights: [], hotels: [], ship: [], notes: [], docs: [] };
+  const buckets: Record<Bucket, string[]> = { skip: [], info: [], included: [], notIncluded: [], extras: [], flights: [], hotels: [], ship: [], notes: [], docs: [] };
+  const push = (bucket: Bucket, line: string) => {
+    const list = buckets[bucket];
+    if (list.length && UNFINISHED_LINE.test(list[list.length - 1])) list[list.length - 1] += ` ${line}`;
+    else list.push(line);
+  };
+  const programSentences: string[] = [];
+  const everything: string[] = []; // за Word файл без познати заглавия
   let current: Bucket | null = null; // null — още сме в заглавието/програмата
   let beforeFlights: Bucket = 'included';
+  let day = '';
+  let afterRequirements: Bucket | null = null; // „Изисквания при настаняване:“ е един абзац в средата на „включва“
 
   for (const raw of paragraphs) {
-    if (/^-{5,}/.test(raw)) break;
+    // Общият правен текст в края. Линиите от тирета не са надежден край: при някои програми има такава и по средата
+    if (/^туроператорът\s+(?:сключва|има\s+сключена)/i.test(raw)) break;
+    if (/^[-–—_]{5,}/.test(raw)) continue;
+    const skipLine = OPERATOR_LINE.test(raw) || HEADER_LINE.test(raw);
+    if (!skipLine && current !== 'skip') everything.push(clean(raw));
+
     const heading = headingBucket(raw);
     if (heading) {
       if (heading === 'flights' && current) beforeFlights = current;
+      if (heading === 'hotels' && /изисквания/i.test(raw)) afterRequirements = current;
       current = heading;
-      // „Информация за кораб Wonder of the Seas: …“ — текстът след двоеточието е съдържание
-      if (heading === 'ship') buckets.ship.push(clean(raw.replace(/^[^:]*:\s*/, '')));
-      // Подзаглавията на документите („… ЗА ВИЗА:“ / „… ЗА ПЪТУВАНЕ:“) остават като ред
-      if (heading === 'docs') buckets.docs.push(clean(raw));
+      // Текстът след двоеточието в заглавието е съдържание
+      const rest = clean(raw.includes(':') ? raw.slice(raw.indexOf(':') + 1) : '');
+      if (heading === 'ship') {
+        // „Информация за кораб Wonder of the Seas: …“, „Техническа информация Costa Fascinosa“, „За кораба“
+        const title = clean(raw);
+        if (rest) push('ship', rest);
+        else if (!/^техническа\s+информация$/i.test(title)) buckets.ship.push(/:$/.test(title) ? title : `${title}:`);
+      } else if (heading === 'docs') {
+        // Подзаглавията („… ЗА ВИЗА:“ / „… ЗА ПЪТУВАНЕ:“) остават като ред; общото „НЕОБХОДИМИ ДОКУМЕНТИ:“ не е документ
+        if (/за\s+(?:виз[аи]|пътуване)/i.test(raw.split(':')[0])) buckets.docs.push(clean(raw.split(':')[0]) + ':');
+        rest.split(/\s*;\s*|\s+-\s+(?=[А-ЯA-Z])/).map(item => clean(item.replace(/^\s*[-–]\s*/, ''))).filter(Boolean).forEach(item => buckets.docs.push(item));
+      } else if ((heading === 'notes' || heading === 'extras') && rest) {
+        push(heading, rest);
+      }
       continue;
     }
-    if (!current || current === 'skip' || OPERATOR_LINE.test(raw)) continue;
+    if (skipLine) continue;
+
+    if (!current) {
+      const dayMatch = raw.match(/^(\d{1,2})\s*-?\s*(?:ви|ри|ти|ми|ва)?\s*ден(?![а-яА-Я])/i);
+      if (dayMatch) day = dayMatch[1];
+      // И следващото изречение: там обикновено е какво включва („…„Невероятната Япония“*. Тя включва…“)
+      const sentences = clean(raw).split(/(?<=[.!?])\s+/);
+      sentences.forEach((sentence, i) => {
+        if (OPTIONAL_SENTENCE.test(sentence) || (i > 0 && OPTIONAL_SENTENCE.test(sentences[i - 1]))) {
+          programSentences.push(day ? `Ден ${day}: ${sentence}` : sentence);
+        }
+      });
+      continue;
+    }
+    if (current === 'skip') continue;
     // Полетите свършват с първия абзац, който не прилича на полет — после продължава предишният раздел
     if (current === 'flights' && !FLIGHT_LINE.test(raw)) current = beforeFlights;
     const line = clean(current === 'flights' ? raw.replace(/^\*\s*/, '') : raw);
-    if (line) buckets[current].push(line);
+    if (!line) continue;
+
+    // В „включва“ на 2МКО има и неща, които цената не включва: доплащанията и бележките със звездичка
+    if (current === 'included' && /^доплащане/i.test(line)) {
+      push('notIncluded', line);
+    } else if (current === 'included' && /^\*|^моля,/i.test(line)) {
+      push('info', line);
+    } else if (current === 'extras' && /^важно\s*:/i.test(line)) {
+      push('info', line);
+    } else {
+      push(current, line);
+    }
+    if (current === 'hotels' && afterRequirements) {
+      current = afterRequirements;
+      afterRequirements = null;
+    }
   }
 
+  // Едно общо „НЕОБХОДИМИ ДОКУМЕНТИ ЗА ПЪТУВАНЕ:“ не е документ; подзаглавия остават само ако делят няколко списъка
+  const isDocsTitle = (line: string) => /^необходими\s+документи/i.test(line);
+  const documents = buckets.docs.filter(isDocsTitle).length > 1 ? buckets.docs : buckets.docs.filter(line => !isDocsTitle(line));
+
+  // Доплащанията често са и в двата раздела, понякога с различен правопис
+  const seen = new Set<string>();
+  const notIncluded = buckets.notIncluded.filter(line => {
+    if (!/^доплащане/i.test(line)) return true;
+    const key = lineKey(line);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   const block = (title: string, lines: string[]) => (lines.length ? `${title}\n${lines.join('\n')}` : '');
+  const hasHeadings = current !== null;
   return {
     included: buckets.included.join('\n'),
-    notIncluded: buckets.notIncluded.join('\n'),
-    documents: buckets.docs.join('\n'),
+    notIncluded: notIncluded.join('\n'),
+    documents: documents.join('\n'),
     generalInfo: [
       buckets.info.join('\n'),
       block('Хотели:', buckets.hotels),
       block('Информация за кораба:', buckets.ship),
       block('Забележки:', buckets.notes),
     ].filter(Boolean).join('\n\n'),
-    flightInfo: buckets.flights.join('\n'),
+    // Полетите не минават през AI, затова тук: ние сме агенция, не туроператор
+    flightInfo: buckets.flights.join('\n').replace(/туроператорът\s+уведомява,?\s+че/gi, 'Имайте предвид, че'),
+    // Целият документ беше над 40% от входните токени на тура. Без познати заглавия се праща цял, за да не се изгубят цените.
+    extrasSource: hasHeadings
+      ? [...programSentences, ...buckets.info, ...notIncluded, ...buckets.extras, ...buckets.hotels, ...buckets.notes].join('\n')
+      : everything.join('\n'),
   };
 }

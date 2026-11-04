@@ -10,6 +10,8 @@ import { normalizeTourDates, displayTourDate } from '@/lib/tourDates';
 import CountryMultiSelect from '@/components/admin/CountryMultiSelect';
 import HeroFocalPicker from '@/components/admin/HeroFocalPicker';
 import TourExtrasEditor from '@/components/admin/TourExtrasEditor';
+import ListItemsEditor from '@/components/admin/ListItemsEditor';
+import { splitListText } from '@/lib/listItems';
 import { normalizeExtras } from '@/lib/tourExtras';
 import type { ITourExtra } from '@/types';
 
@@ -74,7 +76,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     date: '', img: '', duration: '', nights: '', route: '', 
     groupStatus: 'active', status: 'public', 
     
-    included: '', notIncluded: '', documents: '', pdfUrl: '', generalInfo: '', flightInfo: '', intro: '', images: '', categories: [] as string[],
+    pdfUrl: '', generalInfo: '', flightInfo: '', intro: '', images: '', categories: [] as string[],
     
     peakViewId: '',
     source: 'own', // По подразбиране е собствена екскурзия
@@ -101,6 +103,10 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
     // Датите винаги в ISO и без повторения — стари турове имат една и съща дата в два формата
     // („2026-11-27“ и „27.11.2026“), които иначе излизат като два отделни чипа
     dates: normalizeTourDates([...(initialData?.dates || []), initialData?.date]),
+    // По едно поле за всяка точка. Старите турове пазят списъците като текст „по една точка на ред“
+    included: splitListText(initialData?.included),
+    notIncluded: splitListText(initialData?.notIncluded || initialData?.excluded),
+    documents: splitListText(initialData?.documents),
   });
   
   const [itinerary, setItinerary] = useState<{day: number, title: string, content: string}[]>(
@@ -210,6 +216,11 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
             dates: sortedDates, 
             itinerary,
             extras: normalizeExtras(form.extras),
+            // Празните полета не се записват
+            included: splitListText(form.included),
+            notIncluded: splitListText(form.notIncluded),
+            documents: splitListText(form.documents),
+            ...(form.excluded ? { excluded: splitListText(form.notIncluded) } : {}),
             galleryWithCaptions,
             // Keep legacy images field for backward compat with any other consumers
             images: galleryWithCaptions.map(g => g.url).join(', '),
@@ -366,9 +377,9 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                                                 }
 
                                                 // 4. Допълнителни полета
-                                                if (data.included) updatedForm.included = data.included;
-                                                if (data.notIncluded) updatedForm.notIncluded = data.notIncluded;
-                                                if (data.documents) updatedForm.documents = data.documents;
+                                                if (data.included) updatedForm.included = splitListText(data.included);
+                                                if (data.notIncluded) updatedForm.notIncluded = splitListText(data.notIncluded);
+                                                if (data.documents) updatedForm.documents = splitListText(data.documents);
                                                 if (data.generalInfo) updatedForm.generalInfo = data.generalInfo;
                                                 if (data.flightInfo) updatedForm.flightInfo = data.flightInfo;
 
@@ -491,7 +502,7 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                     <div><label className={labelStyle}>Редовна Цена *</label><input className={`${inputStyle} text-xl font-black text-brand-gold`} value={form.price} onChange={e => setForm({...form, price: e.target.value})} required /></div>
                     {/* За PDF-а: карета с цените горе и график на плащанията */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className={labelStyle}>Единична стая (доплащане)</label><input className={inputStyle} placeholder="пр. 1 079 €" value={form.singleSupplement || ''} onChange={e => setForm({...form, singleSupplement: e.target.value})} /></div>
+                        <div><label className={labelStyle}>Единична стая / каюта (доплащане)</label><input className={inputStyle} placeholder="пр. 980 € (вътрешна каюта)" value={form.singleSupplement || ''} onChange={e => setForm({...form, singleSupplement: e.target.value})} /></div>
                         <div><label className={labelStyle}>Депозит при записване</label><input className={inputStyle} placeholder="пр. 2 133 €" value={form.deposit || ''} onChange={e => setForm({...form, deposit: e.target.value})} /></div>
                     </div>
                     <div><label className={labelStyle}>Група</label><select className={inputStyle} value={form.groupStatus} onChange={e => setForm({...form, groupStatus: e.target.value})}><option value="active">🟢 Оформяща се</option><option value="confirmed">🔵 Потвърдена</option><option value="last-places">🟠 Последни места</option><option value="sold-out">🔴 Изчерпана</option></select></div>
@@ -591,12 +602,12 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
             <div><label className={labelStyle}>Кратко интро (под заглавието в сайта)</label><textarea className={`${inputStyle} h-24`} value={form.intro} onChange={e => setForm({...form, intro: e.target.value})} /></div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-gray-50">
-                <div><label className={`${labelStyle} text-emerald-600`}>Цената ВКЛЮЧВА</label><textarea className={`${inputStyle} h-48 border-emerald-100 bg-emerald-50/20`} placeholder="По една точка на нов ред..." value={form.included} onChange={e => setForm({...form, included: e.target.value})} /></div>
-                <div><label className={`${labelStyle} text-rose-600`}>Цената НЕ ВКЛЮЧВА</label><textarea className={`${inputStyle} h-48 border-rose-100 bg-rose-50/20`} placeholder="По една точка на нов ред..." value={form.notIncluded} onChange={e => setForm({...form, notIncluded: e.target.value})} /></div>
+                <ListItemsEditor label="Цената ВКЛЮЧВА" labelClassName="text-emerald-600" items={form.included} onChange={included => setForm((prev: any) => ({ ...prev, included }))} addLabel="Добави точка" placeholder="пр. Летищни такси" />
+                <ListItemsEditor label="Цената НЕ ВКЛЮЧВА" labelClassName="text-rose-600" items={form.notIncluded} onChange={notIncluded => setForm((prev: any) => ({ ...prev, notIncluded }))} addLabel="Добави точка" placeholder="пр. Лични разходи" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div><label className={labelStyle}>Необходими документи</label><textarea className={`${inputStyle} h-32`} value={form.documents} onChange={e => setForm({...form, documents: e.target.value})} /></div>
+                <ListItemsEditor label="Необходими документи" items={form.documents} onChange={documents => setForm((prev: any) => ({ ...prev, documents }))} addLabel="Добави документ" placeholder="пр. Задграничен паспорт" />
                 <div><label className={labelStyle}>Обща информация / Допълнителни условия</label><textarea className={`${inputStyle} h-32`} value={form.generalInfo} onChange={e => setForm({...form, generalInfo: e.target.value})} /></div>
             </div>
 

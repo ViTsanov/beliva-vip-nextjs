@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/adminAuth';
 import { DARI_HOSTNAMES, parseDariTour } from '@/lib/scrapers/dariTour';
 import { parseTwoMkoTour } from '@/lib/scrapers/twoMko';
-import { fetchTwoMkoDocx, parseTwoMkoDocx, twoMkoDocxText } from '@/lib/scrapers/twoMkoDocx';
+import { fetchTwoMkoDocx, parseTwoMkoDocx } from '@/lib/scrapers/twoMkoDocx';
 import { flightsFromProgram } from '@/lib/scrapers/flightSchedule';
 
 // Разрешени са САМО домейните на туроператорите, с които работим — предпазва от SSRF към вътрешни мрежи/метаданни
@@ -58,9 +58,9 @@ export async function POST(req: Request) {
         let docxText = '';
         if (docx) {
             try {
-                // Целият документ — от него AI взима допълнителните екскурзии с цените, единичната стая и депозита
-                docxText = twoMkoDocxText(docx);
                 const sections = parseTwoMkoDocx(docx);
+                // Частите, от които AI взима допълнителните екскурзии с цените, единичната стая и депозита
+                docxText = sections.extrasSource;
                 if (sections.included) tour.included = sections.included;
                 if (sections.notIncluded) tour.notIncluded = sections.notIncluded;
                 if (sections.documents) tour.documents = sections.documents;
