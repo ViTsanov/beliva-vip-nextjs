@@ -1,7 +1,9 @@
 const { onCall, HttpsError, onRequest } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 const { OpenAI } = require("openai");
 const { MODEL, MAX_MESSAGE_CHARS, sanitizeHistory, buildSystemPrompt } = require("./chatPrompt");
+const { runRetention } = require("./retention");
 
 // Инициализираме Firebase Admin
 if (admin.apps.length === 0) {
@@ -204,4 +206,17 @@ exports.proxyOgImage = onRequest({ cors: true, region: "us-central1" }, async (r
     console.error("Error proxying image:", error);
     return res.redirect(fallbackImg);
   }
+});
+// ============================================================================
+// 3. АВТОМАТИЧНО ИЗТРИВАНЕ НА ЛИЧНИ ДАННИ ПО СРОКОВЕТЕ (виж retention.js и /privacy, т. 7)
+// ============================================================================
+// Всяка нощ в 03:30 българско време. Резултатът се вижда в логовете: firebase functions:log --only cleanupExpiredData
+exports.cleanupExpiredData = onSchedule({
+    schedule: "30 3 * * *",
+    timeZone: "Europe/Sofia",
+    region: "us-central1",
+    timeoutSeconds: 540,
+    memory: "512MiB",
+}, async () => {
+    await runRetention({ db, bucket: admin.storage().bucket(), dryRun: false });
 });
