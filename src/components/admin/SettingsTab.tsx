@@ -395,8 +395,7 @@ export default function SettingsTab() {
                   onChange={e => {
                     const country = e.target.value;
                     const newLinks = [...footerLinks];
-                    const prefix = country.length > 8 ? "Екзотика" : "Екскурзии"; // Малка автоматика за заглавието
-                    newLinks[idx].label = `${prefix} ${country}`;
+                    newLinks[idx].label = country; // Във футъра се показва само името на държавата
                     // 👇 АВТОМАТИЧЕН SEO ЛИНК (напр. /?country=tailand)
                     newLinks[idx].href = `/?country=${slugify(country)}#tours-grid`;
                     setFooterLinks(newLinks);

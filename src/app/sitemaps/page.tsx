@@ -202,6 +202,23 @@ export default async function SitemapPage() {
           </ul>
         </section>
 
+        {/* ── Правна информация ── */}
+        <section aria-labelledby="legal-title">
+          <h2 id="legal-title" className="mb-5 px-1 font-serif text-[clamp(26px,3vw,32px)] italic leading-tight">Правна информация</h2>
+          <ul className="flex flex-wrap gap-3">
+            {LEGAL_PAGES.map((p) => (
+              <li key={p.href}>
+                <Link href={p.href} className={`inline-flex min-h-[48px] items-center gap-2 rounded-full border border-slate-300 px-5 text-[16px] font-medium transition-colors hover:border-brand-gold ${focusRing}`}>
+                  {p.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 px-1 text-[15px] leading-relaxed text-slate-600">
+            {COMPANY_INFO.legalName}, ЕИК {COMPANY_INFO.eik}. Лицензирана туристическа агенция, регистрация № {COMPANY_INFO.license}.
+          </p>
+        </section>
+
         {/* ── Дестинации: континент → падащи държави ── */}
         <section aria-labelledby="dest-title">
           <h2 id="dest-title" className="px-1 font-serif text-[clamp(30px,3.4vw,40px)] italic leading-tight">Дестинации и екскурзии</h2>
@@ -316,22 +333,6 @@ export default async function SitemapPage() {
           </section>
         )}
 
-        {/* ── Правна информация ── */}
-        <section aria-labelledby="legal-title">
-          <h2 id="legal-title" className="mb-5 px-1 font-serif text-[clamp(26px,3vw,32px)] italic leading-tight">Правна информация</h2>
-          <ul className="flex flex-wrap gap-3">
-            {LEGAL_PAGES.map((p) => (
-              <li key={p.href}>
-                <Link href={p.href} className={`inline-flex min-h-[48px] items-center gap-2 rounded-full border border-slate-300 px-5 text-[16px] font-medium transition-colors hover:border-brand-gold ${focusRing}`}>
-                  {p.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 px-1 text-[15px] leading-relaxed text-slate-600">
-            {COMPANY_INFO.legalName}, ЕИК {COMPANY_INFO.eik}. Лицензирана туристическа агенция, регистрация № {COMPANY_INFO.license}.
-          </p>
-        </section>
       </div>
 
       {/* Край — тъмен и стига под ъглите на футъра (-mb-12), като на /destinations */}

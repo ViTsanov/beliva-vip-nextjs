@@ -13,7 +13,7 @@ export default function Footer() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
-  const [footerLinks, setFooterLinks] = useState<any[]>([]);
+  const [footerLinks, setFooterLinks] = useState<{ label: string; href: string }[]>([]);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +53,18 @@ export default function Footer() {
     const fetchFooter = async () => {
       const docSnap = await getDoc(doc(db, "settings", "homepage"));
       if (docSnap.exists()) {
-        setFooterLinks(docSnap.data().footerLinks || []);
+        // Показваме само името на държавата (старите записи са „Екзотика Аржентина" / „Екскурзии Перу")
+        // и всяка държава само веднъж — в реда, подреден от админа.
+        const seen = new Set<string>();
+        const links = ((docSnap.data().footerLinks || []) as { label?: string; href?: string }[])
+          .map((l) => ({ href: l.href || '', label: String(l.label || '').replace(/^(Екзотика|Екскурзии)\s+/i, '').trim() }))
+          .filter((l) => {
+            const key = l.label.toLocaleLowerCase('bg');
+            if (!l.label || !l.href || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        setFooterLinks(links);
       }
     };
   fetchFooter();
@@ -100,8 +111,8 @@ export default function Footer() {
           <div>
             <h3 className="font-bold uppercase tracking-widest text-xs mb-6 text-brand-gold">Дестинации</h3>
             <ul className="space-y-3 text-sm text-gray-400">
-              {footerLinks.map((link, idx) => (
-                <li key={idx}>
+              {footerLinks.map((link) => (
+                <li key={link.label}>
                   <Link href={link.href} className="hover:text-white transition-colors">{link.label}</Link>
                 </li>
               ))}
