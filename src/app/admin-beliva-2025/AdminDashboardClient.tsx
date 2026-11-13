@@ -29,6 +29,7 @@ import { IClient } from '@/types';
 
 import ClientsTab from '@/components/admin/ClientsTab';
 import ReservationsTab from '@/components/admin/ReservationsTab';
+import PdfLibraryTab from '@/components/admin/PdfLibraryTab';
 import GroupsTab from '@/components/admin/GroupsTab';
 import ReviewRequestsPanel from '@/components/admin/ReviewRequestsPanel';
 import SourceCheckPanel from '@/components/admin/SourceCheckPanel';
@@ -1074,6 +1075,7 @@ export default function AdminDashboardClient() {
                     { id: 'customers', label: 'Клиенти', icon: UserCheck },
                     { id: 'tours', label: 'Оферти', icon: Map },
                     { id: 'groups', label: 'Групи', icon: Users },
+                    { id: 'pdfs', label: 'PDF програми', icon: FileText },
                     { id: 'archived', label: 'Архив', icon: Archive },
                     { id: 'media', label: 'Галерия', icon: ImageIcon },
                     { id: 'promotions', label: 'Промоции', icon: BadgePercent },
@@ -1208,6 +1210,7 @@ export default function AdminDashboardClient() {
             </div>
         )}
 
+        {activeTab === 'pdfs' && <PdfLibraryTab />}
         {activeTab === 'countries' && <CountryGuidesTab />}
         {activeTab === 'settings' && <SettingsTab />}
 

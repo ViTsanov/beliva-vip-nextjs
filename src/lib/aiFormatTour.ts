@@ -177,6 +177,18 @@ const isExtraLine = (line: string) =>
   (/\d\s*(?:€|евро|(?:японски\s+)?йени|¥|\$)/i.test(line) && /\d{1,2}\s*-?\s*(?:ви|ри|ти|ми|ва)?\s*ден/i.test(line)) ||
   /^допълнителни\s+(?:допълнителни\s+)?екскурзии.*:\s*$/i.test(line);
 
+// Доплащането за единична стая от текста на 2МКО, без AI: „За единична стая се налага доплащне от 1 483 € …“.
+// Когато пише само „се налага доплащане“ без сума — „по запитване“ (у туроператора сумата се дава при запитване).
+export function singleSupplementFromText(text: string): string {
+    const sentence = text.split(/\n|(?<=[.!?])\s+/).find(s => /единичн\S*\s+(?:стая|каюта|настаняване)/i.test(s) && /допла\S*/i.test(s));
+    if (!sentence) return '';
+    const after = sentence.slice(sentence.search(/допла/i));
+    const amount = after.match(/(\d{1,3}(?:[\s ]\d{3})+|\d+)(?:[.,]\d+)?\s*(?:€|евро|eur)/i);
+    if (!amount) return 'по запитване';
+    const value = Number(amount[1].replace(/[\s ]/g, ''));
+    return `${String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} €`;
+}
+
 export async function formatTourWithAi(scrapedData: any) {
     const { program: rawProgram, included, notIncluded, documents, generalInfo, rawProgram: rawText, docxText, ...meta } = scrapedData || {};
     const program: Day[] = Array.isArray(rawProgram) ? rawProgram : [];
@@ -261,7 +273,9 @@ export async function formatTourWithAi(scrapedData: any) {
     const missing = program.filter(d => !rewritten.has(Number(d.day)));
     if (missing.length) console.warn(`[ai-format-tour] AI не върна дни ${missing.map(d => d.day).join(', ')} — остават с оригиналния текст`);
 
-    const { extras, singleSupplement, deposit } = await extrasPromise;
+    const { extras, singleSupplement: aiSingle, deposit } = await extrasPromise;
+    // AI понякога пропуска доплащането (в текста на 2МКО е „доплащне“, с грешка) — резервна проверка в самия текст
+    const singleSupplement = aiSingle || singleSupplementFromText(String(docxText || ''));
 
     const formattedTour = {
         ...main,

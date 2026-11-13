@@ -116,6 +116,8 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
   const [tempDate, setTempDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMedia, setShowMedia] = useState(false);
+  // „Внеси наново от 2МКО“ тече 1–2 минути — бутонът е заключен дотогава
+  const [reimporting, setReimporting] = useState(false);
   const [mediaField, setMediaField] = useState<'img' | 'images'>('img');
 
   // Gallery with captions — normalise from any legacy format on load
@@ -416,9 +418,35 @@ export default function TourForm({ initialData, onClose, allTours, allCampaigns 
                                 >
                                     🤖 Провери с Бот
                                 </button>
+                                {/* Пълното внасяне (Word файл → AI програма, допълнителни екскурзии с цени, депозит, полети) в СЪЩАТА
+                                    екскурзия — само за вече записани турове. Записва директно в базата, затова формата се затваря. */}
+                                {initialData?.id && /2mko\.com/i.test(form.externalSourceLink || '') && (
+                                    <button
+                                        type="button"
+                                        disabled={reimporting}
+                                        onClick={async () => {
+                                            if (!confirm('Програмата по дни, „включва / не включва“, документите и допълнителните екскурзии ще се напишат наново от 2МКО (с AI, 1–2 минути). Ръчните промени в тези текстове ще се загубят — и незаписаните промени в тази форма.\n\nЗаглавието, въведението, цената, датите и снимките остават.\n\nПродължи?')) return;
+                                            setReimporting(true);
+                                            try {
+                                                const res = await fetch('/api/admin/reimport-tour', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: initialData.id }) });
+                                                const data = await res.json();
+                                                if (!res.ok) throw new Error(data.error);
+                                                alert(`✅ Внесено наново: ${data.days} дни, ${data.extras} допълнителни екскурзии с цени, депозит: ${data.deposit || '—'}, единична стая: ${data.singleSupplement || '—'}, полети: ${data.flights} реда.\n\nPDF програмата ще се създаде наново при следващото отваряне.`);
+                                                onClose();
+                                            } catch (err) {
+                                                alert(`Внасянето не успя: ${err instanceof Error ? err.message : 'неизвестна грешка'}`);
+                                            } finally {
+                                                setReimporting(false);
+                                            }
+                                        }}
+                                        className="px-6 py-4 bg-amber-500 text-white font-bold uppercase text-[10px] tracking-widest rounded-2xl hover:bg-amber-600 transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        {reimporting ? '⏳ Внасяне… (1–2 мин)' : '✨ Внеси наново от 2МКО'}
+                                    </button>
+                                )}
                             </div>
                         </div>
-                        <p className="text-[10px] text-blue-500 mt-3 font-medium opacity-80">* Ботът в момента "разбира" сайтовете на: 2MKO и Дари Тур.</p>
+                        <p className="text-[10px] text-blue-500 mt-3 font-medium opacity-80">* „Провери с Бот“ попълва формата с ОРИГИНАЛНИЯ текст от 2МКО / Дари Тур (без AI и без допълнителните екскурзии). „Внеси наново от 2МКО“ пише програмата с AI от Word файла — като при внасяне на нова екскурзия — и я записва веднага.</p>
                     </div>
                 <div>
                     <label className={labelStyle}>Туроператор / Партньор *</label>

@@ -2,13 +2,26 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, getDocs, getDoc, updateDoc, doc, deleteDoc, where, addDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, getDoc, updateDoc, doc, deleteDoc, where, addDoc, serverTimestamp, arrayUnion, deleteField } from 'firebase/firestore';
 import emailjs from '@emailjs/browser';
 import { currentPrice, hasActivePromo } from '@/lib/promo';
 import {
-  Search, Trash2, Calendar, Phone, Mail, Edit, X, FileText, CheckCircle, AlertTriangle,
-  DollarSign, Tag, Link2, Users, Send, Copy, Clock, MessageSquare, Percent, Building2, RefreshCw
+  Search, Calendar, Phone, Mail, X, CheckCircle, Pencil, AlertTriangle, DollarSign, Tag, Send, Clock, Percent, ChevronRight, BarChart3,
 } from 'lucide-react';
+import { normalizeOperators, operatorOfferBlock, type Operator } from '@/lib/operators';
+import { COMPANY_INFO } from '@/lib/companyInfo';
+import { displayTourDate } from '@/lib/tourDates';
+import TourPicker, { type TourChoice } from '@/components/tours/TourPicker';
+import StaffPicker from './reservations/StaffPicker';
+import CopyButton from './reservations/CopyButton';
+import InquiryDrawer, { type DrawerActions } from './reservations/InquiryDrawer';
+import PaymentDialog, { type PaymentDraft } from './reservations/PaymentDialog';
+import ReservationStats from './reservations/ReservationStats';
+import {
+  STAGES, STEPS, PAYMENT_KINDS, activityEntry, toDate, formatDateTime, tripStart, stageOf, nextStep, lastActivity,
+  timeAgo, isOverdue, unforwardedPayments, paidTotal, paxOf, euro, getStaffName, isDone, STEPS_RESET_ON_CHANGE,
+  type StageKey, type StepKey, type StepDef, type Payment,
+} from './reservations/workflow';
 
 // Същите EmailJS данни, ползвани навсякъде другаде в проекта (src/lib/sendInquiry.ts).
 // CLIENT_TEMPLATE_ID е НОВ, отделен template — трябва да го създадеш в EmailJS с полето „To Email“
@@ -23,52 +36,9 @@ const PUBLIC_KEY = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "";
 
 const STATUS_LABELS: Record<string, string> = { new: 'Ново', processing: 'В процес', paid: 'Платено', cancelled: 'Отказано' };
 
-// Дата от Firestore Timestamp, ISO текст или число (ms) — в записите се срещат и трите.
-const toDate = (value: any): Date | null => {
-  if (!value) return null;
-  const d = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
-  return isNaN(d.getTime()) ? null : d;
-};
-
-// „03.11.2026 г., 14:32“ — дата и час, не само дата.
-const formatDateTime = (value: any): string => {
-  const d = toDate(value);
-  return d ? d.toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-};
-
-// Нов ред в историята на запитването. Пази се в масив activityLog — serverTimestamp() не може да стои в масив,
-// затова часът е от браузъра на админа.
-const activityEntry = (type: string, text: string) => ({ type, text, at: new Date().toISOString() });
-
-// Цялата история на запитването, най-новото отгоре: получаване, изпратени имейли, действията от activityLog.
-// Записите отпреди activityLog нямат история, затова за тях часовете се взимат от старите полета.
-const buildTimeline = (inq: any): { at: Date; text: string }[] => {
-  const events: { at: Date; text: string }[] = [];
-  const add = (value: any, text: string) => {
-    const at = toDate(value);
-    if (at) events.push({ at, text });
-  };
-  const log: any[] = Array.isArray(inq.activityLog) ? inq.activityLog : [];
-  const logged = (type: string) => log.some(e => e.type === type);
-
-  add(inq.createdAt, 'Получено запитване');
-  (inq.emailLog || []).forEach((e: any) => {
-    const text = e.kind === 'checkout_link' ? 'Изпратен линк за данните на пътниците (имейл)'
-      : e.kind === 'correction' ? 'Поискана корекция на данните (имейл)'
-      : `Изпратен имейл: „${e.subject || 'без тема'}“`;
-    add(e.sentAt, text);
-  });
-  log.forEach(e => add(e.at, e.text));
-
-  if (!logged('checkout')) {
-    if (inq.lastCorrectionAt) add(inq.lastCorrectionAt, 'Клиентът изпрати коригирани данни');
-    else add(inq.checkoutCompletedAt, 'Клиентът попълни данните на пътниците');
-  }
-  if (!logged('operator')) add(inq.operatorDataSentAt, 'Данните на пътниците са изпратени на турооператора');
-  if (!logged('contract')) add(inq.contractSentAt, 'Договорът е отбелязан като изпратен');
-
-  return events.sort((a, b) => b.at.getTime() - a.at.getTime());
-};
+// Датите, историята, стъпките и етапите живеят в reservations/workflow.ts — общи за списъка, картата и „Справки“.
+const FIRST_STAGE: StageKey = 'new';
+type TabKey = StageKey | 'stats';
 
 interface ReservationsTabProps {
   allTours: any[];
@@ -82,38 +52,31 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Под-табове: "Запитване" (преди попълнени checkout данни) и "Резервации" (клиентът вече е попълнил данните си).
-  const [subTab, setSubTab] = useState<'inquiry' | 'reservations'>('inquiry');
+  // Табове по етапи (виж reservations/workflow.ts → STAGES) плюс „Справки“.
+  const [tab, setTab] = useState<TabKey>(FIRST_STAGE);
+  // Отворената карта на клиента — пазим id, за да показва винаги актуалния запис след всяко действие.
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [paymentDraft, setPaymentDraft] = useState<PaymentDraft | null>(null);
 
   const [editingInq, setEditingInq] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ tourId: '', tourTitle: '', tourDate: '', notes: '', clientEmail: '' });
+  const [editForm, setEditForm] = useState({ tourId: '', tourTitle: '', tourDate: '', destination: '', notes: '', clientEmail: '' });
   const [paymentModalData, setPaymentModalData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [viewingTravelers, setViewingTravelers] = useState<{ inquiry: any; travelers: any[] | null } | null>(null);
 
-  // Модал за писане/изпращане на имейл (кореспонденция) — журнал, не двупосочна нишка.
-  // kind отбелязва в журнала специалните имейли (напр. 'correction'), за да се четат ясно в историята.
-  const [emailModalData, setEmailModalData] = useState<{ inquiry: any; subject: string; body: string; kind?: string } | null>(null);
+  // Модал за писане/изпращане на имейл. kind отбелязва специалните имейли в журнала ('offer', 'correction',
+  // 'operator_availability'…), за да се отметнат стъпките автоматично. to/toLabel — когато не е до клиента.
+  const [emailModalData, setEmailModalData] = useState<{ inquiry: any; subject: string; body: string; kind?: string; to?: string; toLabel?: string } | null>(null);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
-  // Модал за преглед на журнала с изпратени имейли за конкретно запитване.
-  const [viewingEmailLog, setViewingEmailLog] = useState<any | null>(null);
-
-  // Модал с цялата история (кога какво е станало) за конкретно запитване.
-  const [viewingHistory, setViewingHistory] = useState<any | null>(null);
-
-  // Списъкът с турооператори (име+имейл) — за да знаем къде да изпратим данните на пътниците.
-  const [operators, setOperators] = useState<{ name: string; email: string }[]>([]);
+  // Турооператорите от Настройки — имейл за данните на пътниците, юридически данни за офертата, комисионна.
+  const [operators, setOperators] = useState<Operator[]>([]);
   useEffect(() => {
     getDoc(doc(db, "settings", "operators")).then(snap => {
-      if (snap.exists() && Array.isArray(snap.data().list)) {
-        const raw = snap.data().list;
-        setOperators(raw.map((o: any) => typeof o === 'string' ? { name: o, email: '' } : o));
-      }
+      if (snap.exists()) setOperators(normalizeOperators(snap.data().list));
     }).catch(() => {});
   }, []);
 
-  // Избрани запитвания (в Резервации таба) за групово изпращане на турооператора.
+  // Избрани резервации за групово изпращане на турооператора.
   const [selectedForOperator, setSelectedForOperator] = useState<Set<string>>(new Set());
   // Преглед/потвърждение преди реалното изпращане към турооператора — админът може да прегледа/редактира,
   // преди да натисне реалното "Изпрати".
@@ -135,9 +98,12 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
 
   useEffect(() => { fetchInquiries(); }, []);
 
-  // Търсене + разделяне по под-табове. Търсенето работи в рамките на текущия под-таб.
+  const tourOf = (inq: any) => allTours.find((t: any) => t.id === inq?.tourId);
+
+  // Търсенето работи в рамките на текущия таб.
   const searchFiltered = inquiries.filter(inq => {
     const term = searchQuery.toLowerCase();
+    if (!term) return true;
     return (
       inq.clientName?.toLowerCase().includes(term) ||
       inq.clientEmail?.toLowerCase().includes(term) ||
@@ -147,10 +113,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       inq.message?.toLowerCase().includes(term)
     );
   });
-  // "Запитване" — всичко, за което клиентът ОЩЕ не е попълнил checkout данните си.
-  const inquiryTabItems = searchFiltered.filter(i => !i.checkoutCompletedAt);
-  // "Резервации" — клиентът вече е попълнил данните си (готово за преглед/потвърждение на плащане).
-  const reservationsTabItems = searchFiltered.filter(i => i.checkoutCompletedAt);
+  const stageItems = (stage: StageKey) => searchFiltered.filter(inq => stageOf(inq, tourOf(inq)) === stage);
 
   // ПОМОЩНА ФУНКЦИЯ: Превръща текст като "1250 €" в число 1250
   const parsePrice = (priceStr: any) => {
@@ -231,7 +194,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
     if (newStatus === 'paid') {
       // „Платено“ (и създаването на клиент) става само от подтаб „Резервации“ — след като клиентът е попълнил данните си.
       if (!inq.checkoutCompletedAt) {
-        alert('„Платено“ се отбелязва от подтаб „Резервации“, след като клиентът попълни данните си.');
+        alert('„Платено изцяло“ става възможно, след като клиентът попълни данните на пътниците.');
         return;
       }
       try {
@@ -434,8 +397,28 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       // Статусът „Платено“ се записва ЧАК СЕГА — след като клиентският профил е записан. Преди това ставаше
       // първо, така че при грешка по-нататък запитването оставаше „Платено“ без клиент и не можеше да се опита пак.
       const paidEntry = activityEntry('status', `Статус: Платено (${Number(paidPrice)} €)`);
-      await updateDoc(doc(db, "inquiries", inquiry.id), { status: 'paid', notes, activityLog: arrayUnion(paidEntry) });
-      setInquiries(prev => prev.map(item => item.id === inquiry.id ? { ...item, status: 'paid', notes, activityLog: [...(item.activityLog || []), paidEntry] } : item));
+      // Договорената цена и остатъкът влизат и в самото запитване — от тях смятат картата и „Справки“.
+      // Записаните досега плащания (капаро) не се дублират: добавя се само разликата до пълната сума.
+      const total = Number(paidPrice) || 0;
+      const alreadyPaid = paidTotal(inquiry);
+      const remainder = Math.max(0, total - alreadyPaid);
+      const finalPayment: Payment | null = remainder > 0 ? {
+        id: crypto.randomUUID(), kind: alreadyPaid > 0 ? 'balance' : 'other', amount: remainder,
+        at: new Date().toISOString().slice(0, 10), method: 'bank', to: 'operator',
+        note: 'при „Платено изцяло“', by: getStaffName(), createdAt: new Date().toISOString(), forwardedAt: null,
+      } : null;
+      const newPayments = finalPayment ? [...(inquiry.payments || []), finalPayment] : (inquiry.payments || []);
+      const paidUpdate = {
+        status: 'paid', notes, totalPrice: total, payments: newPayments,
+        paxCount: paxOf(inquiry) || freshTravelers.length || null,
+        'steps.fully_paid': { at: paidEntry.at, by: paidEntry.by },
+      };
+      await updateDoc(doc(db, "inquiries", inquiry.id), { ...paidUpdate, activityLog: arrayUnion(paidEntry) });
+      setInquiries(prev => prev.map(item => item.id === inquiry.id ? {
+        ...item, status: 'paid', notes, totalPrice: total, payments: newPayments, paxCount: paidUpdate.paxCount,
+        steps: { ...(item.steps || {}), fully_paid: { at: paidEntry.at, by: paidEntry.by } },
+        activityLog: [...(item.activityLog || []), paidEntry],
+      } : item));
 
       setPaymentModalData(null);
       const customerName = existingCustomer ? (existingCustomer.name || `${existingCustomer.firstName || ''} ${existingCustomer.lastName || ''}`.trim() || 'клиента') : (inquiry.clientName || 'клиента');
@@ -460,11 +443,14 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       ? "⚠️ ВНИМАНИЕ: Клиентът вече е попълнил данните си през checkout линка (ЕГН/паспорт), но запитването още не е маркирано като платено.\n\nАко го изтриеш СЕГА, тези данни ЩЕ СЕ ЗАГУБЯТ БЕЗВЪЗВРАТНО.\n\nСигурни ли сте?"
       : "Сигурни ли сте, че искате да изтриете това запитване?";
 
-    if (confirm(confirmMessage)) {
-      try {
-        await deleteDoc(doc(db, "inquiries", id));
-        setInquiries(prev => prev.filter(i => i.id !== id));
-      } catch (error) { console.error(error); }
+    if (!confirm(confirmMessage)) return false;
+    try {
+      await deleteDoc(doc(db, "inquiries", id));
+      setInquiries(prev => prev.filter(i => i.id !== id));
+      return true;
+    } catch (error) {
+      console.error(error);
+      return false;
     }
   };
 
@@ -507,7 +493,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
           message: body.replace(/\n/g, '<br>'),
         }, PUBLIC_KEY);
 
-        const logEntry = { subject, body, kind: 'checkout_link', sentAt: new Date().toISOString() };
+        const logEntry = { subject, body, kind: 'checkout_link', sentAt: new Date().toISOString(), by: getStaffName() };
         const updatedLog = [...(inq.emailLog || []), logEntry];
         await updateDoc(doc(db, "inquiries", inq.id), { emailLog: updatedLog });
         updatedInq = { ...updatedInq, emailLog: updatedLog };
@@ -569,54 +555,35 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
     }
   };
 
-  const handleViewTravelers = async (inq: any) => {
-    setViewingTravelers({ inquiry: inq, travelers: null });
-    try {
-      const res = await fetch('/api/admin/decrypt-travelers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ travelers: inq.travelers || [] })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setViewingTravelers({ inquiry: inq, travelers: data.travelers });
-      } else {
-        alert(data.error || 'Грешка при извличане на данните.');
-        setViewingTravelers(null);
-      }
-    } catch (error) {
-      console.error("Грешка при декриптиране:", error);
-      alert('Грешка при връзка със сървъра.');
-      setViewingTravelers(null);
-    }
-  };
-
-  // Изпраща свободен имейл (кореспонденция) към клиента и го добавя в журнала на запитването —
-  // еднопосочно, само това, което НИЕ сме изпратили, не отговорите на клиента.
+  // Изпраща имейл (до клиента или — с to — до туроператора) и го добавя в журнала на запитването.
+  // Еднопосочно: пазим само това, което НИЕ сме изпратили, не отговорите.
   const handleSendCorrespondence = async () => {
     if (!emailModalData) return;
-    if (!emailModalData.inquiry.clientEmail) {
-      alert('Този клиент няма въведен имейл.');
+    const to = emailModalData.to || emailModalData.inquiry.clientEmail;
+    if (!to || to === 'няма имейл') {
+      alert('Няма въведен имейл.');
       return;
     }
     setIsSendingEmail(true);
     try {
       await emailjs.send(SERVICE_ID, CLIENT_TEMPLATE_ID, {
-        to_email: emailModalData.inquiry.clientEmail,
+        to_email: to,
         subject: emailModalData.subject,
         preheader: derivePreheader(emailModalData.body),
-        // Същията причина като при checkout линка по-горе — виж коментара там.
+        // Същата причина като при checkout линка по-горе — виж коментара там.
         message: emailModalData.body.replace(/\n/g, '<br>'),
       }, PUBLIC_KEY);
 
       const logEntry = {
         subject: emailModalData.subject, body: emailModalData.body,
         ...(emailModalData.kind ? { kind: emailModalData.kind } : {}),
+        ...(emailModalData.to ? { to: emailModalData.to } : {}),
         sentAt: new Date().toISOString(),
+        by: getStaffName(),
       };
-      const updatedLog = [...(emailModalData.inquiry.emailLog || []), logEntry];
-      await updateDoc(doc(db, "inquiries", emailModalData.inquiry.id), { emailLog: updatedLog });
-      setInquiries(prev => prev.map(item => item.id === emailModalData.inquiry.id ? { ...item, emailLog: updatedLog } : item));
+      // arrayUnion — за да не се загубят имейли, добавени междувременно (локалното копие може да е старо)
+      await updateDoc(doc(db, "inquiries", emailModalData.inquiry.id), { emailLog: arrayUnion(logEntry) });
+      setInquiries(prev => prev.map(item => item.id === emailModalData.inquiry.id ? { ...item, emailLog: [...(item.emailLog || []), logEntry] } : item));
 
       setEmailModalData(null);
       alert('Имейлът е изпратен успешно!');
@@ -722,22 +689,25 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
     }
   };
 
-  // Прост ръчен превключвател — договорът се генерира и изпраща от турооператора извън системата —
-  // тук само маркираме в CRM-а че статусът е актуален.
-  const handleToggleContractSent = async (inq: any) => {
-    const entry = activityEntry('contract', inq.contractSentAt ? 'Премахната отметка „Договор изпратен“' : 'Договорът е отбелязан като изпратен');
-    const newValue = inq.contractSentAt ? null : entry.at;
-    try {
-      await updateDoc(doc(db, "inquiries", inq.id), { contractSentAt: newValue, activityLog: arrayUnion(entry) });
-      setInquiries(prev => prev.map(item => item.id === inq.id ? { ...item, contractSentAt: newValue, activityLog: [...(item.activityLog || []), entry] } : item));
-    } catch (e) { console.error(e); }
-  };
-
   // Извлича кратък превю текст (за известията/inbox списъка) от свободен текст — махаме нови
   // редове/излишни интервали и съкращаваме до ~95 символа — сладката точка за болшинството клиенти.
   const derivePreheader = (text: string, maxLen = 95) => {
     const clean = text.replace(/\s+/g, ' ').trim();
     return clean.length > maxLen ? clean.slice(0, maxLen - 1) + '…' : clean;
+  };
+
+  // TourPicker ⇄ полетата на запитването (същото като в AdminDashboardClient → „Корекция на запитване“).
+  const editTourChoice = (f: typeof editForm): TourChoice =>
+    f.tourId && allTours.some(t => t.id === f.tourId)
+      ? { kind: 'tour', tourId: f.tourId, ...(/^\d{4}-\d{2}-\d{2}/.test(f.tourDate || '') ? { date: f.tourDate } : {}) }
+      : f.destination ? { kind: 'destination', country: f.destination } : { kind: 'general' };
+  const editFieldsFromChoice = (c: TourChoice) => {
+    if (c.kind === 'tour') {
+      const t = allTours.find(x => x.id === c.tourId);
+      return { tourId: c.tourId, tourTitle: t?.title || 'Общо запитване', destination: '', tourDate: c.date || 'Не е потвърдена' };
+    }
+    if (c.kind === 'destination') return { tourId: 'general', tourTitle: `Дестинация: ${c.country}`, destination: c.country, tourDate: 'Не е потвърдена' };
+    return { tourId: 'general', tourTitle: 'Общо запитване', destination: '', tourDate: 'Не е потвърдена' };
   };
 
   const openEditModal = (inq: any) => {
@@ -746,6 +716,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       tourId: inq.tourId || '',
       tourTitle: inq.tourTitle || '',
       tourDate: inq.tourDate || 'Не е потвърдена',
+      destination: inq.destination || '',
       // Само собствените бележки — съобщението на клиента се показва отделно и не се копира тук.
       notes: getOwnNotes(inq),
       clientEmail: inq.clientEmail || ''
@@ -759,324 +730,491 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
       alert('Въведеният имейл не изглежда валиден.');
       return;
     }
-    const payload = { ...editForm, clientEmail };
-    // В историята влиза само какво е сменено, не самите стойности.
+    const payload = { ...editForm, clientEmail, tourDate: editForm.tourDate.trim() || 'Не е потвърдена' };
+    const inq = fresh(editingInq);
+    const oldDate = inq.tourDate || 'Не е потвърдена';
+    const tourChanged = payload.tourId !== (inq.tourId || '') || payload.tourTitle !== (inq.tourTitle || '');
+    const dateChanged = payload.tourDate !== oldDate;
+    const showDate = (d: string) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? displayTourDate(d) : d);
+    // Смяната на екскурзия/дата се записва в историята с „от → на“, за да се вижда какво е искал клиентът.
     const changed = [
-      payload.tourId !== (editingInq.tourId || '') && 'екскурзия',
-      payload.tourDate !== (editingInq.tourDate || 'Не е потвърдена') && 'дата',
-      payload.clientEmail !== (editingInq.clientEmail || '') && 'имейл',
-      payload.notes !== getOwnNotes(editingInq) && 'бележки',
+      tourChanged && `екскурзия „${inq.tourTitle || 'Общо запитване'}“ → „${payload.tourTitle || 'Общо запитване'}“`,
+      dateChanged && `дата ${showDate(oldDate)} → ${showDate(payload.tourDate)}`,
+      payload.clientEmail !== (inq.clientEmail || '') && 'имейл',
+      payload.notes !== getOwnNotes(inq) && 'бележки',
     ].filter(Boolean);
-    const entry = changed.length > 0 ? activityEntry('edit', `Редакция: ${changed.join(', ')}`) : null;
+    const entry = changed.length > 0 ? activityEntry('edit', `${tourChanged || dateChanged ? 'Смяна' : 'Редакция'}: ${changed.join('; ')}`) : null;
+
+    // Местата и офертата важат за конкретна дата — при смяна предлагаме да се направят наново.
+    let resets: Record<string, string> = {};
+    if ((tourChanged || dateChanged) && STEPS_RESET_ON_CHANGE.some(k => isDone(inq, k))) {
+      const labels = STEPS.filter(s => STEPS_RESET_ON_CHANGE.includes(s.key) && isDone(inq, s.key)).map(s => `• ${s.label}`).join('\n');
+      if (confirm(`Сменяш ${tourChanged ? 'екскурзията' : 'датата'}. Тези стъпки са за старата и трябва да се направят наново:\n\n${labels}\n\nДа ги махна ли? (Остават в историята.)`)) {
+        const now = new Date().toISOString();
+        resets = Object.fromEntries(STEPS_RESET_ON_CHANGE.map(k => [k, now]));
+      }
+    }
+    if ((tourChanged || dateChanged) && isDone(inq, 'data_to_operator')) {
+      alert('Данните на пътниците вече са изпратени на туроператора — уведоми го за промяната.');
+    }
+    if (tourChanged && Number(inq.totalPrice) > 0) {
+      alert('Провери договорената цена в „Плащания“ — тя е за старата екскурзия.');
+    }
+
+    const resetFields = Object.fromEntries(Object.entries(resets).map(([k, v]) => [`stepResets.${k}`, v]));
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, "inquiries", editingInq.id), { ...payload, ...(entry ? { activityLog: arrayUnion(entry) } : {}) });
-      setInquiries(prev => prev.map(item => item.id === editingInq.id
-        ? { ...item, ...payload, ...(entry ? { activityLog: [...(item.activityLog || []), entry] } : {}) }
+      await updateDoc(doc(db, "inquiries", inq.id), { ...payload, ...resetFields, ...(entry ? { activityLog: arrayUnion(entry) } : {}) });
+      setInquiries(prev => prev.map(item => item.id === inq.id
+        ? {
+          ...item, ...payload,
+          ...(Object.keys(resets).length ? { stepResets: { ...(item.stepResets || {}), ...resets } } : {}),
+          ...(entry ? { activityLog: [...(item.activityLog || []), entry] } : {}),
+        }
         : item));
       setEditingInq(null);
-    } catch (error) { console.error(error); } finally { setIsSaving(false); }
+    } catch (error) {
+      console.error(error);
+      alert('Промяната не се записа. Опитай пак.');
+    } finally { setIsSaving(false); }
   };
 
-  const statusColors: any = {
-    new: 'bg-blue-100 text-blue-700',
-    processing: 'bg-yellow-100 text-yellow-700',
-    paid: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-700'
+  // ================= РАБОТЕН ПРОЦЕС: стъпки, бележки, плащания =================
+
+  // Записва промяна в базата и в локалния списък наведнъж (картата и списъкът се обновяват веднага).
+  const patchInquiry = async (inq: any, data: Record<string, any>, local: (item: any) => Record<string, any>, entry?: ReturnType<typeof activityEntry>) => {
+    await updateDoc(doc(db, "inquiries", inq.id), { ...data, ...(entry ? { activityLog: arrayUnion(entry) } : {}) });
+    setInquiries(prev => prev.map(item => item.id === inq.id
+      ? { ...item, ...local(item), ...(entry ? { activityLog: [...(item.activityLog || []), entry] } : {}) }
+      : item));
   };
+  const fresh = (inq: any) => inquiries.find(i => i.id === inq.id) || inq;
+  // Първото действие по ново запитване го прави „В процес“ (броячът „Нови запитвания“ на таблото разчита на статуса).
+  const statusBump = (inq: any) => ((inq.status || 'new') === 'new' ? { status: 'processing' } : {});
+
+  const toggleStep = async (inq: any, key: StepKey, done: boolean) => {
+    const step = STEPS.find(s => s.key === key);
+    if (!step) return;
+    const entry = activityEntry('step', done ? step.label : `Махната отметка: ${step.label}`);
+    const value = { at: entry.at, by: entry.by };
+    const bump = done ? statusBump(inq) : {};
+    try {
+      await patchInquiry(inq, { [`steps.${key}`]: done ? value : deleteField(), ...bump }, item => {
+        const steps = { ...(item.steps || {}) };
+        if (done) steps[key] = value; else delete steps[key];
+        return { steps, ...bump };
+      }, entry);
+    } catch (e) {
+      console.error(e);
+      alert('Стъпката не се записа. Опитай пак.');
+    }
+  };
+
+  const addNote = async (inq: any, text: string) => {
+    const entry = activityEntry('note', text);
+    try { await patchInquiry(inq, {}, () => ({}), entry); } catch (e) { console.error(e); alert('Бележката не се записа.'); }
+  };
+
+  const openPayment = (inq: any, kind: Payment['kind']) => {
+    const tour = tourOf(inq);
+    const unit = parsePrice(tour ? currentPrice(tour) : '');
+    setPaymentDraft({ inquiry: fresh(inq), kind, suggestedTotal: unit ? unit * Math.max(1, paxOf(inq)) : 0 });
+  };
+
+  const savePayment = async (data: Omit<Payment, 'id' | 'createdAt' | 'by'>, totalPrice: number) => {
+    if (!paymentDraft) return;
+    const inq = fresh(paymentDraft.inquiry);
+    const payment: Payment = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString(), by: getStaffName() };
+    const list = [...(inq.payments || []), payment];
+    const entry = activityEntry('payment', `${PAYMENT_KINDS[payment.kind]}: ${payment.kind === 'refund' ? '−' : ''}${euro(payment.amount)} (${payment.to === 'agency' ? 'към агенцията' : 'към туроператора'})`);
+    const extra = { ...(totalPrice ? { totalPrice } : {}), ...statusBump(inq) };
+    try {
+      await patchInquiry(inq, { payments: list, ...extra }, () => ({ payments: list, ...extra }), entry);
+      setPaymentDraft(null);
+    } catch (e) {
+      console.error(e);
+      alert('Плащането не се записа. Опитай пак.');
+    }
+  };
+
+  const markForwarded = async (inq: any, paymentId: string) => {
+    const cur = fresh(inq);
+    const p = (cur.payments || []).find((x: Payment) => x.id === paymentId);
+    const list = (cur.payments || []).map((x: Payment) => (x.id === paymentId ? { ...x, forwardedAt: new Date().toISOString() } : x));
+    const entry = activityEntry('payment', `Преведено на туроператора: ${euro(p?.amount || 0)}`);
+    try { await patchInquiry(cur, { payments: list }, () => ({ payments: list }), entry); } catch (e) { console.error(e); alert('Не се записа.'); }
+  };
+
+  const removePayment = async (inq: any, paymentId: string) => {
+    const cur = fresh(inq);
+    const p = (cur.payments || []).find((x: Payment) => x.id === paymentId);
+    if (!p || !confirm(`Да изтрия ли плащането ${PAYMENT_KINDS[p.kind].toLowerCase()} ${euro(p.amount)}?`)) return;
+    const list = (cur.payments || []).filter((x: Payment) => x.id !== paymentId);
+    const entry = activityEntry('payment', `Изтрито плащане: ${PAYMENT_KINDS[p.kind]} ${euro(p.amount)}`);
+    try { await patchInquiry(cur, { payments: list }, () => ({ payments: list }), entry); } catch (e) { console.error(e); alert('Не се записа.'); }
+  };
+
+  const saveFinance = async (inq: any, { totalPrice, paxCount }: { totalPrice: number; paxCount: number }) => {
+    const entry = activityEntry('edit', `Цена/пътници: ${totalPrice ? euro(totalPrice) : '—'}, ${paxCount || '—'} души`);
+    const data = { totalPrice: totalPrice || null, paxCount: paxCount || null };
+    try { await patchInquiry(inq, data, () => data, entry); } catch (e) { console.error(e); alert('Не се записа.'); }
+  };
+
+  const operatorFor = (inq: any) => {
+    const name = tourOf(inq)?.operator;
+    return operators.find(o => o.name === name);
+  };
+
+  const pdfUrlFor = (tour: any) => {
+    if (!tour) return '';
+    if (tour.pdfUrl) return tour.pdfUrl;
+    const slug = tour.tourId || tour.slug || tour.id;
+    return `${window.location.origin}/tour/${encodeURIComponent(slug)}/programa.pdf`;
+  };
+
+  const signature = () => `${getStaffName() ? `${getStaffName()}\n` : ''}Beliva VIP Tour\n${COMPANY_INFO.phone} · ${COMPANY_INFO.email}`;
+
+  // Офертата съдържа задължителната преддоговорна информация: данните на туроператора и на агенцията (чл. 82, ал. 1 ЗТ).
+  const openOffer = (inq: any) => {
+    const tour = tourOf(inq);
+    const op = operatorFor(inq);
+    const price = tour ? currentPrice(tour) : '';
+    const pdf = pdfUrlFor(tour);
+    const agency = [
+      `Туристическа агенция (посредник): ${COMPANY_INFO.legalName}, ЕИК ${COMPANY_INFO.eik}`,
+      `Удостоверение за регистрация № ${COMPANY_INFO.license}`,
+      `Седалище и адрес: ${COMPANY_INFO.registeredAddress || COMPANY_INFO.address}`,
+      `Телефон: ${COMPANY_INFO.phone} · Имейл: ${COMPANY_INFO.email}`,
+    ].join('\n');
+    setEmailModalData({
+      inquiry: inq,
+      kind: 'offer',
+      subject: `Оферта: ${inq.tourTitle || 'екскурзия'}${inq.tourDate && inq.tourDate !== 'Не е потвърдена' ? ` — ${inq.tourDate}` : ''}`,
+      body: [
+        `Здравейте, ${inq.clientName || ''},`,
+        '',
+        `Благодарим за интереса към „${inq.tourTitle || ''}“${inq.tourDate ? ` с дата ${inq.tourDate}` : ''}. Има свободни места.`,
+        '',
+        `Цена: ${price || '[попълни]'} на човек${tour?.singleSupplement ? ` (доплащане за единична стая: ${tour.singleSupplement})` : ''}.`,
+        `Капаро: ${tour?.deposit || '[попълни — обикновено 50% при самолетни и 30% при автобусни екскурзии, до 3 работни дни след подписване]'}. Остатъкът — [попълни срок].`,
+        pdf ? `Пълна програма (PDF): ${pdf}` : '',
+        '',
+        operatorOfferBlock(op, tour?.operator),
+        '',
+        agency,
+        '',
+        'Стандартният формуляр за информация по Директива (ЕС) 2015/2302 е в Общите условия на туроператора. Договорът влиза в сила след подписването му и плащането на капарото.',
+        '',
+        'Ако желаете да резервирате, отговорете на този имейл и ще Ви изпратим линк за данните на пътниците.',
+        '',
+        'Поздрави,',
+        signature(),
+      ].filter(line => line !== null).join('\n'),
+    });
+  };
+
+  // Питане за свободни места — без лични данни на клиента (само екскурзия, дата, брой).
+  const askOperator = (inq: any) => {
+    const op = operatorFor(inq);
+    if (!op?.email) { alert('Туроператорът няма имейл в Настройки → Турооператори.'); return; }
+    const tour = tourOf(inq);
+    setEmailModalData({
+      inquiry: inq,
+      kind: 'operator_availability',
+      to: op.email,
+      toLabel: op.legalName || op.name,
+      subject: `Запитване за места: ${inq.tourTitle || ''} — ${inq.tourDate || ''}`,
+      body: [
+        'Здравейте,',
+        '',
+        `Имате ли свободни места за „${inq.tourTitle || ''}“ с дата ${inq.tourDate || '[дата]'} за ${paxOf(inq) || '[брой]'} души?`,
+        tour?.externalSourceLink ? `Програмата при вас: ${tour.externalSourceLink}` : '',
+        '',
+        'Моля, потвърдете наличността.',
+        '',
+        'Поздрави,',
+        signature(),
+      ].join('\n'),
+    });
+  };
+
+  const sendProgram = (inq: any) => {
+    const pdf = pdfUrlFor(tourOf(inq));
+    setEmailModalData({
+      inquiry: inq,
+      kind: 'program',
+      subject: `Програма: ${inq.tourTitle || 'екскурзия'}`,
+      body: `Здравейте, ${inq.clientName || ''},\n\nИзпращаме Ви пълната програма на „${inq.tourTitle || ''}“:\n${pdf}\n\nАко имате въпроси, пишете ни или ни се обадете.\n\nПоздрави,\n${signature()}`,
+    });
+  };
+
+  // Една стъпка от процеса: отметка или съответното действие (имейл, линк, плащане…).
+  const runStep = (inq: any, step: StepDef) => {
+    const email = inq.clientEmail && inq.clientEmail !== 'няма имейл';
+    switch (step.action) {
+      case 'tick': toggleStep(inq, step.key, true); break;
+      case 'offer_email':
+        if (!email) { if (confirm('Клиентът няма имейл. Да отбележа ли офертата като изпратена (по телефон/Viber)?')) toggleStep(inq, step.key, true); }
+        else openOffer(inq);
+        break;
+      case 'data_link':
+        if (!inq.tourId || !inq.tourDate || inq.tourDate === 'Не е потвърдена' || inq.tourDate === 'Не е избрана') {
+          alert('Първо избери екскурзия и дата (бутон „Редактирай“ в картата).');
+          setDrawerId(inq.id);
+        } else handleGenerateCheckoutLink(inq, email ? 'email' : 'copy');
+        break;
+      case 'operator_send':
+        if (!inq.checkoutCompletedAt) alert('Клиентът още не е попълнил данните на пътниците.');
+        else handleOpenOperatorSend([inq]);
+        break;
+      case 'payment_deposit': openPayment(inq, 'deposit'); break;
+      case 'payment_full': handleStatusChangeClick(inq, 'paid'); break;
+      default: setDrawerId(inq.id);
+    }
+  };
+
+  const drawerActions = (inq: any): DrawerActions => ({
+    toggleStep: (key, done) => toggleStep(inq, key, done),
+    addNote: text => addNote(inq, text),
+    openPayment: kind => openPayment(inq, kind),
+    markForwarded: id => markForwarded(inq, id),
+    removePayment: id => removePayment(inq, id),
+    saveFinance: data => saveFinance(inq, data),
+    runStep: step => runStep(inq, step),
+    emailClient: () => setEmailModalData({ inquiry: inq, subject: 'Относно вашето запитване', body: `Здравейте, ${inq.clientName || ''},\n\n\n\nПоздрави,\n${signature()}` }),
+    sendOffer: () => openOffer(inq),
+    askOperator: () => askOperator(inq),
+    dataLink: method => handleGenerateCheckoutLink(inq, method),
+    correction: method => handleRequestCorrection(inq, method),
+    sendToOperator: () => handleOpenOperatorSend([inq]),
+    sendProgram: () => sendProgram(inq),
+    cancel: () => { if (confirm('Да отбележа ли запитването като отказано? Ще отиде в „Архив“.')) handleStatusChangeClick(inq, 'cancelled'); },
+    restore: () => handleStatusChangeClick(inq, 'processing'),
+    edit: () => openEditModal(inq),
+    remove: async () => { if (await handleDelete(inq.id)) setDrawerId(null); },
+  });
 
   if (isLoading) return <div className="p-8 text-center text-gray-500 font-medium">Зареждане на запитвания...</div>;
 
-  const activeItems = subTab === 'inquiry' ? inquiryTabItems : reservationsTabItems;
+  const counts = Object.fromEntries(STAGES.map(s => [s.key, stageItems(s.key).length])) as Record<StageKey, number>;
+  const byTripDate = (a: any, b: any) => ((tripStart(a)?.getTime() ?? 9e15) - (tripStart(b)?.getTime() ?? 9e15));
+  const byNewest = (a: any, b: any) => ((toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0));
+  const activeItems = tab === 'stats' ? [] : stageItems(tab).sort(tab === 'new' || tab === 'offer' || tab === 'archive' ? byNewest : byTripDate);
+  const selectable = tab === 'contract' || tab === 'payment' || tab === 'upcoming';
+  const overdueCount = searchFiltered.filter(inq => isOverdue(inq, tourOf(inq))).length;
+  const drawerInq = drawerId ? inquiries.find(i => i.id === drawerId) : null;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* ПОД-ТАБОВЕ */}
-      <div className="flex gap-2 bg-white rounded-2xl p-2 shadow-sm border border-gray-100 w-fit">
-        <button
-          onClick={() => setSubTab('inquiry')}
-          className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${subTab === 'inquiry' ? 'bg-brand-gold text-brand-dark shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}
-        >
-          Запитване ({inquiryTabItems.length})
-        </button>
-        <button
-          onClick={() => setSubTab('reservations')}
-          className={`px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${subTab === 'reservations' ? 'bg-brand-gold text-brand-dark shadow-lg' : 'text-gray-400 hover:text-brand-dark hover:bg-gray-50'}`}
-        >
-          Резервации ({reservationsTabItems.length})
-        </button>
-      </div>
-
-      {/* HEADER: Търсачка */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Търси по име, телефон или бележки..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-brand-gold/20 outline-none font-medium"
-          />
-        </div>
-      </div>
-
-      {/* BULK АКЦИЯ БАР — видим само в Резервации, когато има избрани */}
-      {subTab === 'reservations' && selectedForOperator.size > 0 && (
-        <div className="bg-brand-dark text-white p-5 rounded-2xl flex items-center justify-between animate-in fade-in">
-          <span className="text-sm font-bold">{selectedForOperator.size} избрани</span>
-          <div className="flex gap-3">
+      {/* ТАБОВЕ ПО ЕТАПИ + кой работи */}
+      <div className="flex flex-wrap items-center gap-3">
+        <nav className="flex flex-wrap gap-1 bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100" aria-label="Етапи на запитванията">
+          {STAGES.map(s => (
             <button
-              onClick={() => handleOpenOperatorSend(reservationsTabItems.filter(i => selectedForOperator.has(i.id)))}
-              className="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-white transition-all"
+              key={s.key}
+              onClick={() => { setTab(s.key); setSelectedForOperator(new Set()); }}
+              aria-current={tab === s.key ? 'page' : undefined}
+              className={`px-4 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all ${tab === s.key ? 'bg-brand-gold text-brand-dark shadow' : 'text-gray-500 hover:text-brand-dark hover:bg-gray-50'}`}
             >
-              Изпрати на турооператора
+              {s.label} <span className={tab === s.key ? 'text-brand-dark/70' : 'text-gray-400'}>{counts[s.key]}</span>
             </button>
-            <button onClick={() => setSelectedForOperator(new Set())} className="text-white/60 hover:text-white text-xs font-bold">Откажи</button>
-          </div>
-        </div>
-      )}
+          ))}
+          <button
+            onClick={() => setTab('stats')}
+            aria-current={tab === 'stats' ? 'page' : undefined}
+            className={`px-4 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all inline-flex items-center gap-1.5 ${tab === 'stats' ? 'bg-brand-dark text-white shadow' : 'text-gray-500 hover:text-brand-dark hover:bg-gray-50'}`}
+          >
+            <BarChart3 size={13} /> Справки
+          </button>
+        </nav>
+        <div className="ml-auto"><StaffPicker /></div>
+      </div>
 
-      {/* ТАБЛИЦА */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                {subTab === 'reservations' && (
-                  <th className="p-5 w-10">
-                    <input
-                      type="checkbox"
-                      checked={reservationsTabItems.length > 0 && selectedForOperator.size === reservationsTabItems.length}
-                      onChange={(e) => setSelectedForOperator(e.target.checked ? new Set(reservationsTabItems.map(i => i.id)) : new Set())}
-                    />
-                  </th>
-                )}
-                <th className="p-5 text-xs font-black uppercase text-gray-400 tracking-widest">Клиент & Контакти</th>
-                <th className="p-5 text-xs font-black uppercase text-gray-400 tracking-widest">Запитване & Цена</th>
-                <th className="p-5 text-xs font-black uppercase text-gray-400 tracking-widest">Бележки</th>
-                <th className="p-5 text-xs font-black uppercase text-gray-400 tracking-widest">Статус</th>
-                <th className="p-5 text-xs font-black uppercase text-gray-400 tracking-widest text-right">Действие</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {activeItems.length === 0 && (
-                <tr><td colSpan={subTab === 'reservations' ? 6 : 5} className="p-10 text-center text-gray-400 italic">
-                  {subTab === 'inquiry' ? 'Няма активни запитвания.' : 'Все още никой не е попълнил checkout данните си.'}
-                </td></tr>
-              )}
-              {activeItems.map(inq => {
-                const { matchedCustomer, otherInquiries } = getContactContext(inq);
-                const { hasDiscount, regularPrice, finalPrice, discountPercentage } = getDiscountInfo(inq);
-                const timeline = buildTimeline(inq);
-                return (
-                  <tr key={inq.id} className="hover:bg-gray-50/50 transition-colors">
-                    {subTab === 'reservations' && (
-                      <td className="p-5">
+      {tab === 'stats' ? (
+        <ReservationStats inquiries={inquiries} tours={allTours} customers={customers} operators={operators} onOpen={inq => setDrawerId(inq.id)} />
+      ) : (
+        <>
+          <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-3 md:items-center justify-between">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Търси по име, телефон, екскурзия или бележки..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Търсене"
+                className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-brand-gold/20 outline-none font-medium"
+              />
+            </div>
+            {overdueCount > 0 && (
+              <p className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
+                <AlertTriangle size={14} /> {overdueCount} {overdueCount === 1 ? 'запитване чака' : 'запитвания чакат'} действие повече от 1 работен ден
+              </p>
+            )}
+          </div>
+
+          {selectable && selectedForOperator.size > 0 && (
+            <div className="bg-brand-dark text-white p-5 rounded-2xl flex items-center justify-between animate-in fade-in">
+              <span className="text-sm font-bold">{selectedForOperator.size} избрани</span>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleOpenOperatorSend(activeItems.filter(i => selectedForOperator.has(i.id) && i.checkoutCompletedAt))}
+                  className="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-white transition-all"
+                >
+                  Изпрати данните на турооператора
+                </button>
+                <button onClick={() => setSelectedForOperator(new Set())} className="text-white/60 hover:text-white text-xs font-bold">Откажи</button>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    {selectable && (
+                      <th className="p-5 w-10">
                         <input
                           type="checkbox"
-                          checked={selectedForOperator.has(inq.id)}
-                          onChange={(e) => {
-                            const next = new Set(selectedForOperator);
-                            if (e.target.checked) next.add(inq.id); else next.delete(inq.id);
-                            setSelectedForOperator(next);
-                          }}
+                          aria-label="Избери всички"
+                          checked={activeItems.length > 0 && selectedForOperator.size === activeItems.length}
+                          onChange={(e) => setSelectedForOperator(e.target.checked ? new Set(activeItems.map(i => i.id)) : new Set())}
                         />
-                      </td>
+                      </th>
                     )}
-                    <td className="p-5">
-                      <div className="font-bold text-gray-800">{inq.clientName || 'Непознат'}</div>
-                      {inq.createdAt && (
-                        <div className="text-[11px] text-gray-600 font-semibold mt-1 flex items-center gap-1"><Clock size={12}/> Получено: {formatDateTime(inq.createdAt)}</div>
-                      )}
-                      {subTab === 'reservations' && inq.checkoutCompletedAt && (
-                        <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1"><Users size={12}/> Данни попълнени: {formatDateTime(inq.checkoutCompletedAt)}</div>
-                      )}
-                      <div className="text-xs text-gray-400 mt-1 flex items-center gap-1"><Phone size={12}/> {inq.clientPhone}</div>
-                      <div className="text-xs text-gray-400 flex items-center gap-1"><Mail size={12}/> {inq.clientEmail}</div>
-                      {matchedCustomer && (
-                        <div className="mt-2 inline-flex items-center gap-1 bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-lg">
-                          🔁 Връщащ се клиент · {matchedCustomer.tripHistory?.length || matchedCustomer.tripsCount || 0} пътувания
-                        </div>
-                      )}
-                      {otherInquiries.length > 0 && (
-                        <div className="mt-1 inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-lg">
-                          ⚠️ {otherInquiries.length} друг{otherInquiries.length > 1 ? 'и' : 'о'} активн{otherInquiries.length > 1 ? 'и' : 'о'} запитван{otherInquiries.length > 1 ? 'ия' : 'е'}
-                        </div>
-                      )}
-                      {inq.checkoutReopened ? (
-                        <div className="mt-1 inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-lg">
-                          ⏳ Чака корекция от клиента
-                        </div>
-                      ) : inq.checkoutRevisions > 0 ? (
-                        <div className="mt-1 inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-1 rounded-lg">
-                          ✏️ Данните са коригирани от клиента
-                        </div>
-                      ) : null}
-                      {inq.emailLog && inq.emailLog.length > 0 && (
-                        <button
-                          onClick={() => setViewingEmailLog(inq)}
-                          className="mt-1 flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-brand-gold transition-colors"
-                        >
-                          <MessageSquare size={11} /> {inq.emailLog.length} изпратен{inq.emailLog.length > 1 ? 'и' : ''} имейл{inq.emailLog.length > 1 ? 'а' : ''}
-                        </button>
-                      )}
-                    </td>
-                    <td className="p-5">
-                      <span className="font-bold text-sm text-brand-dark block">{inq.tourTitle || 'Общо запитване'}</span>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 font-medium mt-1 mb-2">
-                        <Calendar size={14} className="text-brand-gold" />
-                        {inq.tourDate || 'Не е уточнена'}
-                      </div>
-                      {/* Цена с отразена лична отстъпка на клиента, ако има такава — видимо тук, не чак при плащане. */}
-                      {regularPrice > 0 && (
-                        <div className="flex items-center gap-2 text-xs mb-2">
-                          {hasDiscount ? (
-                            <>
-                              <span className="text-gray-400 line-through">{regularPrice} €</span>
-                              <span className="text-emerald-600 font-black">{finalPrice} €</span>
-                              <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5"><Percent size={9}/>{discountPercentage}</span>
-                            </>
-                          ) : (
-                            <span className="text-gray-500 font-bold">{regularPrice} €</span>
-                          )}
-                        </div>
-                      )}
-                      {inq.message && (
-                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 mt-2 max-w-xs">
-                          <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest block mb-1">Съобщение:</span>
-                          <p className="text-xs text-gray-600 italic line-clamp-3">{inq.message}</p>
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-5">
-                      {getOwnNotes(inq) ? (
-                        <p className="text-xs text-gray-500 line-clamp-3 bg-yellow-50/50 p-3 rounded-xl border border-yellow-100 max-w-xs">
-                          {getOwnNotes(inq)}
-                        </p>
-                      ) : (
-                        <span className="text-xs text-gray-300 italic">Няма въведени бележки</span>
-                      )}
-                    </td>
-                    <td className="p-5">
-                      <select
-                        value={inq.status || 'new'}
-                        onChange={(e) => handleStatusChangeClick(inq, e.target.value)}
-                        className={`text-[10px] font-black uppercase tracking-widest rounded-xl px-4 py-2.5 border-none outline-none cursor-pointer shadow-sm transition-all ${statusColors[inq.status] || statusColors.new}`}
-                      >
-                        <option value="new">🆕 Ново</option>
-                        <option value="processing">⚙️ В процес</option>
-                        {(subTab === 'reservations' || inq.status === 'paid') && <option value="paid">✅ Платено</option>}
-                        <option value="cancelled">❌ Отказано</option>
-                      </select>
-                      {/* Последното действие с дата и час; цялата история — в отделния прозорец. */}
-                      {timeline.length > 0 && (
-                        <div className="mt-2 max-w-[200px]">
-                          <p className="text-[11px] leading-snug text-gray-600 font-semibold">{timeline[0].text}</p>
-                          <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5"><Clock size={10}/> {formatDateTime(timeline[0].at)}</p>
-                          <button
-                            onClick={() => setViewingHistory(inq)}
-                            className="mt-1 text-[10px] font-bold text-brand-dark underline underline-offset-2 hover:text-brand-gold transition-colors"
-                          >
-                            История ({timeline.length})
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-5 text-right">
-                      <div className="flex justify-end gap-2">
-                        {subTab === 'reservations' && inq.status === 'paid' && (
-                          <button
-                            onClick={() => handleOpenOperatorSend([inq])}
-                            title={inq.operatorDataSentAt ? `Данните са изпратени на ${formatDateTime(inq.operatorDataSentAt)} — натисни за повторно изпращане` : "Изпрати данните на турооператора"}
-                            className={`p-2.5 rounded-xl transition-all ${inq.operatorDataSentAt ? 'text-emerald-500 hover:text-white hover:bg-emerald-500' : 'text-blue-400 hover:text-white hover:bg-blue-500'}`}
-                          >
-                            <Building2 size={18} />
-                          </button>
-                        )}
-                        {subTab === 'reservations' && inq.status === 'paid' && (
-                          <button
-                            onClick={() => handleToggleContractSent(inq)}
-                            title={inq.contractSentAt ? `Договор изпратен на ${formatDateTime(inq.contractSentAt)} — натисни за да върнеш статуса` : "Маркирай договор изпратен"}
-                            className={`p-2.5 rounded-xl transition-all ${inq.contractSentAt ? 'text-emerald-500 hover:text-white hover:bg-emerald-500' : 'text-gray-300 hover:text-white hover:bg-gray-400'}`}
-                          >
-                            <FileText size={18} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setEmailModalData({ inquiry: inq, subject: 'Относно вашето запитване', body: '' })}
-                          title="Изпрати имейл (кореспонденция)"
-                          className="p-2.5 text-purple-400 hover:text-white hover:bg-purple-500 rounded-xl transition-all"
-                        >
-                          <Send size={18} />
-                        </button>
-                        {subTab === 'reservations' && inq.checkoutCompletedAt && inq.status !== 'cancelled' && (
-                          <>
-                            <button
-                              onClick={() => handleRequestCorrection(inq, 'email')}
-                              title="Поискай корекция на данните — нов линк по имейл (резервацията остава тук)"
-                              className="p-2.5 text-amber-500 hover:text-white hover:bg-amber-500 rounded-xl transition-all"
-                            >
-                              <RefreshCw size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleRequestCorrection(inq, 'copy')}
-                              title="Копирай линк за корекция на данните (за Viber/WhatsApp)"
-                              className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-500 rounded-xl transition-all"
-                            >
-                              <Copy size={18} />
-                            </button>
-                          </>
-                        )}
-                        {inq.checkoutCompletedAt && (
-                          <button
-                            onClick={() => handleViewTravelers(inq)}
-                            title="Виж данните на пътниците"
-                            className="p-2.5 text-emerald-500 hover:text-white hover:bg-emerald-500 rounded-xl transition-all"
-                          >
-                            <Users size={18} />
-                          </button>
-                        )}
-                        {/* Линкът за данни е само за „Запитване“. В „Резервации“ клиентът вече е попълнил данните си, а нов линк ги нулира (checkoutCompletedAt) и връща резервацията обратно. */}
-                        {!inq.checkoutCompletedAt && inq.tourId && inq.tourDate && inq.tourDate !== 'Не е потвърдена' && inq.status !== 'paid' && inq.status !== 'cancelled' && (
-                          <>
-                            <button
-                              onClick={() => handleGenerateCheckoutLink(inq, 'email')}
-                              title="Изпрати линк за данни по имейл"
-                              className="p-2.5 text-brand-gold hover:text-white hover:bg-brand-gold rounded-xl transition-all"
-                            >
-                              <Link2 size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleGenerateCheckoutLink(inq, 'copy')}
-                              title="Копирай линка (за Viber/WhatsApp)"
-                              className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-500 rounded-xl transition-all"
-                            >
-                              <Copy size={18} />
-                            </button>
-                          </>
-                        )}
-                        <button onClick={() => openEditModal(inq)} className="p-2.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Edit size={18} /></button>
-                        <button onClick={() => handleDelete(inq.id)} className="p-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
-                      </div>
-                    </td>
+                    <th className="p-5 text-xs font-black uppercase text-gray-400 tracking-widest">Клиент</th>
+                    <th className="p-5 text-xs font-black uppercase text-gray-400 tracking-widest">Екскурзия</th>
+                    <th className="p-5 text-xs font-black uppercase text-gray-400 tracking-widest">Последно</th>
+                    <th className="p-5 text-xs font-black uppercase text-gray-400 tracking-widest text-right">Следваща стъпка</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {activeItems.length === 0 && (
+                    <tr><td colSpan={selectable ? 5 : 4} className="p-10 text-center text-gray-400 italic">{STAGES.find(s => s.key === tab)?.empty}</td></tr>
+                  )}
+                  {activeItems.map(inq => {
+                    const tour = tourOf(inq);
+                    const { matchedCustomer, otherInquiries } = getContactContext(inq);
+                    const { hasDiscount, regularPrice, finalPrice, discountPercentage } = getDiscountInfo(inq);
+                    const last = lastActivity(inq);
+                    const next = nextStep(inq, tour);
+                    const overdue = isOverdue(inq, tour);
+                    const paid = paidTotal(inq);
+                    const total = Number(inq.totalPrice) || 0;
+                    const unforwarded = unforwardedPayments(inq).length;
+                    const email = inq.clientEmail && inq.clientEmail !== 'няма имейл' ? inq.clientEmail : '';
+                    return (
+                      <tr key={inq.id} className={`transition-colors ${overdue ? 'bg-amber-50/60 hover:bg-amber-50' : 'hover:bg-gray-50/50'}`}>
+                        {selectable && (
+                          <td className="p-5">
+                            <input
+                              type="checkbox"
+                              aria-label={`Избери ${inq.clientName || 'запитването'}`}
+                              disabled={!inq.checkoutCompletedAt}
+                              checked={selectedForOperator.has(inq.id)}
+                              onChange={(e) => {
+                                const nextSet = new Set(selectedForOperator);
+                                if (e.target.checked) nextSet.add(inq.id); else nextSet.delete(inq.id);
+                                setSelectedForOperator(nextSet);
+                              }}
+                            />
+                          </td>
+                        )}
+                        <td className="p-5 align-top">
+                          <button onClick={() => setDrawerId(inq.id)} className="font-bold text-gray-800 hover:text-brand-gold text-left">{inq.clientName || 'Непознат'}</button>
+                          <div className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Phone size={12} className="text-gray-400" /> {inq.clientPhone}<CopyButton text={inq.clientPhone || ''} label="Копирай телефона" /></div>
+                          {email && <div className="text-xs text-gray-500 flex items-center gap-1 break-all"><Mail size={12} className="text-gray-400 shrink-0" /> {email}<CopyButton text={email} label="Копирай имейла" /></div>}
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {matchedCustomer && <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-lg">🔁 {matchedCustomer.tripHistory?.length || matchedCustomer.tripsCount || 0} пътувания</span>}
+                            {otherInquiries.length > 0 && <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">⚠️ още {otherInquiries.length} запитв.</span>}
+                            {inq.checkoutReopened && <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">⏳ чака корекция</span>}
+                            {inq.status === 'cancelled' && <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-lg">Отказано</span>}
+                          </div>
+                        </td>
+                        <td className="p-5 align-top">
+                          <span className="font-bold text-sm text-brand-dark block max-w-xs">{inq.tourTitle || 'Общо запитване'}</span>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 font-medium mt-1"><Calendar size={13} className="text-brand-gold" /> {inq.tourDate || 'Не е уточнена'}{paxOf(inq) ? ` · ${paxOf(inq)} души` : ''}</div>
+                          {inq.status !== 'paid' && inq.status !== 'cancelled' && (
+                            <button onClick={() => openEditModal(inq)} className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 underline underline-offset-2 hover:text-brand-gold">
+                              <Pencil size={11} /> Смени екскурзия / дата
+                            </button>
+                          )}
+                          {total > 0 || paid > 0 ? (
+                            <p className="text-xs mt-1.5"><span className="font-black text-emerald-700">{euro(paid)}</span><span className="text-gray-400"> / {total ? euro(total) : '—'} платено</span></p>
+                          ) : regularPrice > 0 && (
+                            <div className="flex items-center gap-2 text-xs mt-1.5">
+                              {hasDiscount ? (
+                                <>
+                                  <span className="text-gray-400 line-through">{regularPrice} €</span>
+                                  <span className="text-emerald-600 font-black">{finalPrice} €</span>
+                                  <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5"><Percent size={9}/>{discountPercentage}</span>
+                                </>
+                              ) : <span className="text-gray-500 font-bold">{regularPrice} € / човек</span>}
+                            </div>
+                          )}
+                          {unforwarded > 0 && <p className="text-[11px] font-bold text-amber-700 mt-1">Чака превод на туроператора</p>}
+                        </td>
+                        <td className="p-5 align-top max-w-[240px]">
+                          {last && (
+                            <>
+                              <p className="text-xs text-gray-700 font-semibold leading-snug line-clamp-2">{last.text}</p>
+                              <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5" title={formatDateTime(last.at)}><Clock size={10} /> {timeAgo(last.at)}{last.by ? ` · ${last.by}` : ''}</p>
+                            </>
+                          )}
+                        </td>
+                        <td className="p-5 align-top text-right">
+                          <div className="flex justify-end items-center gap-2">
+                            {next && next.action !== 'auto' ? (
+                              <button
+                                onClick={() => runStep(inq, next)}
+                                className="px-4 py-2.5 rounded-xl bg-brand-gold text-brand-dark text-[11px] font-black hover:bg-brand-dark hover:text-white transition-colors whitespace-nowrap"
+                              >
+                                {next.cta}
+                              </button>
+                            ) : next ? (
+                              <span className="text-[11px] font-bold text-gray-400 whitespace-nowrap">{next.cta}</span>
+                            ) : null}
+                            <button onClick={() => setDrawerId(inq.id)} aria-label={`Отвори ${inq.clientName || 'запитването'}`} className="inline-flex items-center gap-0.5 px-3 py-2.5 rounded-xl border border-gray-200 text-[11px] font-bold text-brand-dark hover:border-brand-gold">
+                              Отвори <ChevronRight size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {drawerInq && (
+        <InquiryDrawer
+          inq={drawerInq}
+          tour={tourOf(drawerInq)}
+          operator={operatorFor(drawerInq)}
+          pdfUrl={pdfUrlFor(tourOf(drawerInq))}
+          actions={drawerActions(drawerInq)}
+          onClose={() => setDrawerId(null)}
+        />
+      )}
+
+      {paymentDraft && <PaymentDialog draft={paymentDraft} onClose={() => setPaymentDraft(null)} onSave={savePayment} />}
 
       {/* МОДАЛ: РЕДАКЦИЯ НА ЗАПИТВАНЕ */}
       {editingInq && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-dark/90 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-brand-dark/90 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95">
             <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-              <h3 className="font-serif italic text-xl text-brand-dark">Редактиране на запитване</h3>
-              <button onClick={() => setEditingInq(null)} className="p-2 text-gray-300 hover:text-red-500"><X size={24} /></button>
+              <div>
+                <h3 className="font-serif italic text-xl text-brand-dark">Промяна на запитването</h3>
+                <p className="text-xs text-gray-400 mt-1">{editingInq.clientName} · сега: {editingInq.tourTitle || 'Общо запитване'}, {editingInq.tourDate || 'без дата'}</p>
+              </div>
+              <button onClick={() => setEditingInq(null)} aria-label="Затвори" className="p-2 text-gray-300 hover:text-red-500"><X size={24} /></button>
             </div>
-            <div className="p-8 space-y-6">
+            <div className="p-8 space-y-6 overflow-y-auto max-h-[85vh]">
               {editingInq?.message && (
                 <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
                   <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Съобщение от клиента</label>
@@ -1094,32 +1232,29 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                 />
                 <p className="text-[11px] text-gray-400 mt-2 ml-2">Може да се смени, докато човекът още не е клиент. При „Платено“ имейлът отива в профила му.</p>
               </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2 mb-2 block">Екскурзия</label>
-                <select
-                  value={editForm.tourId}
-                  onChange={e => {
-                    const t = allTours.find(x => x.id === e.target.value);
-                    setEditForm({...editForm, tourId: e.target.value, tourTitle: t?.title || 'Общо запитване', tourDate: 'Не е потвърдена'});
-                  }}
-                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-brand-gold"
-                >
-                  <option value="">-- Общо запитване --</option>
-                  {allTours.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2 mb-2 block">Дата на пътуване</label>
-                {editForm.tourId ? (
-                  <select value={editForm.tourDate} onChange={e => setEditForm({...editForm, tourDate: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-brand-gold">
-                    <option value="Не е потвърдена">Не е потвърдена</option>
-                    {allTours.find(t => t.id === editForm.tourId)?.dates?.map((d: any) => {
-                      const dateStr = typeof d === 'string' ? d : `${d.startDate} - ${d.endDate}`;
-                      return <option key={dateStr} value={dateStr}>{dateStr}</option>;
-                    })}
-                  </select>
-                ) : (
-                  <input type="text" value={editForm.tourDate} onChange={e => setEditForm({...editForm, tourDate: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-medium outline-none" placeholder="напр. Май 2026" />
+              {/* Екскурзия и дата — същият избор като в запитването на сайта и в другите прозорци на админа:
+                  дестинации, търсене, всички дати на тура като бутони (вкл. архивирани турове и минали дати). */}
+              <div className="space-y-3">
+                <TourPicker
+                  label="Екскурзия и дата"
+                  tours={allTours.filter(t => t.status !== 'draft')}
+                  value={editTourChoice(editForm)}
+                  onChange={c => setEditForm({ ...editForm, ...editFieldsFromChoice(c) })}
+                  showMonthFilter
+                />
+                {editForm.tourId && editForm.tourId !== 'general' && (
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 ml-1">
+                    <span>Избрана дата: <strong className="text-brand-dark">{/^\d{4}-\d{2}-\d{2}$/.test(editForm.tourDate) ? displayTourDate(editForm.tourDate) : (editForm.tourDate || 'не е избрана')}</strong></span>
+                    <label className="inline-flex items-center gap-2">
+                      или друга дата:
+                      <input
+                        type="date"
+                        value={/^\d{4}-\d{2}-\d{2}$/.test(editForm.tourDate) ? editForm.tourDate : ''}
+                        onChange={e => setEditForm({ ...editForm, tourDate: e.target.value || 'Не е потвърдена' })}
+                        className="p-2 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium outline-none focus:bg-white focus:border-brand-gold"
+                      />
+                    </label>
+                  </div>
                 )}
               </div>
               <div>
@@ -1286,49 +1421,6 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
         </div>
       )}
 
-      {/* МОДАЛ: ПРЕГЛЕД НА ПОПЪЛНЕНИ ОТ КЛИЕНТА ДАННИ НА ПЪТНИЦИТЕ */}
-      {viewingTravelers && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-brand-dark/90 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[85vh] flex flex-col">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
-              <div>
-                <h3 className="font-serif italic text-xl text-brand-dark">Данни на пътниците</h3>
-                <p className="text-xs text-gray-400 mt-1">{viewingTravelers.inquiry.tourTitle}</p>
-              </div>
-              <button onClick={() => setViewingTravelers(null)} className="p-2 text-gray-300 hover:text-red-500"><X size={24} /></button>
-            </div>
-            <div className="p-8 space-y-4 overflow-y-auto">
-              {viewingTravelers.travelers === null ? (
-                <p className="text-center text-gray-400 py-8">Декриптиране...</p>
-              ) : viewingTravelers.travelers.length === 0 ? (
-                <p className="text-center text-gray-400 py-8">Клиентът още не е попълнил данни.</p>
-              ) : (
-                viewingTravelers.travelers.map((t: any, idx: number) => (
-                  <div key={idx} className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Пътник {idx + 1}</p>
-                    <p className="font-bold text-brand-dark text-sm mb-2">{t.latinName}</p>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div><span className="text-gray-400 block">ЕГН</span><span className="font-mono font-bold text-brand-dark">{t.egn}</span></div>
-                      <div><span className="text-gray-400 block">Паспорт</span><span className="font-mono font-bold text-brand-dark">{t.passportNumber}</span></div>
-                      <div className="col-span-2"><span className="text-gray-400 block">Валидност на паспорта</span><span className="font-bold text-brand-dark">{t.passportValidity}</span></div>
-                      {t.passportPhoto && (
-                        <div className="col-span-2">
-                          <span className="text-gray-400 block mb-1">Снимка на паспорта</span>
-                          <a href={`/api/admin/passport-photo?path=${encodeURIComponent(t.passportPhoto)}`} target="_blank" rel="noopener noreferrer">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={`/api/admin/passport-photo?path=${encodeURIComponent(t.passportPhoto)}`} alt={`Паспорт на пътник ${idx + 1}`} className="h-32 w-auto rounded-xl border border-gray-200 object-cover" />
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* МОДАЛ: НАПИШИ И ИЗПРАТИ ИМЕЙЛ (КОРЕСПОНДЕНЦИЯ) */}
       {emailModalData && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-brand-dark/90 backdrop-blur-sm p-4">
@@ -1336,7 +1428,7 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
             <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
               <div>
                 <h3 className="font-serif italic text-xl text-brand-dark">Изпрати имейл</h3>
-                <p className="text-xs text-gray-400 mt-1">До: {emailModalData.inquiry.clientEmail || 'няма въведен имейл'}</p>
+                <p className="text-xs text-gray-400 mt-1">До: {emailModalData.to ? `${emailModalData.toLabel || ''} (${emailModalData.to})` : (emailModalData.inquiry.clientEmail || 'няма въведен имейл')}</p>
               </div>
               <button onClick={() => setEmailModalData(null)} className="p-2 text-gray-300 hover:text-red-500"><X size={24} /></button>
             </div>
@@ -1362,57 +1454,6 @@ export default function ReservationsTab({ allTours, allCampaigns, customers, onS
                 {isSendingEmail ? 'Изпращане...' : <><Send size={16}/> Изпрати</>}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* МОДАЛ: ЖУРНАЛ НА ИЗПРАТЕНИТЕ ИМЕЙЛИ */}
-      {viewingEmailLog && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-brand-dark/90 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[85vh] flex flex-col">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
-              <div>
-                <h3 className="font-serif italic text-xl text-brand-dark">Изпратени имейли</h3>
-                <p className="text-xs text-gray-400 mt-1">{viewingEmailLog.clientName}</p>
-              </div>
-              <button onClick={() => setViewingEmailLog(null)} className="p-2 text-gray-300 hover:text-red-500"><X size={24} /></button>
-            </div>
-            <div className="p-8 space-y-4 overflow-y-auto">
-              {(viewingEmailLog.emailLog || []).slice().reverse().map((entry: any, idx: number) => (
-                <div key={idx} className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-bold text-brand-dark text-sm">{entry.subject}</p>
-                    <span className="text-[10px] text-gray-400 flex items-center gap-1 shrink-0"><Clock size={10}/> {formatDateTime(entry.sentAt)}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 whitespace-pre-wrap">{entry.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* МОДАЛ: ИСТОРИЯ НА ЗАПИТВАНЕТО — кога какво е направено */}
-      {viewingHistory && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-brand-dark/90 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[85vh] flex flex-col">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
-              <div>
-                <h3 className="font-serif italic text-xl text-brand-dark">История</h3>
-                <p className="text-xs text-gray-400 mt-1">{viewingHistory.clientName} · {viewingHistory.tourTitle || 'Общо запитване'}</p>
-              </div>
-              <button onClick={() => setViewingHistory(null)} aria-label="Затвори" className="p-2 text-gray-300 hover:text-red-500"><X size={24} /></button>
-            </div>
-            <ol className="p-8 overflow-y-auto">
-              {buildTimeline(viewingHistory).map((event, idx, all) => (
-                <li key={idx} className="relative pl-6 pb-5 last:pb-0">
-                  {idx < all.length - 1 && <span className="absolute left-[5px] top-3 bottom-0 w-px bg-gray-200" aria-hidden="true" />}
-                  <span className={`absolute left-0 top-1.5 h-[11px] w-[11px] rounded-full border-2 ${idx === 0 ? 'border-brand-gold bg-brand-gold' : 'border-gray-300 bg-white'}`} aria-hidden="true" />
-                  <p className="text-[11px] font-bold text-gray-400 flex items-center gap-1"><Clock size={10}/> {formatDateTime(event.at)}</p>
-                  <p className="text-sm text-brand-dark mt-0.5">{event.text}</p>
-                </li>
-              ))}
-            </ol>
           </div>
         </div>
       )}

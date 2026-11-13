@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Save, Globe, List, Plus, Trash2, ImageIcon, Link as LinkIcon, Compass, Building2, Landmark, Map } from 'lucide-react';
 import MediaLibrary from '@/components/MediaLibrary';
 import { slugify } from '@/lib/admin-helpers';
+import { normalizeOperators, type Operator } from '@/lib/operators';
 import { WORLD_COUNTRIES } from '@/lib/constants'; // Твоят масив
 
 // Шестте фиксирани континентални етикета, същите като в TourForm.tsx — "Австралия" представя целия
@@ -23,7 +24,7 @@ export default function SettingsTab() {
   // Списъкът с турооператори живее в сепаратен Firestore документ (settings/operators), не в settings/homepage —
   // това не е настройка за началната страница, а глобален списък, използван от TourForm.tsx.
   // Всеки оператор сега пази и email — нужен за изпращане на данните на пътниците/договорите.
-  const [operators, setOperators] = useState<{ name: string; email: string }[]>([]);
+  const [operators, setOperators] = useState<Operator[]>([]);
   // Банкови детайли за checkout страницата — живее в settings/payment, отделно от всичко друго, защото е
   // финансова информация, не homepage настройка.
   const [paymentInfo, setPaymentInfo] = useState({ iban: '', accountHolder: '', bankName: '' });
@@ -52,8 +53,7 @@ export default function SettingsTab() {
         if (opsSnap.exists() && Array.isArray(opsSnap.data().list)) {
           // Обратна съвместимост — ако старите данни са прост масив от имена (преди тази поправка), конвертираме
           // във новия формат с празен email, вместо да гръмне/губим данни.
-          const raw = opsSnap.data().list;
-          setOperators(raw.map((o: any) => typeof o === 'string' ? { name: o, email: '' } : o));
+          setOperators(normalizeOperators(opsSnap.data().list));
         } else {
           // Първо зареждане — същият fallback като TourForm.tsx, вкл. 2МКО
           setOperators(['Beliva VIP', '2МКО', 'Дари Тур', 'Abax', 'Equator', 'Tez Tour', 'Emerald', 'Other'].map(name => ({ name, email: '' })));
@@ -297,7 +297,8 @@ export default function SettingsTab() {
         </p>
         <div className="space-y-3">
           {operators.map((op, idx) => (
-            <div key={idx} className="flex flex-col sm:flex-row items-center gap-3">
+            <div key={idx} className="border-b border-gray-50 pb-3 last:border-0">
+              <div className="flex flex-col sm:flex-row items-center gap-3">
               <input
                 type="text"
                 value={op.name}
@@ -322,10 +323,57 @@ export default function SettingsTab() {
               />
               <button
                 onClick={() => setOperators(operators.filter((_, i) => i !== idx))}
+                aria-label={`Премахни ${op.name || 'турооператора'}`}
                 className="bg-gray-50 text-red-400 p-3.5 rounded-2xl hover:text-red-600 transition-colors shrink-0"
               >
                 <Trash2 size={18}/>
               </button>
+              </div>
+              {/* Данни за офертата към клиента (чл. 82 ЗТ) и комисионната за „Справки“ */}
+              <details className="ml-1 mt-2 group">
+                <summary className="cursor-pointer text-[11px] font-bold text-gray-500 hover:text-brand-gold">
+                  Данни за офертата и комисионна{op.legalName && op.address ? ' ✓' : ' — непопълнени'}
+                </summary>
+                <div className="grid sm:grid-cols-2 gap-2 mt-3">
+                  {([
+                    ['legalName', 'Юридическо име (напр. „2М-КО“ ООД)'],
+                    ['regNumber', 'Рег. № на туроператора'],
+                    ['eik', 'ЕИК'],
+                    ['phone', 'Телефон'],
+                    ['address', 'Седалище и адрес на управление'],
+                    ['termsUrl', 'Линк към Общите условия'],
+                  ] as const).map(([field, label]) => (
+                    <input
+                      key={field}
+                      type="text"
+                      value={(op[field] as string) || ''}
+                      onChange={e => {
+                        const next = [...operators];
+                        next[idx] = { ...next[idx], [field]: e.target.value };
+                        setOperators(next);
+                      }}
+                      placeholder={label}
+                      aria-label={label}
+                      className="w-full p-3 rounded-xl border-none text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-brand-gold/20"
+                    />
+                  ))}
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={op.commissionPercent ?? ''}
+                    onChange={e => {
+                      const next = [...operators];
+                      next[idx] = { ...next[idx], commissionPercent: e.target.value === '' ? undefined : Number(e.target.value) };
+                      setOperators(next);
+                    }}
+                    placeholder="Комисионна % (за „Справки“)"
+                    aria-label="Комисионна в проценти"
+                    className="w-full p-3 rounded-xl border-none text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-brand-gold/20"
+                  />
+                </div>
+              </details>
             </div>
           ))}
           <button
